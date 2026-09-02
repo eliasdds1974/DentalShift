@@ -1,5 +1,4 @@
 @import "tailwindcss";
-@import "tw-animate-css";
 
 :root { --background:#f5f8fa; --foreground:#172b3a; --card:#fff; --card-foreground:#172b3a; --primary:#16884a; --primary-foreground:#fff; --secondary:#eef3f6; --secondary-foreground:#17324a; --muted:#eef3f6; --muted-foreground:#64748b; --accent:#eaf8ef; --accent-foreground:#137a3d; --destructive:#dc2626; --border:#dde5eb; --input:#d6e0e7; --ring:#23a455; --radius:.85rem; }
 @theme inline { --color-background:var(--background); --color-foreground:var(--foreground); --color-card:var(--card); --color-card-foreground:var(--card-foreground); --color-primary:var(--primary); --color-primary-foreground:var(--primary-foreground); --color-secondary:var(--secondary); --color-secondary-foreground:var(--secondary-foreground); --color-muted:var(--muted); --color-muted-foreground:var(--muted-foreground); --color-accent:var(--accent); --color-accent-foreground:var(--accent-foreground); --color-destructive:var(--destructive); --color-border:var(--border); --color-input:var(--input); --color-ring:var(--ring); --font-sans:"Aptos","Segoe UI",Arial,sans-serif; }
