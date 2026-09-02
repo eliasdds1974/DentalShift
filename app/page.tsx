@@ -385,7 +385,14 @@ function AccountModal({ close, session, profile }: { close: () => void; session:
         province: String(form.get("province") || "BC"),
         postal_code: String(form.get("postal_code") || ""),
       };
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
+      const { data, error: signUpError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: metadata,
+          emailRedirectTo: `${window.location.origin}/`,
+        },
+      });
       if (signUpError) setError(signUpError.message);
       else if (!data.session) setNotice("Account created. Check your email to confirm your address, then sign in.");
       else close();
