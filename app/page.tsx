@@ -46,13 +46,241 @@ function Header({ role, onMenu, onPost }: { role: Role; onMenu: () => void; onPo
 
 function OfficeDashboard({ onPost }: { onPost: () => void }) {
   const [booked, setBooked] = useState<string[]>([]);
-  return <div className="page-wrap"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><StatusPill><BadgeCheck size={13} /> Verified office</StatusPill><h1 className="page-title">Good afternoon, Lakeside Dental</h1><p className="page-subtitle">Your staffing picture for the next two weeks.</p></div><button onClick={onPost} className="primary-btn sm:hidden"><Plus size={18} /> Post a shift</button></div><section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric icon={<CalendarDays size={21} />} label="Open shifts" value="3" detail="2 need attention" color="bg-blue-50 text-blue-700" /><Metric icon={<UsersRound size={21} />} label="New applicants" value="7" detail="Across 3 shifts" color="bg-violet-50 text-violet-700" /><Metric icon={<BadgeCheck size={21} />} label="Confirmed" value="4" detail="Next 14 days" color="bg-emerald-50 text-emerald-700" /><Metric icon={<Star size={21} />} label="Office rating" value="4.9" detail="32 professional reviews" color="bg-amber-50 text-amber-700" /></section><section className="mt-7 grid gap-6 xl:grid-cols-[1.4fr_.8fr]"><div className="panel overflow-hidden"><div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="section-title">Top matches</h2><p className="text-sm text-slate-500">Verified professionals available for your open shifts.</p></div><button className="text-sm font-bold text-[#16b85a]">View all</button></div><div className="divide-y divide-slate-100">{candidates.map((person) => <div key={person.name} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"><div className={`grid h-12 w-12 shrink-0 place-items-center rounded-full font-extrabold ${person.tint}`}>{person.initials}</div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-extrabold text-slate-900">{person.name}</p><BadgeCheck size={16} className="text-blue-600" /><StatusPill tone="blue">{person.match}% match</StatusPill></div><p className="mt-1 text-sm font-medium text-slate-600">{person.role}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500"><span className="flex items-center gap-1"><MapPin size={13} />{person.city}</span><span className="flex items-center gap-1"><Star size={13} className="fill-amber-400 text-amber-400" />{person.rating} · {person.shifts} shifts</span><span>${person.rate}/hr</span></div></div><button onClick={() => setBooked([...booked, person.name])} disabled={booked.includes(person.name)} className={booked.includes(person.name) ? "secondary-btn text-emerald-700" : "secondary-btn"}>{booked.includes(person.name) ? <><Check size={16} /> Invited</> : "Invite"}</button></div>)}</div></div><div className="space-y-6"><div className="panel p-5"><div className="flex items-center justify-between"><h2 className="section-title">Next shift</h2><StatusPill>Confirmed</StatusPill></div><div className="mt-5 rounded-2xl bg-[#102a43] p-5 text-white"><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-sky-200">Tomorrow</p><p className="mt-2 text-xl font-extrabold">Dental Hygienist</p><div className="mt-4 space-y-2 text-sm text-slate-200"><p className="flex gap-2"><Clock3 size={17} />8:00 AM–4:30 PM</p><p className="flex gap-2"><UserRound size={17} />Maya Roberts</p></div><button className="mt-5 w-full rounded-xl bg-white/10 py-2.5 text-sm font-bold hover:bg-white/20">View booking</button></div></div><div className="panel p-5"><h2 className="section-title">Fill faster</h2><p className="mt-2 text-sm leading-6 text-slate-500">Complete shift details and respond promptly to improve professional acceptance.</p><div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full w-[82%] rounded-full bg-[#22c55e]" /></div><p className="mt-2 text-xs font-bold text-slate-500">Office profile 82% complete</p></div></div></section></div>;
+  const [teamInvited, setTeamInvited] = useState(false);
+  const [location, setLocation] = useState("Downtown Kelowna");
+
+  return (
+    <div className="page-wrap">
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
+          <StatusPill><BadgeCheck size={13} /> Verified office</StatusPill>
+          <h1 className="page-title">Good afternoon, Lakeside Dental</h1>
+          <p className="page-subtitle">Your staffing picture for the next two weeks.</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:items-end">
+          <label className="text-xs font-extrabold uppercase tracking-[0.1em] text-slate-400" htmlFor="office-location">Office location</label>
+          <select id="office-location" value={location} onChange={(event) => setLocation(event.target.value)} className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-[#22c55e]">
+            <option>Downtown Kelowna</option>
+            <option>West Kelowna</option>
+          </select>
+          <button onClick={onPost} className="primary-btn sm:hidden"><Plus size={18} /> Post shifts</button>
+        </div>
+      </div>
+
+      <section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <Metric icon={<CalendarDays size={21} />} label="Open shifts" value="3" detail="2 need attention" color="bg-blue-50 text-blue-700" />
+        <Metric icon={<UsersRound size={21} />} label="New applicants" value="7" detail="Across 3 shifts" color="bg-violet-50 text-violet-700" />
+        <Metric icon={<BadgeCheck size={21} />} label="Confirmed" value="4" detail="Next 14 days" color="bg-emerald-50 text-emerald-700" />
+        <Metric icon={<Star size={21} />} label="Office rating" value="4.9" detail="32 professional reviews" color="bg-amber-50 text-amber-700" />
+      </section>
+
+      <section className="mt-7 grid gap-6 xl:grid-cols-[1.4fr_.8fr]">
+        <div className="panel overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4">
+            <div>
+              <h2 className="section-title">Top matches</h2>
+              <p className="text-sm text-slate-500">Verified professionals available near {location}.</p>
+            </div>
+            <button className="text-sm font-bold text-[#16b85a]">View all</button>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {candidates.map((person) => (
+              <div key={person.name} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+                <div className={"grid h-12 w-12 shrink-0 place-items-center rounded-full font-extrabold " + person.tint}>{person.initials}</div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="font-extrabold text-slate-900">{person.name}</p>
+                    <BadgeCheck size={16} className="text-blue-600" />
+                    <StatusPill tone="blue">{person.match}% match</StatusPill>
+                  </div>
+                  <p className="mt-1 text-sm font-medium text-slate-600">{person.role}</p>
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500">
+                    <span className="flex items-center gap-1"><MapPin size={13} />{person.city}</span>
+                    <span className="flex items-center gap-1"><Star size={13} className="fill-amber-400 text-amber-400" />{person.rating} · {person.shifts} shifts</span>
+                    <span>${person.rate}/hr</span>
+                  </div>
+                </div>
+                <button onClick={() => setBooked([...booked, person.name])} disabled={booked.includes(person.name)} className={booked.includes(person.name) ? "secondary-btn text-emerald-700" : "secondary-btn"}>
+                  {booked.includes(person.name) ? <><Check size={16} /> Invited</> : "Invite"}
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <div className="panel p-5">
+            <div className="flex items-center justify-between"><h2 className="section-title">Next shift</h2><StatusPill>Confirmed</StatusPill></div>
+            <div className="mt-5 rounded-2xl bg-[#102a43] p-5 text-white">
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-sky-200">Tomorrow</p>
+              <p className="mt-2 text-xl font-extrabold">Dental Hygienist</p>
+              <div className="mt-4 space-y-2 text-sm text-slate-200">
+                <p className="flex gap-2"><Clock3 size={17} />8:00 AM–4:30 PM</p>
+                <p className="flex gap-2"><UserRound size={17} />Maya Roberts</p>
+              </div>
+              <button className="mt-5 w-full rounded-xl bg-white/10 py-2.5 text-sm font-bold hover:bg-white/20">View booking</button>
+            </div>
+          </div>
+
+          <div className="panel overflow-hidden">
+            <div className="bg-[#e8fbef] p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <StatusPill><Star size={13} /> Go-to team</StatusPill>
+                  <h2 className="mt-3 section-title">Rebook trusted professionals</h2>
+                </div>
+                <div className="flex -space-x-2">
+                  {candidates.map((person) => <div key={person.initials} className={"grid h-9 w-9 place-items-center rounded-full border-2 border-white text-xs font-extrabold " + person.tint}>{person.initials}</div>)}
+                </div>
+              </div>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Invite professionals you have rated highly before notifying the wider marketplace.</p>
+              <button onClick={() => setTeamInvited(true)} disabled={teamInvited} className="primary-btn mt-4 w-full">
+                {teamInvited ? <><Check size={17} /> Trusted team invited</> : <><UsersRound size={17} /> Invite go-to team</>}
+              </button>
+            </div>
+          </div>
+
+          <div className="panel p-5">
+            <h2 className="section-title">Fill faster</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-500">Complete shift details and respond promptly to improve professional acceptance.</p>
+            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100"><div className="h-full w-[82%] rounded-full bg-[#22c55e]" /></div>
+            <p className="mt-2 text-xs font-bold text-slate-500">Office profile 82% complete</p>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function ProfessionalDashboard() {
   const [applied, setApplied] = useState<number[]>([3]);
   const [saved, setSaved] = useState<number[]>([2]);
-  return <div className="page-wrap"><div><div className="flex flex-wrap gap-2"><StatusPill><BadgeCheck size={13} /> Licence verified</StatusPill><StatusPill tone="blue">Profile 92%</StatusPill></div><h1 className="page-title">Find your next shift</h1><p className="page-subtitle">Shifts matched to your profession, location and availability.</p></div><div className="panel mt-7 flex flex-col gap-3 p-3 md:flex-row"><label className="flex flex-1 items-center gap-3 rounded-xl bg-slate-50 px-4 py-3"><Search size={19} className="text-slate-400" /><input aria-label="Search shifts" className="w-full bg-transparent text-sm outline-none" placeholder="Search office, city or role" /></label><button className="secondary-btn justify-center"><CalendarDays size={17} /> Availability: This week</button><button className="primary-btn justify-center">Search shifts</button></div><section className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_.65fr]"><div><div className="mb-4 flex items-center justify-between"><h2 className="section-title">Best matches for you <span className="font-medium text-slate-400">(12)</span></h2><button className="text-sm font-bold text-slate-500">Newest first</button></div><div className="space-y-4">{openShifts.map((shift) => <article key={shift.id} className={`panel p-5 transition hover:-translate-y-0.5 hover:shadow-lg ${shift.featured ? "ring-2 ring-emerald-500/20" : ""}`}><div className="flex items-start justify-between gap-4"><div className="flex min-w-0 gap-4"><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e8fbef] text-[#16b85a]"><Building2 size={23} /></div><div><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-extrabold text-slate-900">{shift.office}</h3><BadgeCheck size={16} className="text-blue-600" />{shift.featured && <StatusPill>Top match</StatusPill>}</div><p className="mt-1 text-sm font-semibold text-slate-600">{shift.role}</p></div></div><button aria-label="Save shift" onClick={() => setSaved(saved.includes(shift.id) ? saved.filter((id) => id !== shift.id) : [...saved, shift.id])} className="rounded-full border border-slate-200 p-2.5"><Heart size={18} className={saved.includes(shift.id) ? "fill-rose-500 text-rose-500" : "text-slate-500"} /></button></div><div className="mt-5 grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-3"><p className="flex items-center gap-2 font-bold text-slate-700"><CalendarDays size={17} className="text-slate-400" />{shift.date}</p><p className="flex items-center gap-2 font-bold text-slate-700"><Clock3 size={17} className="text-slate-400" />{shift.time}</p><p className="flex items-center gap-2 font-bold text-slate-700"><MapPin size={17} className="text-slate-400" />{shift.distance}</p></div><div className="mt-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center"><div><span className="text-2xl font-extrabold text-slate-900">${shift.rate}</span><span className="text-sm text-slate-500">/hour</span><p className="text-xs text-slate-500">Estimated ${shift.rate * 8} before deductions</p></div><button disabled={applied.includes(shift.id)} onClick={() => setApplied([...applied, shift.id])} className={applied.includes(shift.id) ? "secondary-btn justify-center text-emerald-700" : "primary-btn justify-center"}>{applied.includes(shift.id) ? <><Check size={17} /> Application sent</> : <>View & apply <ChevronRight size={17} /></>}</button></div></article>)}</div></div><aside className="space-y-5"><div className="panel p-5"><div className="flex items-center justify-between"><h2 className="section-title">Your week</h2><span className="text-sm font-extrabold text-[#16b85a]">$896 booked</span></div><div className="mt-4 grid grid-cols-7 gap-1">{["M","T","W","T","F","S","S"].map((day, i) => <div key={i} className="text-center"><p className="text-[11px] font-bold text-slate-400">{day}</p><div className={`mx-auto mt-2 grid h-8 w-8 place-items-center rounded-full text-xs font-bold ${i === 1 || i === 3 ? "bg-[#22c55e] text-white" : "bg-slate-50 text-slate-500"}`}>{3 + i}</div></div>)}</div><div className="mt-5 space-y-3"><div className="rounded-xl border-l-4 border-[#22c55e] bg-emerald-50 p-3"><p className="text-xs font-bold text-emerald-700">Tue, Sept 4 · Confirmed</p><p className="mt-1 text-sm font-extrabold text-slate-800">Lakeside Dental</p></div><div className="rounded-xl border-l-4 border-blue-500 bg-blue-50 p-3"><p className="text-xs font-bold text-blue-700">Thu, Sept 6 · Pending</p><p className="mt-1 text-sm font-extrabold text-slate-800">Orchard Park Dental</p></div></div></div><div className="panel p-5"><div className="flex gap-3"><div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-600"><Sparkles size={20} /></div><div><h2 className="font-extrabold text-slate-900">Stand out to offices</h2><p className="mt-1 text-sm leading-6 text-slate-500">Add two references to complete your profile and increase your match score.</p><button className="mt-3 text-sm font-extrabold text-[#16b85a]">Complete profile →</button></div></div></div></aside></section></div>;
+  const [negotiating, setNegotiating] = useState<number | null>(null);
+  const [proposedRates, setProposedRates] = useState<Record<number, number>>({});
+  const [draftRates, setDraftRates] = useState<Record<number, number>>({});
+
+  const sendRateProposal = (shiftId: number, listedRate: number) => {
+    setProposedRates({ ...proposedRates, [shiftId]: draftRates[shiftId] || listedRate });
+    setNegotiating(null);
+  };
+
+  return (
+    <div className="page-wrap">
+      <div>
+        <div className="flex flex-wrap gap-2">
+          <StatusPill><BadgeCheck size={13} /> Licence verified</StatusPill>
+          <StatusPill tone="blue">Profile 92%</StatusPill>
+        </div>
+        <h1 className="page-title">Find your next shift</h1>
+        <p className="page-subtitle">Shifts matched to your profession, location and availability.</p>
+      </div>
+
+      <div className="panel mt-7 flex flex-col gap-3 p-3 md:flex-row">
+        <label className="flex flex-1 items-center gap-3 rounded-xl bg-slate-50 px-4 py-3">
+          <Search size={19} className="text-slate-400" />
+          <input aria-label="Search shifts" className="w-full bg-transparent text-sm outline-none" placeholder="Search office, city or role" />
+        </label>
+        <button className="secondary-btn justify-center"><CalendarDays size={17} /> Availability: This week</button>
+        <button className="primary-btn justify-center">Search shifts</button>
+      </div>
+
+      <section className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_.65fr]">
+        <div>
+          <div className="mb-4 flex items-center justify-between">
+            <h2 className="section-title">Best matches for you <span className="font-medium text-slate-400">(12)</span></h2>
+            <button className="text-sm font-bold text-slate-500">Newest first</button>
+          </div>
+
+          <div className="space-y-4">
+            {openShifts.map((shift) => (
+              <article key={shift.id} className={"panel p-5 transition hover:-translate-y-0.5 hover:shadow-lg " + (shift.featured ? "ring-2 ring-emerald-500/20" : "")}>
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 gap-4">
+                    <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#e8fbef] text-[#16b85a]"><Building2 size={23} /></div>
+                    <div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-lg font-extrabold text-slate-900">{shift.office}</h3>
+                        <BadgeCheck size={16} className="text-blue-600" />
+                        {shift.featured && <StatusPill>Top match</StatusPill>}
+                      </div>
+                      <p className="mt-1 text-sm font-semibold text-slate-600">{shift.role}</p>
+                    </div>
+                  </div>
+                  <button aria-label="Save shift" onClick={() => setSaved(saved.includes(shift.id) ? saved.filter((id) => id !== shift.id) : [...saved, shift.id])} className="rounded-full border border-slate-200 p-2.5">
+                    <Heart size={18} className={saved.includes(shift.id) ? "fill-rose-500 text-rose-500" : "text-slate-500"} />
+                  </button>
+                </div>
+
+                <div className="mt-5 grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm sm:grid-cols-3">
+                  <p className="flex items-center gap-2 font-bold text-slate-700"><CalendarDays size={17} className="text-slate-400" />{shift.date}</p>
+                  <p className="flex items-center gap-2 font-bold text-slate-700"><Clock3 size={17} className="text-slate-400" />{shift.time}</p>
+                  <p className="flex items-center gap-2 font-bold text-slate-700"><MapPin size={17} className="text-slate-400" />{shift.distance}</p>
+                </div>
+
+                {proposedRates[shift.id] && (
+                  <div className="mt-4 flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3 text-sm font-bold text-blue-700">
+                    <Check size={16} /> Your ${proposedRates[shift.id]}/hour proposal was sent
+                  </div>
+                )}
+
+                {negotiating === shift.id && !proposedRates[shift.id] && (
+                  <div className="mt-4 rounded-2xl border border-blue-200 bg-blue-50 p-4">
+                    <p className="text-sm font-extrabold text-slate-800">Propose a different hourly rate</p>
+                    <div className="mt-3 flex gap-2">
+                      <div className="relative flex-1">
+                        <span className="absolute left-3 top-2.5 font-bold text-slate-400">$</span>
+                        <input aria-label="Proposed hourly rate" type="number" min="1" value={draftRates[shift.id] || shift.rate} onChange={(event) => setDraftRates({ ...draftRates, [shift.id]: Number(event.target.value) })} className="w-full rounded-xl border border-blue-200 bg-white py-2.5 pl-7 pr-3 font-bold outline-none focus:border-blue-500" />
+                      </div>
+                      <button onClick={() => sendRateProposal(shift.id, shift.rate)} className="primary-btn">Send proposal</button>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-5 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                  <div>
+                    <span className="text-2xl font-extrabold text-slate-900">${shift.rate}</span>
+                    <span className="text-sm text-slate-500">/hour</span>
+                    <p className="text-xs text-slate-500">Estimated ${shift.rate * 8} before deductions</p>
+                  </div>
+                  <div className="flex flex-col gap-2 sm:flex-row">
+                    {!proposedRates[shift.id] && (
+                      <button onClick={() => setNegotiating(negotiating === shift.id ? null : shift.id)} className="secondary-btn justify-center">Propose rate</button>
+                    )}
+                    <button disabled={applied.includes(shift.id)} onClick={() => setApplied([...applied, shift.id])} className={applied.includes(shift.id) ? "secondary-btn justify-center text-emerald-700" : "primary-btn justify-center"}>
+                      {applied.includes(shift.id) ? <><Check size={17} /> Application sent</> : <>View & apply <ChevronRight size={17} /></>}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        </div>
+
+        <aside className="space-y-5">
+          <div className="panel p-5">
+            <div className="flex items-center justify-between"><h2 className="section-title">Your week</h2><span className="text-sm font-extrabold text-[#16b85a]">$896 booked</span></div>
+            <div className="mt-4 grid grid-cols-7 gap-1">
+              {["M","T","W","T","F","S","S"].map((day, i) => <div key={i} className="text-center"><p className="text-[11px] font-bold text-slate-400">{day}</p><div className={"mx-auto mt-2 grid h-8 w-8 place-items-center rounded-full text-xs font-bold " + (i === 1 || i === 3 ? "bg-[#22c55e] text-white" : "bg-slate-50 text-slate-500")}>{3 + i}</div></div>)}
+            </div>
+            <div className="mt-5 space-y-3">
+              <div className="rounded-xl border-l-4 border-[#22c55e] bg-emerald-50 p-3"><p className="text-xs font-bold text-emerald-700">Tue, Sept 4 · Confirmed</p><p className="mt-1 text-sm font-extrabold text-slate-800">Lakeside Dental</p></div>
+              <div className="rounded-xl border-l-4 border-blue-500 bg-blue-50 p-3"><p className="text-xs font-bold text-blue-700">Thu, Sept 6 · Pending</p><p className="mt-1 text-sm font-extrabold text-slate-800">Orchard Park Dental</p></div>
+            </div>
+          </div>
+          <div className="panel p-5">
+            <div className="flex gap-3">
+              <div className="grid h-10 w-10 place-items-center rounded-xl bg-amber-50 text-amber-600"><Sparkles size={20} /></div>
+              <div>
+                <h2 className="font-extrabold text-slate-900">Stand out to offices</h2>
+                <p className="mt-1 text-sm leading-6 text-slate-500">Add two references to complete your profile and increase your match score.</p>
+                <button className="mt-3 text-sm font-extrabold text-[#16b85a]">Complete profile →</button>
+              </div>
+            </div>
+          </div>
+        </aside>
+      </section>
+    </div>
+  );
 }
 
 function AdminDashboard() {
@@ -63,7 +291,86 @@ function AdminDashboard() {
 
 function ShiftModal({ close }: { close: () => void }) {
   const [posted, setPosted] = useState(false);
-  return <div className="fixed inset-0 z-[70] grid place-items-center bg-[#071b2d]/60 p-4"><button aria-label="Close" onClick={close} className="absolute inset-0" /><section role="dialog" aria-modal="true" aria-labelledby="modal-title" className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white shadow-2xl">{posted ? <div className="p-8 text-center sm:p-12"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check size={32} /></div><h2 className="mt-5 text-2xl font-extrabold text-slate-900">Your shift is live</h2><p className="mx-auto mt-2 max-w-md text-slate-500">Verified professionals who match the role, date and location can now view and apply.</p><button onClick={close} className="primary-btn mx-auto mt-6">View matches</button></div> : <><div className="flex items-center justify-between border-b border-slate-200 px-6 py-5"><div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#16b85a]">New staffing request</p><h2 id="modal-title" className="mt-1 text-2xl font-extrabold text-slate-900">Post a shift</h2></div><button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button></div><form onSubmit={(e) => { e.preventDefault(); setPosted(true); }} className="grid gap-5 p-6 sm:grid-cols-2"><label className="field sm:col-span-2"><span>Professional required</span><select required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dentist</option><option>Dental Receptionist</option></select></label><label className="field"><span>Date</span><input required type="date" defaultValue="2026-09-04" /></label><label className="field"><span>Hourly rate</span><div className="relative"><span className="absolute left-3 top-3 text-slate-400">$</span><input required type="number" className="pl-7!" defaultValue="56" /></div></label><label className="field"><span>Start time</span><input required type="time" defaultValue="08:00" /></label><label className="field"><span>End time</span><input required type="time" defaultValue="16:30" /></label><label className="field sm:col-span-2"><span>Shift notes</span><textarea rows={3} placeholder="Parking, software used, patient schedule or other helpful details" /></label><label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2"><input type="checkbox" defaultChecked className="mt-1 h-4 w-4 accent-[#22c55e]" /><span className="text-sm leading-6 text-slate-600"><strong className="block text-slate-800">Invite top matches automatically</strong>Notify suitable verified professionals within your selected distance.</span></label><div className="flex justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={close} className="secondary-btn">Cancel</button><button type="submit" className="primary-btn"><Sparkles size={17} /> Publish shift</button></div></form></>}</section></div>;
+  const [series, setSeries] = useState(false);
+
+  return (
+    <div className="fixed inset-0 z-[70] grid place-items-center bg-[#071b2d]/60 p-4">
+      <button aria-label="Close" onClick={close} className="absolute inset-0" />
+      <section role="dialog" aria-modal="true" aria-labelledby="modal-title" className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white shadow-2xl">
+        {posted ? (
+          <div className="p-8 text-center sm:p-12">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check size={32} /></div>
+            <h2 className="mt-5 text-2xl font-extrabold text-slate-900">{series ? "Your shift series is live" : "Your shift is live"}</h2>
+            <p className="mx-auto mt-2 max-w-md text-slate-500">{series ? "All three dates were created with the same role, rate and requirements." : "Verified professionals who match the role, date and location can now view and apply."}</p>
+            <button onClick={close} className="primary-btn mx-auto mt-6">View matches</button>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+              <div>
+                <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#16b85a]">New staffing request</p>
+                <h2 id="modal-title" className="mt-1 text-2xl font-extrabold text-slate-900">Post shifts</h2>
+              </div>
+              <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
+            </div>
+
+            <form onSubmit={(event) => { event.preventDefault(); setPosted(true); }} className="grid gap-5 p-6 sm:grid-cols-2">
+              <label className="field sm:col-span-2">
+                <span>Office location</span>
+                <select defaultValue="Downtown Kelowna"><option>Downtown Kelowna</option><option>West Kelowna</option></select>
+              </label>
+
+              <label className="field sm:col-span-2">
+                <span>Professional required</span>
+                <select required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dentist</option><option>Dental Receptionist</option></select>
+              </label>
+
+              <label className="field"><span>First date</span><input required type="date" defaultValue="2026-09-04" /></label>
+              <label className="field"><span>Hourly rate</span><div className="relative"><span className="absolute left-3 top-3 text-slate-400">$</span><input required type="number" className="pl-7!" defaultValue="56" /></div></label>
+              <label className="field"><span>Start time</span><input required type="time" defaultValue="08:00" /></label>
+              <label className="field"><span>End time</span><input required type="time" defaultValue="16:30" /></label>
+
+              <label className="field sm:col-span-2">
+                <span>Practice software experience</span>
+                <select defaultValue="Any software"><option>Any software</option><option>Cleardent</option><option>Tracker</option><option>Power Practice</option><option>ABELDent</option><option>Curve Dental</option></select>
+              </label>
+
+              <label className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:col-span-2">
+                <input type="checkbox" checked={series} onChange={(event) => setSeries(event.target.checked)} className="mt-1 h-4 w-4 accent-[#22c55e]" />
+                <span className="text-sm leading-6 text-slate-600">
+                  <strong className="block text-slate-800">Post several dates at once</strong>
+                  Copy the role, rate, hours and requirements into a shift series.
+                </span>
+              </label>
+
+              {series && (
+                <div className="grid gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:col-span-2 sm:grid-cols-2">
+                  <label className="field"><span>Additional date 2</span><input required type="date" defaultValue="2026-09-07" /></label>
+                  <label className="field"><span>Additional date 3</span><input required type="date" defaultValue="2026-09-09" /></label>
+                  <p className="text-sm font-bold text-blue-700 sm:col-span-2"><CalendarDays size={16} className="mr-1 inline" />3 shifts will be published together.</p>
+                </div>
+              )}
+
+              <label className="field sm:col-span-2"><span>Shift notes</span><textarea rows={3} placeholder="Parking, software used, patient schedule or other helpful details" /></label>
+
+              <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2">
+                <input type="checkbox" defaultChecked className="mt-1 h-4 w-4 accent-[#22c55e]" />
+                <span className="text-sm leading-6 text-slate-600">
+                  <strong className="block text-slate-800">Invite go-to team first</strong>
+                  Give trusted professionals an early opportunity before notifying all suitable matches.
+                </span>
+              </label>
+
+              <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2">
+                <button type="button" onClick={close} className="secondary-btn">Cancel</button>
+                <button type="submit" className="primary-btn"><Sparkles size={17} /> {series ? "Publish 3 shifts" : "Publish shift"}</button>
+              </div>
+            </form>
+          </>
+        )}
+      </section>
+    </div>
+  );
 }
 
 export default function Home() {
