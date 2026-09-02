@@ -1,7 +1,10 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
+import { supabase } from "@/lib/supabase";
+import { applyForShift, createShiftSeries, loadAccount, loadOpenShifts, type AccountProfile, type LiveShift } from "@/lib/dentalshift";
 
 type Role = "office" | "professional" | "admin";
 type View = "overview" | "shifts" | "talent" | "bookings";
@@ -40,8 +43,8 @@ function Sidebar({ role, setRole, view, setView, open, setOpen }: { role: Role; 
   return <>{open && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden" onClick={() => setOpen(false)} />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="px-2"><Brand /></div><div className="mt-8 rounded-2xl bg-slate-100 p-1"><div className="grid grid-cols-3 gap-1">{(["office", "professional", "admin"] as Role[]).map((r) => <button key={r} onClick={() => { setRole(r); setOpen(false); }} className={`rounded-xl px-2 py-2 text-xs font-bold capitalize transition ${role === r ? "bg-white text-[#102a43] shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{r === "professional" ? "Pro" : r}</button>)}</div></div><p className="mb-2 mt-7 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Workspace</p><nav className="space-y-1">{nav.map(([key, label, icon]) => <button key={key as string} onClick={() => { setView(key as View); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${view === key ? "bg-[#e8fbef] text-[#0f8f46]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}>{icon}{label}</button>)}</nav><div className="mt-auto rounded-2xl border border-emerald-100 bg-emerald-50 p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-emerald-800"><ShieldCheck size={18} /> Trust & safety</div><p className="mt-2 text-xs leading-5 text-emerald-700">Licences are checked against the applicable provincial registry.</p></div><div className="mt-4 flex items-center gap-3 px-2"><div className="grid h-10 w-10 place-items-center rounded-full bg-[#102a43] text-sm font-bold text-white">{role === "office" ? "LD" : role === "professional" ? "MR" : "EK"}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{role === "office" ? "Lakeside Dental" : role === "professional" ? "Maya Roberts" : "DentalShift Admin"}</p><p className="truncate text-xs text-slate-500">{role === "admin" ? "Platform administrator" : "Verified account"}</p></div></div></aside></>;
 }
 
-function Header({ role, onMenu, onPost, onMessages }: { role: Role; onMenu: () => void; onPost: () => void; onMessages: () => void }) {
-  return <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex items-center gap-3"><button className="rounded-xl border border-slate-200 p-2 lg:hidden" onClick={onMenu}><Menu size={21} /></button><div className="lg:hidden"><Brand compact /></div><div className="hidden text-sm text-slate-500 sm:block">{role === "office" ? "Office portal" : role === "professional" ? "Professional portal" : "Administration"}</div></div><div className="flex items-center gap-2 sm:gap-3"><button onClick={onMessages} className="secondary-btn"><MessageCircle size={17} /><span className="hidden sm:inline">Messages</span></button>{role === "office" && <button onClick={onPost} className="primary-btn"><Plus size={18} /> Post a shift</button>}</div></header>;
+function Header({ role, onMenu, onPost, onMessages, onAccount, signedIn }: { role: Role; onMenu: () => void; onPost: () => void; onMessages: () => void; onAccount: () => void; signedIn: boolean }) {
+  return <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex items-center gap-3"><button className="rounded-xl border border-slate-200 p-2 lg:hidden" onClick={onMenu}><Menu size={21} /></button><div className="lg:hidden"><Brand compact /></div><div className="hidden text-sm text-slate-500 sm:block">{role === "office" ? "Office portal" : role === "professional" ? "Professional portal" : "Administration"}</div></div><div className="flex items-center gap-2 sm:gap-3"><button onClick={onAccount} className="secondary-btn"><span className={"h-2 w-2 rounded-full " + (signedIn ? "bg-[#22c55e]" : "bg-slate-300")} /><span className="hidden sm:inline">{signedIn ? "Account" : "Sign in"}</span></button><button onClick={onMessages} className="secondary-btn"><MessageCircle size={17} /><span className="hidden sm:inline">Messages</span></button>{role === "office" && <button onClick={onPost} className="primary-btn"><Plus size={18} /> Post a shift</button>}</div></header>;
 }
 
 function OfficeDashboard({ onPost, onRebook }: { onPost: () => void; onRebook: () => void }) {
@@ -161,13 +164,32 @@ function OfficeDashboard({ onPost, onRebook }: { onPost: () => void; onRebook: (
   );
 }
 
-function ProfessionalDashboard() {
+function ProfessionalDashboard({ userId, refreshKey }: { userId: string | null; refreshKey: number }) {
   const [applied, setApplied] = useState<number[]>([3]);
   const [saved, setSaved] = useState<number[]>([2]);
   const [negotiating, setNegotiating] = useState<number | null>(null);
   const [proposedRates, setProposedRates] = useState<Record<number, number>>({});
   const [draftRates, setDraftRates] = useState<Record<number, number>>({});
   const [shiftStatus, setShiftStatus] = useState<"ready" | "checked-in" | "completed">("ready");
+  const [liveShifts, setLiveShifts] = useState<LiveShift[]>([]);
+  const [liveApplied, setLiveApplied] = useState<string[]>([]);
+  const [liveError, setLiveError] = useState("");
+
+  useEffect(() => {
+    if (!userId) return;
+    loadOpenShifts().then(setLiveShifts).catch((loadError) => setLiveError(loadError instanceof Error ? loadError.message : "Live shifts could not be loaded."));
+  }, [userId, refreshKey]);
+
+  const applyLive = async (shiftId: string, proposedRate?: number) => {
+    if (!userId) return;
+    try {
+      await applyForShift({ shiftId, professionalId: userId, proposedRate });
+      setLiveApplied([...liveApplied, shiftId]);
+      setLiveError("");
+    } catch (applicationError) {
+      setLiveError(applicationError instanceof Error ? applicationError.message : "The application could not be saved.");
+    }
+  };
 
   const sendRateProposal = (shiftId: number, listedRate: number) => {
     setProposedRates({ ...proposedRates, [shiftId]: draftRates[shiftId] || listedRate });
@@ -193,6 +215,21 @@ function ProfessionalDashboard() {
         <button className="secondary-btn justify-center"><CalendarDays size={17} /> Availability: This week</button>
         <button className="primary-btn justify-center">Search shifts</button>
       </div>
+
+      {userId && (
+        <section className="panel mt-6 overflow-hidden">
+          <div className="flex items-center justify-between border-b border-slate-200 px-5 py-4"><div><h2 className="section-title">Live DentalShift marketplace</h2><p className="text-sm text-slate-500">These shifts are loaded directly from the secure database.</p></div><StatusPill>{liveShifts.length} open</StatusPill></div>
+          {liveError && <p className="m-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{liveError}</p>}
+          {!liveError && liveShifts.length === 0 && <div className="p-6 text-center text-sm text-slate-500">No live shifts match right now. New office postings will appear here automatically.</div>}
+          <div className="divide-y divide-slate-100">
+            {liveShifts.map((shift) => {
+              const start = new Date(shift.starts_at);
+              const end = new Date(shift.ends_at);
+              return <article key={shift.id} className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#e8fbef] text-[#16b85a]"><CalendarDays size={21} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-extrabold text-slate-900">{shift.offices?.name || "Verified dental office"}</h3><BadgeCheck size={16} className="text-blue-600" />{shift.required_software && <StatusPill tone="blue">{shift.required_software}</StatusPill>}</div><p className="mt-1 text-sm font-bold text-slate-600">{shift.profession}</p><p className="mt-1 text-xs text-slate-500">{start.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{end.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })} · {shift.offices?.city}, {shift.offices?.province}</p></div><div className="flex items-center gap-3"><strong className="text-lg">${shift.hourly_rate}/hr</strong><button onClick={() => applyLive(shift.id)} disabled={liveApplied.includes(shift.id)} className={liveApplied.includes(shift.id) ? "secondary-btn text-emerald-700" : "primary-btn"}>{liveApplied.includes(shift.id) ? <><Check size={16} /> Saved</> : "Apply"}</button></div></article>;
+            })}
+          </div>
+        </section>
+      )}
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.45fr_.65fr]">
         <div>
@@ -316,6 +353,97 @@ function AdminDashboard() {
   return <div className="page-wrap"><div><StatusPill tone="blue"><ShieldCheck size={13} /> Platform operations</StatusPill><h1 className="page-title">Admin overview</h1><p className="page-subtitle">Verification, activity and platform trust at a glance.</p></div><section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric icon={<UsersRound size={21} />} label="Professionals" value="248" detail="31 joined this month" color="bg-blue-50 text-blue-700" /><Metric icon={<Building2 size={21} />} label="Dental offices" value="67" detail="8 awaiting review" color="bg-violet-50 text-violet-700" /><Metric icon={<CalendarDays size={21} />} label="Active shifts" value="43" detail="86% fill rate" color="bg-emerald-50 text-emerald-700" /><Metric icon={<MessageCircle size={21} />} label="Open disputes" value="2" detail="Both within SLA" color="bg-amber-50 text-amber-700" /></section><section className="mt-7 grid gap-6 xl:grid-cols-[1.35fr_.75fr]"><div className="panel overflow-hidden"><div className="border-b border-slate-200 px-5 py-4"><div className="flex items-center justify-between"><div><h2 className="section-title">Verification queue</h2><p className="text-sm text-slate-500">Review registry matches and submitted documents.</p></div><StatusPill tone="amber">8 waiting</StatusPill></div></div><div className="divide-y divide-slate-100">{queue.map((item) => <div key={item.name} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600"><FileCheck2 size={21} /></div><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-extrabold text-slate-900">{item.name}</p>{verified.includes(item.name) && <StatusPill>Approved</StatusPill>}</div><p className="mt-1 text-sm text-slate-600">{item.type} · {item.province} · {item.licence}</p><p className="mt-1 text-xs text-slate-400">Submitted {item.submitted}</p></div><div className="flex gap-2"><button className="secondary-btn">Review</button><button onClick={() => setVerified([...verified, item.name])} disabled={verified.includes(item.name)} className="primary-btn">{verified.includes(item.name) ? <Check size={17} /> : <ShieldCheck size={17} />} {verified.includes(item.name) ? "Approved" : "Approve"}</button></div></div>)}</div></div><div className="space-y-6"><div className="panel p-5"><h2 className="section-title">Licence monitoring</h2><div className="mt-4 space-y-4"><div className="flex items-center justify-between"><span className="text-sm text-slate-600">Registry checks today</span><strong>126</strong></div><div className="flex items-center justify-between"><span className="text-sm text-slate-600">Successful matches</span><strong className="text-emerald-700">121</strong></div><div className="flex items-center justify-between"><span className="text-sm text-slate-600">Manual review needed</span><strong className="text-amber-700">5</strong></div></div><div className="mt-5 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">All registry sources are responding normally. Next automatic recheck: tonight.</div></div><div className="panel p-5"><h2 className="section-title">Platform health</h2><div className="mt-4 flex items-end gap-2">{[48,62,54,76,68,88,82,94,78,91,86,98].map((h, i) => <div key={i} className="flex-1 rounded-t bg-[#22c55e]/80" style={{height: `${h}px`}} />)}</div><div className="mt-3 flex justify-between text-xs text-slate-400"><span>12 days ago</span><span>Today</span></div></div></div></section></div>;
 }
 
+function AccountModal({ close, session, profile }: { close: () => void; session: Session | null; profile: AccountProfile | null }) {
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [role, setRole] = useState<"office" | "professional">("office");
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState("");
+  const [error, setError] = useState("");
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") || "");
+    const password = String(form.get("password") || "");
+
+    if (mode === "signin") {
+      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) setError(signInError.message);
+      else close();
+    } else {
+      const metadata = {
+        role,
+        first_name: String(form.get("first_name") || ""),
+        last_name: String(form.get("last_name") || ""),
+        office_name: String(form.get("office_name") || ""),
+        profession: String(form.get("profession") || ""),
+        licence_number: String(form.get("licence_number") || ""),
+        city: String(form.get("city") || ""),
+        province: String(form.get("province") || "BC"),
+        postal_code: String(form.get("postal_code") || ""),
+      };
+      const { data, error: signUpError } = await supabase.auth.signUp({ email, password, options: { data: metadata } });
+      if (signUpError) setError(signUpError.message);
+      else if (!data.session) setNotice("Account created. Check your email to confirm your address, then sign in.");
+      else close();
+    }
+    setBusy(false);
+  };
+
+  const signOut = async () => {
+    setBusy(true);
+    await supabase.auth.signOut();
+    setBusy(false);
+    close();
+  };
+
+  return (
+    <div className="fixed inset-0 z-[90] grid place-items-center bg-[#071b2d]/60 p-4">
+      <button aria-label="Close" onClick={close} className="absolute inset-0" />
+      <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#16b85a]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{session ? "Account connected" : mode === "signin" ? "Sign in" : "Create your account"}</h2></div>
+          <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
+        </div>
+
+        {session ? (
+          <div className="p-6">
+            <div className="rounded-2xl bg-[#e8fbef] p-5"><StatusPill><Check size={13} /> Live data connected</StatusPill><p className="mt-3 text-lg font-extrabold text-slate-900">{profile?.first_name || session.user.email}</p><p className="mt-1 text-sm capitalize text-slate-600">{profile?.role || "Loading account"} account</p></div>
+            <p className="mt-5 text-sm leading-6 text-slate-500">Shifts, applications, proposals and protected booking records created while signed in are saved to DentalShift.</p>
+            <div className="mt-6 flex justify-end gap-3"><button onClick={close} className="secondary-btn">Close</button><button onClick={signOut} disabled={busy} className="primary-btn">Sign out</button></div>
+          </div>
+        ) : (
+          <form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">
+            <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:col-span-2">
+              <button type="button" onClick={() => setMode("signin")} className={"rounded-xl px-3 py-2.5 text-sm font-extrabold " + (mode === "signin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Sign in</button>
+              <button type="button" onClick={() => setMode("signup")} className={"rounded-xl px-3 py-2.5 text-sm font-extrabold " + (mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Create account</button>
+            </div>
+
+            {mode === "signup" && <>
+              <label className="field"><span>First name</span><input name="first_name" required /></label>
+              <label className="field"><span>Last name</span><input name="last_name" required /></label>
+              <label className="field sm:col-span-2"><span>Account type</span><select value={role} onChange={(event) => setRole(event.target.value as "office" | "professional")}><option value="office">Dental office</option><option value="professional">Dental professional</option></select></label>
+              {role === "office" ? <label className="field sm:col-span-2"><span>Office name</span><input name="office_name" required /></label> : <><label className="field"><span>Profession</span><select name="profession"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Receptionist</option><option>Dentist</option></select></label><label className="field"><span>Licence number</span><input name="licence_number" required /></label></>}
+              <label className="field"><span>City</span><input name="city" required /></label>
+              <label className="field"><span>Province</span><select name="province" defaultValue="BC"><option>BC</option><option>AB</option><option>SK</option><option>MB</option><option>ON</option><option>QC</option><option>NB</option><option>NS</option><option>PE</option><option>NL</option></select></label>
+              <label className="field sm:col-span-2"><span>Postal code</span><input name="postal_code" required /></label>
+            </>}
+
+            <label className="field sm:col-span-2"><span>Email</span><input name="email" type="email" required /></label>
+            <label className="field sm:col-span-2"><span>Password</span><input name="password" type="password" minLength={8} required /></label>
+            {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
+            {notice && <p className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 sm:col-span-2">{notice}</p>}
+            <button disabled={busy} className="primary-btn sm:col-span-2">{busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : "Create account"}</button>
+          </form>
+        )}
+      </section>
+    </div>
+  );
+}
+
 function RebookModal({ close }: { close: () => void }) {
   const [confirmed, setConfirmed] = useState(false);
 
@@ -419,9 +547,43 @@ function MessageCenter({ close, role }: { close: () => void; role: Role }) {
   );
 }
 
-function ShiftModal({ close }: { close: () => void }) {
+function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId: string | null; onSaved: () => void }) {
   const [posted, setPosted] = useState(false);
   const [series, setSeries] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const publishShifts = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!officeId) {
+      setError("Sign in with a dental-office account before publishing live shifts.");
+      return;
+    }
+    setSaving(true);
+    setError("");
+    const form = new FormData(event.currentTarget);
+    const dates = [String(form.get("date_1") || "")];
+    if (series) dates.push(String(form.get("date_2") || ""), String(form.get("date_3") || ""));
+    try {
+      await createShiftSeries({
+        officeId,
+        profession: String(form.get("profession") || ""),
+        dates,
+        startTime: String(form.get("start_time") || "08:00"),
+        endTime: String(form.get("end_time") || "16:30"),
+        hourlyRate: Number(form.get("hourly_rate") || 0),
+        software: String(form.get("software") || "Any software"),
+        notes: String(form.get("notes") || ""),
+        autoInvite: form.get("auto_invite") === "on",
+      });
+      setPosted(true);
+      onSaved();
+    } catch (publishError) {
+      setError(publishError instanceof Error ? publishError.message : "The shifts could not be published.");
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-[70] grid place-items-center bg-[#071b2d]/60 p-4">
@@ -444,7 +606,7 @@ function ShiftModal({ close }: { close: () => void }) {
               <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
             </div>
 
-            <form onSubmit={(event) => { event.preventDefault(); setPosted(true); }} className="grid gap-5 p-6 sm:grid-cols-2">
+            <form onSubmit={publishShifts} className="grid gap-5 p-6 sm:grid-cols-2">
               <label className="field sm:col-span-2">
                 <span>Office location</span>
                 <select defaultValue="Downtown Kelowna"><option>Downtown Kelowna</option><option>West Kelowna</option></select>
@@ -452,17 +614,17 @@ function ShiftModal({ close }: { close: () => void }) {
 
               <label className="field sm:col-span-2">
                 <span>Professional required</span>
-                <select required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dentist</option><option>Dental Receptionist</option></select>
+                <select name="profession" required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dentist</option><option>Dental Receptionist</option></select>
               </label>
 
-              <label className="field"><span>First date</span><input required type="date" defaultValue="2026-09-04" /></label>
-              <label className="field"><span>Hourly rate</span><div className="relative"><span className="absolute left-3 top-3 text-slate-400">$</span><input required type="number" className="pl-7!" defaultValue="56" /></div></label>
-              <label className="field"><span>Start time</span><input required type="time" defaultValue="08:00" /></label>
-              <label className="field"><span>End time</span><input required type="time" defaultValue="16:30" /></label>
+              <label className="field"><span>First date</span><input name="date_1" required type="date" defaultValue="2026-09-04" /></label>
+              <label className="field"><span>Hourly rate</span><div className="relative"><span className="absolute left-3 top-3 text-slate-400">$</span><input name="hourly_rate" required min="1" type="number" className="pl-7!" defaultValue="56" /></div></label>
+              <label className="field"><span>Start time</span><input name="start_time" required type="time" defaultValue="08:00" /></label>
+              <label className="field"><span>End time</span><input name="end_time" required type="time" defaultValue="16:30" /></label>
 
               <label className="field sm:col-span-2">
                 <span>Practice software experience</span>
-                <select defaultValue="Any software"><option>Any software</option><option>Cleardent</option><option>Tracker</option><option>Power Practice</option><option>ABELDent</option><option>Curve Dental</option></select>
+                <select name="software" defaultValue="Any software"><option>Any software</option><option>Cleardent</option><option>Tracker</option><option>Power Practice</option><option>ABELDent</option><option>Curve Dental</option></select>
               </label>
 
               <label className="flex items-start gap-3 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:col-span-2">
@@ -475,25 +637,26 @@ function ShiftModal({ close }: { close: () => void }) {
 
               {series && (
                 <div className="grid gap-4 rounded-2xl border border-blue-100 bg-blue-50 p-4 sm:col-span-2 sm:grid-cols-2">
-                  <label className="field"><span>Additional date 2</span><input required type="date" defaultValue="2026-09-07" /></label>
-                  <label className="field"><span>Additional date 3</span><input required type="date" defaultValue="2026-09-09" /></label>
+                  <label className="field"><span>Additional date 2</span><input name="date_2" required type="date" defaultValue="2026-09-07" /></label>
+                  <label className="field"><span>Additional date 3</span><input name="date_3" required type="date" defaultValue="2026-09-09" /></label>
                   <p className="text-sm font-bold text-blue-700 sm:col-span-2"><CalendarDays size={16} className="mr-1 inline" />3 shifts will be published together.</p>
                 </div>
               )}
 
-              <label className="field sm:col-span-2"><span>Shift notes</span><textarea rows={3} placeholder="Parking, software used, patient schedule or other helpful details" /></label>
+              <label className="field sm:col-span-2"><span>Shift notes</span><textarea name="notes" rows={3} placeholder="Parking, software used, patient schedule or other helpful details" /></label>
 
               <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2">
-                <input type="checkbox" defaultChecked className="mt-1 h-4 w-4 accent-[#22c55e]" />
+                <input name="auto_invite" type="checkbox" defaultChecked className="mt-1 h-4 w-4 accent-[#22c55e]" />
                 <span className="text-sm leading-6 text-slate-600">
                   <strong className="block text-slate-800">Invite preferred professionals first</strong>
                   Give trusted professionals an early opportunity. Accepted bookings remain protected and receive the lower repeat-booking fee.
                 </span>
               </label>
 
+              {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
               <div className="flex justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2">
                 <button type="button" onClick={close} className="secondary-btn">Cancel</button>
-                <button type="submit" className="primary-btn"><Sparkles size={17} /> {series ? "Publish 3 shifts" : "Publish shift"}</button>
+                <button type="submit" disabled={saving} className="primary-btn"><Sparkles size={17} /> {saving ? "Publishing…" : series ? "Publish 3 shifts" : "Publish shift"}</button>
               </div>
             </form>
           </>
@@ -510,6 +673,69 @@ export default function Home() {
   const [post, setPost] = useState(false);
   const [rebook, setRebook] = useState(false);
   const [messages, setMessages] = useState(false);
-  const content = useMemo(() => role === "office" ? <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} /> : role === "professional" ? <ProfessionalDashboard /> : <AdminDashboard />, [role]);
-  return <main className="min-h-screen bg-[#f5f8fa] text-slate-900"><Sidebar role={role} setRole={(r) => { setRole(r); setView("overview"); }} view={view} setView={setView} open={menu} setOpen={setMenu} /><div className="lg:pl-[270px]"><Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} />{content}</div>{post && <ShiftModal close={() => setPost(false)} />}{rebook && <RebookModal close={() => setRebook(false)} />}{messages && <MessageCenter role={role} close={() => setMessages(false)} />}</main>;
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  const [profile, setProfile] = useState<AccountProfile | null>(null);
+  const [officeId, setOfficeId] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+
+    const syncAccount = async (nextSession: Session | null) => {
+      if (!active) return;
+      setSession(nextSession);
+      if (!nextSession) {
+        setProfile(null);
+        setOfficeId(null);
+        return;
+      }
+      try {
+        const account = await loadAccount(nextSession.user.id);
+        if (!active) return;
+        setProfile(account.profile);
+        setOfficeId(account.officeId);
+        if (account.profile.role !== "admin") setRole(account.profile.role);
+      } catch {
+        if (active) {
+          setProfile(null);
+          setOfficeId(null);
+        }
+      }
+    };
+
+    supabase.auth.getSession().then(({ data }) => syncAccount(data.session));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+      setTimeout(() => syncAccount(nextSession), 0);
+    });
+
+    return () => {
+      active = false;
+      listener.subscription.unsubscribe();
+    };
+  }, []);
+
+  const content = useMemo(
+    () => role === "office"
+      ? <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />
+      : role === "professional"
+        ? <ProfessionalDashboard userId={session?.user.id ?? null} refreshKey={refreshKey} />
+        : <AdminDashboard />,
+    [role, session?.user.id, refreshKey],
+  );
+
+  return (
+    <main className="min-h-screen bg-[#f5f8fa] text-slate-900">
+      <Sidebar role={role} setRole={(nextRole) => { if (!session) setRole(nextRole); setView("overview"); }} view={view} setView={setView} open={menu} setOpen={setMenu} />
+      <div className="lg:pl-[270px]">
+        <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} signedIn={Boolean(session)} />
+        {session && profile && <div className="border-b border-emerald-100 bg-emerald-50 px-5 py-2 text-center text-xs font-bold text-emerald-800">Live account connected · changes are saved securely</div>}
+        {content}
+      </div>
+      {post && <ShiftModal close={() => setPost(false)} officeId={officeId} onSaved={() => setRefreshKey((value) => value + 1)} />}
+      {rebook && <RebookModal close={() => setRebook(false)} />}
+      {messages && <MessageCenter role={role} close={() => setMessages(false)} />}
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} />}
+    </main>
+  );
 }
