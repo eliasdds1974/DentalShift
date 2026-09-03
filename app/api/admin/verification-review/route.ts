@@ -12,6 +12,7 @@ function escapeHtml(value: string) {
 }
 
 export async function POST(request: Request) {
+  console.log("[verification-review] request received");
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
 
@@ -56,7 +57,10 @@ export async function POST(request: Request) {
   let recipientId = targetId;
   if (targetKind === "office") {
     const { data: office, error: officeError } = await serviceClient.from("offices").select("owner_id").eq("id", targetId).maybeSingle();
-    if (officeError || !office?.owner_id) return NextResponse.json({ emailSent: false });
+    if (officeError || !office?.owner_id) {
+      console.error("[verification-review] office owner lookup failed", { targetId });
+      return NextResponse.json({ emailSent: false, error: "Review request was saved, but the office owner email could not be found." });
+    }
     recipientId = office.owner_id;
   }
 
@@ -65,7 +69,10 @@ export async function POST(request: Request) {
     serviceClient.from("profiles").select("first_name").eq("id", recipientId).maybeSingle(),
   ]);
   const recipientEmail = recipientData.user?.email;
-  if (recipientError || !recipientEmail) return NextResponse.json({ emailSent: false });
+  if (recipientError || !recipientEmail) {
+    console.error("[verification-review] recipient lookup failed", { targetKind, targetId, recipientError: recipientError?.message });
+    return NextResponse.json({ emailSent: false, error: "Review request was saved, but the applicant email could not be found." });
+  }
 
   const firstName = recipientProfile?.first_name?.trim() || "there";
   const safeNotes = escapeHtml(notes).replace(/\n/g, "<br />");
@@ -81,6 +88,11 @@ export async function POST(request: Request) {
     }),
   });
 
-  if (!emailResponse.ok) return NextResponse.json({ emailSent: false });
+  if (!emailResponse.ok) {
+    const resendError = await emailResponse.text();
+    console.error("[verification-review] Resend rejected email", { status: emailResponse.status, resendError });
+    return NextResponse.json({ emailSent: false, error: "Review request was saved, but Resend rejected the email. Please check the Resend API key and sender domain." });
+  }
+  console.log("[verification-review] email accepted by Resend", { targetKind, targetId });
   return NextResponse.json({ emailSent: true });
 }
