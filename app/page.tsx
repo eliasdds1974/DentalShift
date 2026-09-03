@@ -929,7 +929,7 @@ export default function Home() {
         : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />
       : role === "professional"
         ? session && profile
-          ? <ProfessionalWorkspace userId={session.user.id} profile={profile} refreshKey={refreshKey} />
+          ? <ProfessionalWorkspace userId={session.user.id} profile={profile} refreshKey={refreshKey} view={view} />
           : <ProfessionalDashboard userId={null} refreshKey={refreshKey} />
         : session && profile?.role === "admin"
           ? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : <AdminDashboard userId={session.user.id} />
