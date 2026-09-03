@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { applyForShift, createShiftSeries, loadAccountDetails, loadOpenShifts, loadVerificationQueue, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type LiveShift, type VerificationItem } from "@/lib/dentalshift";
+import { applyForShift, createShiftSeries, loadAccountDetails, loadOpenShifts, loadVerificationQueue, requestVerificationReview, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type LiveShift, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import type { OfficeDetails } from "@/lib/dentalshift";
 
@@ -383,9 +383,10 @@ function AdminDashboard({ userId }: { userId: string }) {
     setBusyId(item.id);
     setError("");
     try {
-      await setVerificationStatus(item, "needs_review", notes.trim());
+      const result = await requestVerificationReview(item, notes);
       setReviewTarget(null);
       await refresh();
+      if (!result.emailSent) setError("Review request saved, but the applicant email could not be delivered. Please check the email sender settings and try again.");
     } catch (decisionError) {
       setError(decisionError instanceof Error ? decisionError.message : "The review request could not be saved.");
     } finally { setBusyId(""); }
