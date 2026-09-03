@@ -4,18 +4,23 @@ import { useEffect, useState } from "react";
 import { BadgeCheck, CalendarDays, Check, Clock3, FileCheck2, MapPin, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
 import {
   acceptApplication,
+  addProfessionalAvailability,
   applyForShift,
   bookingAction,
   inviteProfessional,
   loadOfficeWorkflow,
   loadProfessionalWorkflow,
+  removeProfessionalAvailability,
   respondToInvitation,
+  setFavouriteOffice,
   submitReview,
   withdrawApplication,
   type AccountProfile,
+  type FavouriteOffice,
   type LiveShift,
   type OfficeDetails,
   type OfficeShift,
+  type ProfessionalAvailability,
   type WorkflowApplication,
   type WorkflowBooking,
 } from "@/lib/dentalshift";
@@ -57,7 +62,7 @@ function ReviewBox({ booking, userId, onDone }: { booking: WorkflowBooking; user
 }
 
 export function ProfessionalWorkspace({ userId, profile, refreshKey }: { userId: string; profile: AccountProfile; refreshKey: number }) {
-  const [data, setData] = useState<{ open: LiveShift[]; applications: WorkflowApplication[]; bookings: WorkflowBooking[] }>({ open: [], applications: [], bookings: [] });
+  const [data, setData] = useState<{ open: LiveShift[]; applications: WorkflowApplication[]; bookings: WorkflowBooking[]; availability: ProfessionalAvailability[]; favourites: FavouriteOffice[] }>({ open: [], applications: [], bookings: [], availability: [], favourites: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -76,6 +81,19 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey }: { userId:
   };
   const existing = new Map(data.applications.map((application) => [application.shifts?.id, application]));
   const upcomingBookings = data.bookings.filter((booking) => !booking.cancelled_at);
+  const favouriteOfficeIds = new Set(data.favourites.map((favourite) => favourite.office_id));
+  const addAvailability = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const date = String(form.get("date") || "");
+    const start = String(form.get("start") || "");
+    const end = String(form.get("end") || "");
+    const startsAt = new Date(`${date}T${start}:00`).toISOString();
+    const endsAt = new Date(`${date}T${end}:00`).toISOString();
+    if (!date || !start || !end || new Date(endsAt) <= new Date(startsAt)) { setError("Choose a valid availability window."); return; }
+    void act("availability", () => addProfessionalAvailability(userId, startsAt, endsAt));
+    event.currentTarget.reset();
+  };
 
   return <div className="page-wrap">
     <Pill tone="blue"><BadgeCheck size={13} /> Live professional workspace</Pill>
@@ -87,6 +105,11 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey }: { userId:
         <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Open shifts</p><strong className="mt-1 block text-3xl">{data.open.length}</strong></div>
         <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Applications</p><strong className="mt-1 block text-3xl">{data.applications.filter((item) => ["applied", "invited"].includes(item.status)).length}</strong></div>
         <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Confirmed bookings</p><strong className="mt-1 block text-3xl">{upcomingBookings.length}</strong></div>
+      </section>
+
+      <section className="mt-7 grid gap-5 lg:grid-cols-2">
+        <div className="panel overflow-hidden"><div className="border-b border-slate-200 p-5"><h2 className="section-title">My availability</h2><p className="text-sm text-slate-500">Tell offices when you are available for future shifts.</p></div><form onSubmit={addAvailability} className="grid gap-3 p-5 sm:grid-cols-3"><label className="field"><span>Date</span><input name="date" type="date" required min={new Date().toISOString().slice(0, 10)} /></label><label className="field"><span>Start</span><input name="start" type="time" required /></label><label className="field"><span>End</span><input name="end" type="time" required /></label><div className="sm:col-span-3"><button type="submit" disabled={busy === "availability"} className="primary-btn">{busy === "availability" ? "Saving…" : "Add availability"}</button></div></form><div className="border-t border-slate-100 px-5 py-4">{data.availability.length === 0 ? <p className="text-sm text-slate-500">No availability windows added yet.</p> : <div className="space-y-2">{data.availability.map((slot) => <div key={slot.id} className="flex items-center justify-between gap-3 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-900"><span><strong>{new Date(slot.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })}</strong> · {new Date(slot.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(slot.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><button type="button" disabled={busy === slot.id} onClick={() => void act(slot.id, () => removeProfessionalAvailability(slot.id))} className="text-xs font-extrabold text-emerald-800 underline">Remove</button></div>)}</div>}</div></div>
+        <div className="panel overflow-hidden"><div className="border-b border-slate-200 p-5"><h2 className="section-title">Favourite offices</h2><p className="text-sm text-slate-500">Save offices you enjoy working with so their shifts are easy to spot.</p></div><div className="p-5">{data.favourites.length === 0 ? <p className="text-sm text-slate-500">Save an office from an available shift to build your preferred list.</p> : <div className="space-y-2">{data.favourites.map((favourite) => <div key={favourite.office_id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"><div><p className="font-extrabold text-slate-800">{favourite.offices?.name || "Dental office"}</p><p className="text-xs text-slate-500">{favourite.offices?.city}, {favourite.offices?.province}</p></div><button type="button" disabled={busy === favourite.office_id} onClick={() => void act(favourite.office_id, () => setFavouriteOffice(userId, favourite.office_id, false))} className="text-xs font-extrabold text-slate-600 underline">Remove</button></div>)}</div>}</div></div>
       </section>
 
       <section className="mt-7 panel overflow-hidden">
@@ -101,7 +124,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey }: { userId:
 
       <section className="mt-7 panel overflow-hidden">
         <div className="border-b border-slate-200 p-5"><h2 className="section-title">Available shifts</h2><p className="text-sm text-slate-500">Only shifts matching your verified profession can be accepted by the system.</p></div>
-        {data.open.length === 0 ? <p className="p-6 text-sm text-slate-500">No open shifts right now.</p> : <div className="divide-y divide-slate-100">{data.open.map((shift) => { const application = existing.get(shift.id); return <div key={shift.id} className="p-5 sm:flex sm:items-center sm:gap-4"><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><strong>{shift.offices?.name || "Dental office"}</strong>{shift.offices && <span className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={13} />{shift.offices.city}, {shift.offices.province}</span>}</div><p className="mt-1 text-sm font-bold text-slate-700">{shift.profession}</p><ShiftFacts shift={shift} /></div><button disabled={Boolean(application) || busy === shift.id} onClick={() => void act(shift.id, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className={application ? "secondary-btn mt-3 sm:mt-0" : "primary-btn mt-3 sm:mt-0"}>{application ? application.status.replace("_", " ") : "Apply now"}</button></div>; })}</div>}
+        {data.open.length === 0 ? <p className="p-6 text-sm text-slate-500">No open shifts right now.</p> : <div className="divide-y divide-slate-100">{data.open.map((shift) => { const application = existing.get(shift.id); return <div key={shift.id} className="p-5 sm:flex sm:items-center sm:gap-4"><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><strong>{shift.offices?.name || "Dental office"}</strong>{shift.offices && <span className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={13} />{shift.offices.city}, {shift.offices.province}</span>}</div><p className="mt-1 text-sm font-bold text-slate-700">{shift.profession}</p><ShiftFacts shift={shift} /></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><button disabled={Boolean(application) || busy === shift.id} onClick={() => void act(shift.id, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className={application ? "secondary-btn" : "primary-btn"}>{application ? application.status.replace("_", " ") : "Apply now"}</button><button type="button" disabled={busy === shift.office_id} onClick={() => void act(shift.office_id, () => setFavouriteOffice(userId, shift.office_id, !favouriteOfficeIds.has(shift.office_id)))} className="secondary-btn">{favouriteOfficeIds.has(shift.office_id) ? "Saved office" : "Save office"}</button></div></div>; })}</div>}
       </section>
     </>}
   </div>;
