@@ -430,6 +430,14 @@ async function addBookingContacts(bookings: WorkflowBooking[]) {
   }));
 }
 
+export type AvailableProfessionalSlot = {
+  id: string;
+  professional_id: string;
+  starts_at: string;
+  ends_at: string;
+  professional_profiles: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number } | null;
+};
+
 export type OfficeShift = LiveShift & { applications: WorkflowApplication[] };
 
 export async function addProfessionalAvailability(userId: string, startsAt: string, endsAt: string) {
@@ -467,16 +475,18 @@ export async function loadProfessionalWorkflow(userId: string) {
 }
 
 export async function loadOfficeWorkflow(officeId: string) {
-  const [shiftsResult, bookingsResult, directoryResult] = await Promise.all([
+  const [shiftsResult, bookingsResult, directoryResult, availabilityResult] = await Promise.all([
     supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
     supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").eq("available_for_work", true).order("rating", { ascending: false }).limit(12),
+    supabase.from("availability").select("id,professional_id,starts_at,ends_at,professional_profiles!availability_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score)").eq("available", true).gte("ends_at", new Date().toISOString()),
   ]);
   if (shiftsResult.error) throw shiftsResult.error;
   if (bookingsResult.error) throw bookingsResult.error;
   if (directoryResult.error) throw directoryResult.error;
+  if (availabilityResult.error) throw availabilityResult.error;
   const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[]);
-  return { shifts: (shiftsResult.data ?? []) as unknown as OfficeShift[], bookings, directory: directoryResult.data ?? [] };
+  return { shifts: (shiftsResult.data ?? []) as unknown as OfficeShift[], bookings, directory: directoryResult.data ?? [], availability: (availabilityResult.data ?? []) as unknown as AvailableProfessionalSlot[] };
 }
 
 export async function withdrawApplication(applicationId: string) {
