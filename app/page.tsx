@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { applyForShift, createShiftSeries, loadAccount, loadAccountDetails, loadOpenShifts, loadVerificationQueue, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type LiveShift, type VerificationItem } from "@/lib/dentalshift";
+import { applyForShift, createShiftSeries, loadAccountDetails, loadOpenShifts, loadVerificationQueue, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type LiveShift, type VerificationItem } from "@/lib/dentalshift";
+import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
+import type { OfficeDetails } from "@/lib/dentalshift";
 
 type Role = "office" | "professional" | "admin";
 type View = "overview" | "shifts" | "talent" | "bookings";
@@ -806,6 +808,7 @@ export default function Home() {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [officeId, setOfficeId] = useState<string | null>(null);
+  const [office, setOffice] = useState<OfficeDetails | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
@@ -817,18 +820,22 @@ export default function Home() {
       if (!nextSession) {
         setProfile(null);
         setOfficeId(null);
+        setOffice(null);
         return;
       }
       try {
-        const account = await loadAccount(nextSession.user.id);
+        const details = await loadAccountDetails(nextSession.user.id);
+        const account = { profile: details.profile, officeId: details.office?.id ?? null };
         if (!active) return;
         setProfile(account.profile);
         setOfficeId(account.officeId);
+        setOffice(details.office);
         setRole(account.profile.role);
       } catch {
         if (active) {
           setProfile(null);
           setOfficeId(null);
+          setOffice(null);
         }
       }
     };
@@ -846,11 +853,15 @@ export default function Home() {
 
   const content = useMemo(
     () => role === "office"
-      ? <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />
+      ? session && profile && office
+        ? <OfficeWorkspace userId={session.user.id} office={office} onPost={() => setPost(true)} refreshKey={refreshKey} />
+        : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />
       : role === "professional"
-        ? <ProfessionalDashboard userId={session?.user.id ?? null} refreshKey={refreshKey} />
+        ? session && profile
+          ? <ProfessionalWorkspace userId={session.user.id} profile={profile} refreshKey={refreshKey} />
+          : <ProfessionalDashboard userId={null} refreshKey={refreshKey} />
         : <AdminDashboard />,
-    [role, session?.user.id, refreshKey],
+    [role, session, profile, office, refreshKey],
   );
 
   return (
@@ -866,9 +877,10 @@ export default function Home() {
       {messages && <MessageCenter role={role} close={() => setMessages(false)} />}
       {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} onSaved={() => {
         setRefreshKey((value) => value + 1);
-        if (session) void loadAccount(session.user.id).then((account) => {
-          setProfile(account.profile);
-          setOfficeId(account.officeId);
+        if (session) void loadAccountDetails(session.user.id).then((details) => {
+          setProfile(details.profile);
+          setOfficeId(details.office?.id ?? null);
+          setOffice(details.office);
         });
       }} />}
     </main>

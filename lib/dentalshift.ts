@@ -270,32 +270,107 @@ export async function createShiftSeries(input: {
 }
 
 export async function applyForShift(input: { shiftId: string; professionalId: string; proposedRate?: number }) {
-  const { data, error } = await supabase
-    .from("applications")
-    .upsert({
-      shift_id: input.shiftId,
-      professional_id: input.professionalId,
-      proposed_rate: input.proposedRate ?? null,
-      application_kind: "application",
-      status: "applied",
-    }, { onConflict: "shift_id,professional_id" })
-    .select("id,status,proposed_rate")
-    .single();
+  const { data, error } = await supabase.rpc("apply_to_shift", {
+    p_shift_id: input.shiftId,
+    p_proposed_rate: input.proposedRate ?? null,
+    p_message: null,
+  });
   if (error) throw error;
   return data;
 }
 
 export async function updateAttendance(bookingId: string, action: "check_in" | "check_out", userId: string) {
-  const timestamp = new Date().toISOString();
-  const changes = action === "check_in" ? { check_in_at: timestamp } : { check_out_at: timestamp, professional_confirmed_completion: true };
-  const { error } = await supabase.from("bookings").update(changes).eq("id", bookingId);
+  void userId;
+  const { error } = await supabase.rpc("booking_action", { p_booking_id: bookingId, p_action: action });
   if (error) throw error;
-  const { error: eventError } = await supabase.from("booking_events").insert({
-    booking_id: bookingId,
-    actor_id: userId,
-    event_type: action === "check_in" ? "checked_in" : "checked_out",
-  });
-  if (eventError) throw eventError;
+}
+
+export type WorkflowApplication = {
+  id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string;
+  professional_id: string;
+  professional_profiles?: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number } | null;
+  shifts?: LiveShift | null;
+};
+
+export type WorkflowBooking = {
+  id: string; professional_id: string; check_in_at: string | null; check_out_at: string | null;
+  office_confirmed_completion: boolean; professional_confirmed_completion: boolean; cancelled_at: string | null;
+  shifts: LiveShift | null;
+  reviews: { id: string; reviewer_id: string; rating: number; comment: string | null }[];
+  contact?: BookingContact | null;
+};
+
+export type BookingContact = {
+  name: string; contact_name?: string; phone: string | null; email: string | null; role: "office" | "professional";
+  address?: string; city?: string; province?: string; postal_code?: string; website?: string | null;
+};
+
+async function addBookingContacts(bookings: WorkflowBooking[]) {
+  return Promise.all(bookings.map(async (booking) => {
+    const { data, error } = await supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id });
+    return { ...booking, contact: error ? null : data as BookingContact };
+  }));
+}
+
+export type OfficeShift = LiveShift & { applications: WorkflowApplication[] };
+
+export async function loadProfessionalWorkflow(userId: string) {
+  const [open, applicationsResult, bookingsResult] = await Promise.all([
+    loadOpenShifts(),
+    supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province))").eq("professional_id", userId).order("created_at", { ascending: false }),
+    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
+  ]);
+  if (applicationsResult.error) throw applicationsResult.error;
+  if (bookingsResult.error) throw bookingsResult.error;
+  const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[]);
+  return { open, applications: (applicationsResult.data ?? []) as unknown as WorkflowApplication[], bookings };
+}
+
+export async function loadOfficeWorkflow(officeId: string) {
+  const [shiftsResult, bookingsResult, directoryResult] = await Promise.all([
+    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
+    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
+    supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").eq("available_for_work", true).order("rating", { ascending: false }).limit(12),
+  ]);
+  if (shiftsResult.error) throw shiftsResult.error;
+  if (bookingsResult.error) throw bookingsResult.error;
+  if (directoryResult.error) throw directoryResult.error;
+  const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[]);
+  return { shifts: (shiftsResult.data ?? []) as unknown as OfficeShift[], bookings, directory: directoryResult.data ?? [] };
+}
+
+export async function withdrawApplication(applicationId: string) {
+  const { error } = await supabase.rpc("withdraw_application", { p_application_id: applicationId });
+  if (error) throw error;
+}
+
+export async function respondToInvitation(applicationId: string, accept: boolean) {
+  const { data, error } = await supabase.rpc("respond_to_invitation", { p_application_id: applicationId, p_accept: accept });
+  if (error) throw error;
+  return data;
+}
+
+export async function acceptApplication(applicationId: string) {
+  const { data, error } = await supabase.rpc("office_accept_application", { p_application_id: applicationId });
+  if (error) throw error;
+  return data;
+}
+
+export async function inviteProfessional(shiftId: string, professionalId: string, rate?: number) {
+  const { data, error } = await supabase.rpc("office_invite_professional", { p_shift_id: shiftId, p_professional_id: professionalId, p_proposed_rate: rate ?? null });
+  if (error) throw error;
+  return data;
+}
+
+export async function bookingAction(bookingId: string, action: "check_in" | "check_out" | "confirm_completion") {
+  const { error } = await supabase.rpc("booking_action", { p_booking_id: bookingId, p_action: action });
+  if (error) throw error;
+}
+
+export async function submitReview(bookingId: string, rating: number, comment = "") {
+  const { data, error } = await supabase.rpc("submit_booking_review", { p_booking_id: bookingId, p_rating: rating, p_comment: comment });
+  if (error) throw error;
+  return data;
 }
 
 export async function sendProtectedMessage(input: {
