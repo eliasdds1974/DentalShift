@@ -60,6 +60,15 @@ export type VerificationItem = {
   submittedAt: string;
 };
 
+export type VerificationCase = {
+  kind: "professional" | "office";
+  profile: { id: string; name: string; email: string | null; phone: string | null; city: string | null; province: string | null; postalCode: string | null; createdAt: string };
+  details: Record<string, unknown>;
+  licenceChecks: { id: string; sourceName: string | null; registryName: string | null; status: string; restrictions: string | null; checkedAt: string; rawReference: string | null }[];
+  decisions: { id: string; previousStatus: string | null; newStatus: string; notes: string | null; createdAt: string }[];
+  internalNotes: { id: string; body: string; createdAt: string; author: string | null }[];
+};
+
 export type LiveShift = {
   id: string;
   office_id: string;
@@ -235,7 +244,7 @@ export async function loadVerificationQueue() {
   return [...professionalItems, ...officeItems].sort((a, b) => a.submittedAt.localeCompare(b.submittedAt)) as VerificationItem[];
 }
 
-export async function setVerificationStatus(item: VerificationItem, status: "verified" | "needs_review", notes = "") {
+export async function setVerificationStatus(item: VerificationItem, status: "verified" | "needs_review" | "suspended", notes = "") {
   const { error } = await supabase.rpc("admin_set_verification_status", {
     target_kind: item.kind,
     target_id: item.id,
@@ -260,7 +269,25 @@ export async function requestVerificationReview(item: VerificationItem, notes: s
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error ?? "The review request could not be sent.");
-  return payload as { emailSent: boolean; error?: string };
+  return payload as { emailSent: boolean };
+}
+
+export async function loadVerificationCase(item: VerificationItem): Promise<VerificationCase> {
+  const { data, error } = await supabase.rpc("admin_get_verification_case", {
+    p_target_kind: item.kind,
+    p_target_id: item.id,
+  });
+  if (error) throw error;
+  return data as VerificationCase;
+}
+
+export async function addVerificationInternalNote(item: VerificationItem, body: string) {
+  const { error } = await supabase.rpc("admin_add_verification_internal_note", {
+    p_target_kind: item.kind,
+    p_target_id: item.id,
+    p_body: body.trim(),
+  });
+  if (error) throw error;
 }
 
 export async function loadOpenShifts() {
