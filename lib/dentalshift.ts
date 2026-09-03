@@ -46,6 +46,7 @@ export type AccountDetails = {
   profile: AccountProfile;
   professional: ProfessionalDetails | null;
   office: OfficeDetails | null;
+  verificationRequest: { notes: string; created_at: string } | null;
 };
 
 export type VerificationItem = {
@@ -100,6 +101,7 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
   const { profile } = await loadAccount(userId);
   let professional: ProfessionalDetails | null = null;
   let office: OfficeDetails | null = null;
+  let verificationRequest: { notes: string; created_at: string } | null = null;
 
   if (profile.role === "professional") {
     const { data, error } = await supabase
@@ -109,6 +111,20 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
       .single();
     if (error) throw error;
     professional = data as ProfessionalDetails;
+    if (professional.licence_status === "needs_review") {
+      const { data: decision, error: decisionError } = await supabase
+        .from("verification_decisions")
+        .select("notes,created_at")
+        .eq("target_kind", "professional")
+        .eq("target_id", userId)
+        .eq("new_status", "needs_review")
+        .not("notes", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (decisionError) throw decisionError;
+      verificationRequest = decision?.notes ? { notes: decision.notes, created_at: decision.created_at } : null;
+    }
   } else if (profile.role === "office") {
     const { data, error } = await supabase
       .from("offices")
@@ -121,7 +137,7 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
     office = data as OfficeDetails;
   }
 
-  return { profile, professional, office };
+  return { profile, professional, office, verificationRequest };
 }
 
 export async function saveAccountDetails(input: AccountDetails) {
