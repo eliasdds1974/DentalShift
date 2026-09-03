@@ -69,6 +69,21 @@ export type VerificationCase = {
   internalNotes: { id: string; body: string; createdAt: string; author: string | null }[];
 };
 
+export type AdminDispute = {
+  id: string;
+  category: string;
+  details: string;
+  status: string;
+  resolution: string | null;
+  createdAt: string;
+  resolvedAt: string | null;
+  openedBy: string;
+  office: { name: string; city: string; province: string };
+  professional: string | null;
+  shift: { id: string; profession: string; startsAt: string; status: string };
+  booking: { id: string; checkInAt: string | null; checkOutAt: string | null; cancelledAt: string | null };
+};
+
 export type AdminShift = {
   id: string;
   status: "draft" | "open" | "filled" | "completed" | "cancelled";
@@ -304,6 +319,17 @@ export async function addVerificationInternalNote(item: VerificationItem, body: 
     p_target_id: item.id,
     p_body: body.trim(),
   });
+  if (error) throw error;
+}
+
+export async function loadAdminDisputes(): Promise<AdminDispute[]> {
+  const { data, error } = await supabase.rpc("admin_list_disputes");
+  if (error) throw error;
+  return ((data as { disputes?: AdminDispute[] } | null)?.disputes ?? []) as AdminDispute[];
+}
+
+export async function resolveAdminDispute(disputeId: string, resolution: string) {
+  const { error } = await supabase.rpc("admin_resolve_dispute", { p_dispute_id: disputeId, p_resolution: resolution.trim() });
   if (error) throw error;
 }
 
