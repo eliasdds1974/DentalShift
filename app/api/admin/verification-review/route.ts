@@ -21,11 +21,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email delivery has not been configured yet." }, { status: 503 });
   }
 
+  const accessToken = authorization.slice("Bearer ".length);
   const requestClient = createClient(supabaseUrl, supabasePublishableKey, {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: authorization } },
   });
-  const { data: userData, error: userError } = await requestClient.auth.getUser();
+  const { data: userData, error: userError } = await requestClient.auth.getUser(accessToken);
   if (userError || !userData.user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
 
   const body = await request.json().catch(() => null) as { targetKind?: string; targetId?: string; notes?: string } | null;
