@@ -69,7 +69,7 @@ export async function POST(request: Request) {
     method: "POST",
     headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      from: "DentalShift Support <support@dentalshift.ca>",
+      from: "DentalShift <support@dentalshift.ca>",
       to: [recipientEmail],
       subject: "Action needed to verify your DentalShift account",
       text: `Hello ${firstName},\n\nYour DentalShift verification needs additional information:\n\n${notes}\n\nSign in to DentalShift to update your profile: ${siteUrl}\n\nYour account will remain unavailable for live shifts until verification is complete.\n\nDentalShift Support`,
