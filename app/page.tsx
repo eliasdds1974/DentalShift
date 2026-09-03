@@ -386,7 +386,7 @@ function AdminDashboard({ userId }: { userId: string }) {
       const result = await requestVerificationReview(item, notes);
       setReviewTarget(null);
       await refresh();
-      if (!result.emailSent) setError("Review request saved, but the applicant email could not be delivered. Please check the email sender settings and try again.");
+      if (!result.emailSent) setError(result.error ?? "Review request saved, but the applicant email could not be delivered. Please check the email sender settings and try again.");
     } catch (decisionError) {
       setError(decisionError instanceof Error ? decisionError.message : "The review request could not be saved.");
     } finally { setBusyId(""); }
