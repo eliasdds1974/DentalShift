@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { applyForShift, createShiftSeries, loadAccount, loadOpenShifts, type AccountProfile, type LiveShift } from "@/lib/dentalshift";
+import { applyForShift, createShiftSeries, loadAccount, loadAccountDetails, loadOpenShifts, loadVerificationQueue, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type LiveShift, type VerificationItem } from "@/lib/dentalshift";
 
 type Role = "office" | "professional" | "admin";
 type View = "overview" | "shifts" | "talent" | "bookings";
@@ -348,17 +348,53 @@ function ProfessionalDashboard({ userId, refreshKey }: { userId: string | null; 
 }
 
 function AdminDashboard() {
-  const [verified, setVerified] = useState<string[]>([]);
-  const queue = [{ name: "Priya S.", type: "Dental Hygienist", province: "BC", licence: "RDH-42719", submitted: "18 min ago" }, { name: "North Glen Dental", type: "Dental Office", province: "AB", licence: "Business profile", submitted: "1 hr ago" }, { name: "Alex T.", type: "Dental Assistant", province: "BC", licence: "CDA-11805", submitted: "3 hrs ago" }];
-  return <div className="page-wrap"><div><StatusPill tone="blue"><ShieldCheck size={13} /> Platform operations</StatusPill><h1 className="page-title">Admin overview</h1><p className="page-subtitle">Verification, activity and platform trust at a glance.</p></div><section className="mt-7 grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><Metric icon={<UsersRound size={21} />} label="Professionals" value="248" detail="31 joined this month" color="bg-blue-50 text-blue-700" /><Metric icon={<Building2 size={21} />} label="Dental offices" value="67" detail="8 awaiting review" color="bg-violet-50 text-violet-700" /><Metric icon={<CalendarDays size={21} />} label="Active shifts" value="43" detail="86% fill rate" color="bg-emerald-50 text-emerald-700" /><Metric icon={<MessageCircle size={21} />} label="Open disputes" value="2" detail="Both within SLA" color="bg-amber-50 text-amber-700" /></section><section className="mt-7 grid gap-6 xl:grid-cols-[1.35fr_.75fr]"><div className="panel overflow-hidden"><div className="border-b border-slate-200 px-5 py-4"><div className="flex items-center justify-between"><div><h2 className="section-title">Verification queue</h2><p className="text-sm text-slate-500">Review registry matches and submitted documents.</p></div><StatusPill tone="amber">8 waiting</StatusPill></div></div><div className="divide-y divide-slate-100">{queue.map((item) => <div key={item.name} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600"><FileCheck2 size={21} /></div><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-extrabold text-slate-900">{item.name}</p>{verified.includes(item.name) && <StatusPill>Approved</StatusPill>}</div><p className="mt-1 text-sm text-slate-600">{item.type} · {item.province} · {item.licence}</p><p className="mt-1 text-xs text-slate-400">Submitted {item.submitted}</p></div><div className="flex gap-2"><button className="secondary-btn">Review</button><button onClick={() => setVerified([...verified, item.name])} disabled={verified.includes(item.name)} className="primary-btn">{verified.includes(item.name) ? <Check size={17} /> : <ShieldCheck size={17} />} {verified.includes(item.name) ? "Approved" : "Approve"}</button></div></div>)}</div></div><div className="space-y-6"><div className="panel p-5"><h2 className="section-title">Licence monitoring</h2><div className="mt-4 space-y-4"><div className="flex items-center justify-between"><span className="text-sm text-slate-600">Registry checks today</span><strong>126</strong></div><div className="flex items-center justify-between"><span className="text-sm text-slate-600">Successful matches</span><strong className="text-emerald-700">121</strong></div><div className="flex items-center justify-between"><span className="text-sm text-slate-600">Manual review needed</span><strong className="text-amber-700">5</strong></div></div><div className="mt-5 rounded-xl bg-emerald-50 p-3 text-xs leading-5 text-emerald-800">All registry sources are responding normally. Next automatic recheck: tonight.</div></div><div className="panel p-5"><h2 className="section-title">Platform health</h2><div className="mt-4 flex items-end gap-2">{[48,62,54,76,68,88,82,94,78,91,86,98].map((h, i) => <div key={i} className="flex-1 rounded-t bg-[#22c55e]/80" style={{height: `${h}px`}} />)}</div><div className="mt-3 flex justify-between text-xs text-slate-400"><span>12 days ago</span><span>Today</span></div></div></div></section></div>;
+  const [queue, setQueue] = useState<VerificationItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
+
+  const refresh = async () => {
+    setLoading(true);
+    setError("");
+    try { setQueue(await loadVerificationQueue()); }
+    catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Could not load the verification queue."); }
+    finally { setLoading(false); }
+  };
+
+  useEffect(() => { void refresh(); }, []);
+
+  const decide = async (item: VerificationItem, status: "verified" | "needs_review") => {
+    setBusyId(item.id);
+    setError("");
+    try {
+      await setVerificationStatus(item, status, status === "verified" ? "Approved in DentalShift admin" : "Additional review requested in DentalShift admin");
+      await refresh();
+    } catch (decisionError) {
+      setError(decisionError instanceof Error ? decisionError.message : "The decision could not be saved.");
+    } finally { setBusyId(""); }
+  };
+
+  const professionalCount = queue.filter((item) => item.kind === "professional").length;
+  const officeCount = queue.filter((item) => item.kind === "office").length;
+  return <div className="page-wrap"><div><StatusPill tone="blue"><ShieldCheck size={13} /> Live platform operations</StatusPill><h1 className="page-title">Admin overview</h1><p className="page-subtitle">Review real account submissions and record every verification decision.</p></div><section className="mt-7 grid gap-4 sm:grid-cols-3"><Metric icon={<FileCheck2 size={21} />} label="Awaiting review" value={String(queue.length)} detail="Pending or needs review" color="bg-amber-50 text-amber-700" /><Metric icon={<UsersRound size={21} />} label="Professionals" value={String(professionalCount)} detail="In the current queue" color="bg-blue-50 text-blue-700" /><Metric icon={<Building2 size={21} />} label="Dental offices" value={String(officeCount)} detail="In the current queue" color="bg-violet-50 text-violet-700" /></section><section className="mt-7"><div className="panel overflow-hidden"><div className="border-b border-slate-200 px-5 py-4"><div className="flex items-center justify-between"><div><h2 className="section-title">Verification queue</h2><p className="text-sm text-slate-500">Approve a verified registry match or flag it for follow-up.</p></div><StatusPill tone="amber">{queue.length} waiting</StatusPill></div></div>{error && <p className="m-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}{loading ? <p className="p-8 text-center text-sm text-slate-500">Loading live submissions…</p> : queue.length === 0 ? <div className="p-10 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check size={24} /></div><p className="mt-3 font-extrabold text-slate-900">Queue is clear</p><p className="mt-1 text-sm text-slate-500">There are no pending verification submissions.</p></div> : <div className="divide-y divide-slate-100">{queue.map((item) => <div key={`${item.kind}-${item.id}`} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600"><FileCheck2 size={21} /></div><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-extrabold text-slate-900">{item.name}</p><StatusPill tone={item.status === "needs_review" ? "amber" : "gray"}>{item.status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{item.type} · {item.province} · {item.reference}</p><p className="mt-1 text-xs text-slate-400">Submitted {new Date(item.submittedAt).toLocaleDateString("en-CA", { dateStyle: "medium" })}</p></div><div className="flex gap-2"><button onClick={() => void decide(item, "needs_review")} disabled={busyId === item.id} className="secondary-btn">Needs review</button><button onClick={() => void decide(item, "verified")} disabled={busyId === item.id} className="primary-btn"><ShieldCheck size={17} /> {busyId === item.id ? "Saving…" : "Approve"}</button></div></div>)}</div>}</div></section></div>;
 }
 
-function AccountModal({ close, session, profile }: { close: () => void; session: Session | null; profile: AccountProfile | null }) {
+function AccountModal({ close, session, profile, onSaved }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [role, setRole] = useState<"office" | "professional">("office");
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
+  const [details, setDetails] = useState<AccountDetails | null>(null);
+
+  useEffect(() => {
+    if (!session) return;
+    setBusy(true);
+    loadAccountDetails(session.user.id)
+      .then(setDetails)
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load your profile."))
+      .finally(() => setBusy(false));
+  }, [session]);
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -407,6 +443,59 @@ function AccountModal({ close, session, profile }: { close: () => void; session:
     close();
   };
 
+  const saveProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!details) return;
+    setBusy(true);
+    setError("");
+    setNotice("");
+    const form = new FormData(event.currentTarget);
+    const next: AccountDetails = {
+      profile: {
+        ...details.profile,
+        first_name: String(form.get("first_name") || ""),
+        last_name: String(form.get("last_name") || ""),
+        phone: String(form.get("phone") || "") || null,
+        city: String(form.get("city") || ""),
+        province: String(form.get("province") || ""),
+        postal_code: String(form.get("postal_code") || "") || null,
+      },
+      professional: details.professional ? {
+        ...details.professional,
+        profession: String(form.get("profession") || ""),
+        licence_number: String(form.get("licence_number") || ""),
+        licence_province: String(form.get("licence_province") || ""),
+        hourly_rate: form.get("hourly_rate") ? Number(form.get("hourly_rate")) : null,
+        travel_radius_km: Number(form.get("travel_radius_km") || 25),
+        years_experience: form.get("years_experience") ? Number(form.get("years_experience")) : null,
+        bio: String(form.get("bio") || "") || null,
+        skills: String(form.get("skills") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        available_for_work: form.get("available_for_work") === "on",
+      } : null,
+      office: details.office ? {
+        ...details.office,
+        name: String(form.get("office_name") || ""),
+        address: String(form.get("address") || ""),
+        city: String(form.get("office_city") || ""),
+        province: String(form.get("office_province") || ""),
+        postal_code: String(form.get("office_postal_code") || ""),
+        phone: String(form.get("office_phone") || "") || null,
+        website: String(form.get("website") || "") || null,
+        software: String(form.get("software") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        description: String(form.get("description") || "") || null,
+      } : null,
+    };
+    try {
+      await saveAccountDetails(next);
+      const refreshed = await loadAccountDetails(session!.user.id);
+      setDetails(refreshed);
+      setNotice("Profile saved. Identity changes may return verification to review.");
+      onSaved();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "Your profile could not be saved.");
+    } finally { setBusy(false); }
+  };
+
   return (
     <div className="fixed inset-0 z-[90] grid place-items-center bg-[#071b2d]/60 p-4">
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
@@ -417,11 +506,44 @@ function AccountModal({ close, session, profile }: { close: () => void; session:
         </div>
 
         {session ? (
-          <div className="p-6">
-            <div className="rounded-2xl bg-[#e8fbef] p-5"><StatusPill><Check size={13} /> Live data connected</StatusPill><p className="mt-3 text-lg font-extrabold text-slate-900">{profile?.first_name || session.user.email}</p><p className="mt-1 text-sm capitalize text-slate-600">{profile?.role || "Loading account"} account</p></div>
-            <p className="mt-5 text-sm leading-6 text-slate-500">Shifts, applications, proposals and protected booking records created while signed in are saved to DentalShift.</p>
-            <div className="mt-6 flex justify-end gap-3"><button onClick={close} className="secondary-btn">Close</button><button onClick={signOut} disabled={busy} className="primary-btn">Sign out</button></div>
-          </div>
+          <form onSubmit={saveProfile} className="grid gap-4 p-6 sm:grid-cols-2">
+            <div className="rounded-2xl bg-[#e8fbef] p-5 sm:col-span-2"><div className="flex flex-wrap items-center justify-between gap-2"><StatusPill><Check size={13} /> Email confirmed</StatusPill>{details?.professional && <StatusPill tone={details.professional.licence_status === "verified" ? "green" : "amber"}>Licence: {details.professional.licence_status.replace("_", " ")}</StatusPill>}{details?.office && <StatusPill tone={details.office.verification_status === "verified" ? "green" : "amber"}>Office: {details.office.verification_status.replace("_", " ")}</StatusPill>}</div><p className="mt-3 text-lg font-extrabold text-slate-900">{profile?.first_name || session.user.email}</p><p className="mt-1 text-sm text-slate-600">{session.user.email}</p></div>
+            {!details ? <p className="py-8 text-center text-sm text-slate-500 sm:col-span-2">Loading your account details…</p> : <>
+              <label className="field"><span>First name</span><input name="first_name" required defaultValue={details.profile.first_name ?? ""} /></label>
+              <label className="field"><span>Last name</span><input name="last_name" required defaultValue={details.profile.last_name ?? ""} /></label>
+              <label className="field"><span>Phone</span><input name="phone" type="tel" defaultValue={details.profile.phone ?? ""} /></label>
+              <label className="field"><span>City</span><input name="city" required defaultValue={details.profile.city ?? ""} /></label>
+              <label className="field"><span>Province</span><input name="province" required defaultValue={details.profile.province ?? ""} /></label>
+              <label className="field"><span>Postal code</span><input name="postal_code" defaultValue={details.profile.postal_code ?? ""} /></label>
+              {details.professional && <>
+                <div className="border-t border-slate-200 pt-5 sm:col-span-2"><h3 className="font-extrabold text-slate-900">Professional profile</h3><p className="mt-1 text-sm text-slate-500">Licence identity changes automatically trigger a fresh review.</p></div>
+                <label className="field"><span>Profession</span><select name="profession" defaultValue={details.professional.profession}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Receptionist</option><option>Dentist</option></select></label>
+                <label className="field"><span>Licence number</span><input name="licence_number" required defaultValue={details.professional.licence_number} /></label>
+                <label className="field"><span>Licence province</span><input name="licence_province" required defaultValue={details.professional.licence_province} /></label>
+                <label className="field"><span>Preferred hourly rate</span><input name="hourly_rate" min="0" step="1" type="number" defaultValue={details.professional.hourly_rate ?? ""} /></label>
+                <label className="field"><span>Travel radius (km)</span><input name="travel_radius_km" min="1" max="500" type="number" defaultValue={details.professional.travel_radius_km} /></label>
+                <label className="field"><span>Years of experience</span><input name="years_experience" min="0" type="number" defaultValue={details.professional.years_experience ?? ""} /></label>
+                <label className="field sm:col-span-2"><span>Skills (comma separated)</span><input name="skills" defaultValue={details.professional.skills?.join(", ") ?? ""} placeholder="Tracker, Cleardent, orthodontics" /></label>
+                <label className="field sm:col-span-2"><span>Professional bio</span><textarea name="bio" rows={3} defaultValue={details.professional.bio ?? ""} /></label>
+                <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2"><input name="available_for_work" type="checkbox" defaultChecked={details.professional.available_for_work} className="h-4 w-4 accent-[#22c55e]" /><span className="text-sm font-bold text-slate-700">Available for new shifts</span></label>
+              </>}
+              {details.office && <>
+                <div className="border-t border-slate-200 pt-5 sm:col-span-2"><h3 className="font-extrabold text-slate-900">Office profile</h3><p className="mt-1 text-sm text-slate-500">Keep the public practice information current for professionals.</p></div>
+                <label className="field sm:col-span-2"><span>Office name</span><input name="office_name" required defaultValue={details.office.name} /></label>
+                <label className="field sm:col-span-2"><span>Street address</span><input name="address" required defaultValue={details.office.address} /></label>
+                <label className="field"><span>Office city</span><input name="office_city" required defaultValue={details.office.city} /></label>
+                <label className="field"><span>Office province</span><input name="office_province" required defaultValue={details.office.province} /></label>
+                <label className="field"><span>Office postal code</span><input name="office_postal_code" required defaultValue={details.office.postal_code} /></label>
+                <label className="field"><span>Office phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone ?? ""} /></label>
+                <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" defaultValue={details.office.website ?? ""} /></label>
+                <label className="field sm:col-span-2"><span>Practice software (comma separated)</span><input name="software" defaultValue={details.office.software?.join(", ") ?? ""} /></label>
+                <label className="field sm:col-span-2"><span>About the office</span><textarea name="description" rows={3} defaultValue={details.office.description ?? ""} /></label>
+              </>}
+            </>}
+            {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
+            {notice && <p className="rounded-xl bg-emerald-50 p-3 text-sm font-bold text-emerald-700 sm:col-span-2">{notice}</p>}
+            <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn">Sign out</button><button type="button" onClick={close} className="secondary-btn">Close</button><button type="submit" disabled={busy || !details} className="primary-btn">{busy ? "Saving…" : "Save profile"}</button></div>
+          </form>
         ) : (
           <form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">
             <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:col-span-2">
@@ -702,7 +824,7 @@ export default function Home() {
         if (!active) return;
         setProfile(account.profile);
         setOfficeId(account.officeId);
-        if (account.profile.role !== "admin") setRole(account.profile.role);
+        setRole(account.profile.role);
       } catch {
         if (active) {
           setProfile(null);
@@ -742,7 +864,13 @@ export default function Home() {
       {post && <ShiftModal close={() => setPost(false)} officeId={officeId} onSaved={() => setRefreshKey((value) => value + 1)} />}
       {rebook && <RebookModal close={() => setRebook(false)} />}
       {messages && <MessageCenter role={role} close={() => setMessages(false)} />}
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} />}
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} onSaved={() => {
+        setRefreshKey((value) => value + 1);
+        if (session) void loadAccount(session.user.id).then((account) => {
+          setProfile(account.profile);
+          setOfficeId(account.officeId);
+        });
+      }} />}
     </main>
   );
 }
