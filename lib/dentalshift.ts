@@ -245,6 +245,24 @@ export async function setVerificationStatus(item: VerificationItem, status: "ver
   if (error) throw error;
 }
 
+export async function requestVerificationReview(item: VerificationItem, notes: string) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("Please sign in again before sending a review request.");
+
+  const response = await fetch("/api/admin/verification-review", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ targetKind: item.kind, targetId: item.id, notes: notes.trim() }),
+  });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(payload.error ?? "The review request could not be sent.");
+  return payload as { emailSent: boolean };
+}
+
 export async function loadOpenShifts() {
   const { data, error } = await supabase
     .from("shifts")
