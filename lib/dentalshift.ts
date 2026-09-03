@@ -69,6 +69,23 @@ export type VerificationCase = {
   internalNotes: { id: string; body: string; createdAt: string; author: string | null }[];
 };
 
+export type AdminShift = {
+  id: string;
+  status: "draft" | "open" | "filled" | "completed" | "cancelled";
+  profession: string;
+  startsAt: string;
+  endsAt: string;
+  hourlyRate: number;
+  requiredSoftware: string | null;
+  notes: string | null;
+  createdAt: string;
+  office: { id: string; name: string; city: string; province: string };
+  professional: { id: string; name: string } | null;
+  applicationCount: number;
+  booking: { id: string; confirmedAt: string | null; checkInAt: string | null; checkOutAt: string | null; cancelledAt: string | null; replacementStatus: string | null } | null;
+  openDisputeCount: number;
+};
+
 export type LiveShift = {
   id: string;
   office_id: string;
@@ -287,6 +304,17 @@ export async function addVerificationInternalNote(item: VerificationItem, body: 
     p_target_id: item.id,
     p_body: body.trim(),
   });
+  if (error) throw error;
+}
+
+export async function loadAdminShifts(): Promise<AdminShift[]> {
+  const { data, error } = await supabase.rpc("admin_list_shift_operations");
+  if (error) throw error;
+  return ((data as { shifts?: AdminShift[] } | null)?.shifts ?? []) as AdminShift[];
+}
+
+export async function cancelAdminShift(shiftId: string, reason: string) {
+  const { error } = await supabase.rpc("admin_cancel_shift", { p_shift_id: shiftId, p_reason: reason.trim() });
   if (error) throw error;
 }
 
