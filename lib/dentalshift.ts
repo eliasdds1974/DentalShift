@@ -260,7 +260,7 @@ export async function requestVerificationReview(item: VerificationItem, notes: s
   });
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(payload.error ?? "The review request could not be sent.");
-  return payload as { emailSent: boolean };
+  return payload as { emailSent: boolean; error?: string };
 }
 
 export async function loadOpenShifts() {
