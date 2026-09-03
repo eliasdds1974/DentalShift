@@ -16,9 +16,8 @@ export async function POST(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
 
-  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
   const resendApiKey = process.env.RESEND_API_KEY;
-  if (!serviceRoleKey || !resendApiKey) {
+  if (!resendApiKey) {
     return NextResponse.json({ error: "Email delivery has not been configured yet." }, { status: 503 });
   }
 
@@ -53,28 +52,18 @@ export async function POST(request: Request) {
   });
   if (decisionError) return NextResponse.json({ error: decisionError.message }, { status: 400 });
 
-  const serviceClient = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  let recipientId = targetId;
-  if (targetKind === "office") {
-    const { data: office, error: officeError } = await serviceClient.from("offices").select("owner_id").eq("id", targetId).maybeSingle();
-    if (officeError || !office?.owner_id) {
-      console.error("[verification-review] office owner lookup failed", { targetId });
-      return NextResponse.json({ emailSent: false, error: "Review request was saved, but the office owner email could not be found." });
-    }
-    recipientId = office.owner_id;
-  }
-
-  const [{ data: recipientData, error: recipientError }, { data: recipientProfile }] = await Promise.all([
-    serviceClient.auth.admin.getUserById(recipientId),
-    serviceClient.from("profiles").select("first_name").eq("id", recipientId).maybeSingle(),
-  ]);
-  const recipientEmail = recipientData.user?.email;
-  if (recipientError || !recipientEmail) {
-    console.error("[verification-review] recipient lookup failed", { targetKind, targetId, recipientError: recipientError?.message });
+  const { data: contacts, error: contactError } = await requestClient.rpc("get_verification_target_contact", {
+    target_kind: targetKind,
+    target_id: targetId,
+  });
+  const recipient = Array.isArray(contacts) ? contacts[0] : contacts;
+  const recipientEmail = recipient?.email?.trim();
+  if (contactError || !recipientEmail) {
+    console.error("[verification-review] recipient lookup failed", { targetKind, targetId, contactError: contactError?.message });
     return NextResponse.json({ emailSent: false, error: "Review request was saved, but the applicant email could not be found." });
   }
 
-  const firstName = recipientProfile?.first_name?.trim() || "there";
+  const firstName = recipient.first_name?.trim() || "there";
   const safeNotes = escapeHtml(notes).replace(/\n/g, "<br />");
   const emailResponse = await fetch("https://api.resend.com/emails", {
     method: "POST",
