@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -349,21 +349,21 @@ function ProfessionalDashboard({ userId, refreshKey }: { userId: string | null; 
   );
 }
 
-function AdminDashboard() {
+function AdminDashboard({ userId }: { userId: string }) {
   const [queue, setQueue] = useState<VerificationItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
 
-  const refresh = async () => {
+  const refresh = useCallback(async () => {
     setLoading(true);
     setError("");
     try { setQueue(await loadVerificationQueue()); }
     catch (loadError) { setError(loadError instanceof Error ? loadError.message : "Could not load the verification queue."); }
     finally { setLoading(false); }
-  };
+  }, []);
 
-  useEffect(() => { void refresh(); }, []);
+  useEffect(() => { void refresh(); }, [refresh, userId]);
 
   const decide = async (item: VerificationItem, status: "verified" | "needs_review") => {
     setBusyId(item.id);
@@ -378,7 +378,7 @@ function AdminDashboard() {
 
   const professionalCount = queue.filter((item) => item.kind === "professional").length;
   const officeCount = queue.filter((item) => item.kind === "office").length;
-  return <div className="page-wrap"><div><StatusPill tone="blue"><ShieldCheck size={13} /> Live platform operations</StatusPill><h1 className="page-title">Admin overview</h1><p className="page-subtitle">Review real account submissions and record every verification decision.</p></div><section className="mt-7 grid gap-4 sm:grid-cols-3"><Metric icon={<FileCheck2 size={21} />} label="Awaiting review" value={String(queue.length)} detail="Pending or needs review" color="bg-amber-50 text-amber-700" /><Metric icon={<UsersRound size={21} />} label="Professionals" value={String(professionalCount)} detail="In the current queue" color="bg-blue-50 text-blue-700" /><Metric icon={<Building2 size={21} />} label="Dental offices" value={String(officeCount)} detail="In the current queue" color="bg-violet-50 text-violet-700" /></section><section className="mt-7"><div className="panel overflow-hidden"><div className="border-b border-slate-200 px-5 py-4"><div className="flex items-center justify-between"><div><h2 className="section-title">Verification queue</h2><p className="text-sm text-slate-500">Approve a verified registry match or flag it for follow-up.</p></div><StatusPill tone="amber">{queue.length} waiting</StatusPill></div></div>{error && <p className="m-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}{loading ? <p className="p-8 text-center text-sm text-slate-500">Loading live submissions…</p> : queue.length === 0 ? <div className="p-10 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check size={24} /></div><p className="mt-3 font-extrabold text-slate-900">Queue is clear</p><p className="mt-1 text-sm text-slate-500">There are no pending verification submissions.</p></div> : <div className="divide-y divide-slate-100">{queue.map((item) => <div key={`${item.kind}-${item.id}`} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600"><FileCheck2 size={21} /></div><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-extrabold text-slate-900">{item.name}</p><StatusPill tone={item.status === "needs_review" ? "amber" : "gray"}>{item.status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{item.type} · {item.province} · {item.reference}</p><p className="mt-1 text-xs text-slate-400">Submitted {new Date(item.submittedAt).toLocaleDateString("en-CA", { dateStyle: "medium" })}</p></div><div className="flex gap-2"><button onClick={() => void decide(item, "needs_review")} disabled={busyId === item.id} className="secondary-btn">Needs review</button><button onClick={() => void decide(item, "verified")} disabled={busyId === item.id} className="primary-btn"><ShieldCheck size={17} /> {busyId === item.id ? "Saving…" : "Approve"}</button></div></div>)}</div>}</div></section></div>;
+  return <div className="page-wrap"><div><StatusPill tone="blue"><ShieldCheck size={13} /> Live platform operations</StatusPill><h1 className="page-title">Admin overview</h1><p className="page-subtitle">Review real account submissions and record every verification decision.</p></div><section className="mt-7 grid gap-4 sm:grid-cols-3"><Metric icon={<FileCheck2 size={21} />} label="Awaiting review" value={String(queue.length)} detail="Pending or needs review" color="bg-amber-50 text-amber-700" /><Metric icon={<UsersRound size={21} />} label="Professionals" value={String(professionalCount)} detail="In the current queue" color="bg-blue-50 text-blue-700" /><Metric icon={<Building2 size={21} />} label="Dental offices" value={String(officeCount)} detail="In the current queue" color="bg-violet-50 text-violet-700" /></section><section className="mt-7"><div className="panel overflow-hidden"><div className="border-b border-slate-200 px-5 py-4"><div className="flex items-center justify-between gap-3"><div><h2 className="section-title">Verification queue</h2><p className="text-sm text-slate-500">Approve a verified registry match or flag it for follow-up.</p></div><div className="flex items-center gap-2"><button type="button" onClick={() => void refresh()} disabled={loading} className="secondary-btn">{loading ? "Refreshing…" : "Refresh"}</button><StatusPill tone="amber">{queue.length} waiting</StatusPill></div></div></div>{error && <p className="m-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}{loading ? <p className="p-8 text-center text-sm text-slate-500">Loading live submissions…</p> : queue.length === 0 ? <div className="p-10 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-emerald-100 text-emerald-700"><Check size={24} /></div><p className="mt-3 font-extrabold text-slate-900">Queue is clear</p><p className="mt-1 text-sm text-slate-500">There are no pending verification submissions.</p></div> : <div className="divide-y divide-slate-100">{queue.map((item) => <div key={`${item.kind}-${item.id}`} className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-slate-100 text-slate-600"><FileCheck2 size={21} /></div><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><p className="font-extrabold text-slate-900">{item.name}</p><StatusPill tone={item.status === "needs_review" ? "amber" : "gray"}>{item.status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{item.type} · {item.province} · {item.reference}</p><p className="mt-1 text-xs text-slate-400">Submitted {new Date(item.submittedAt).toLocaleDateString("en-CA", { dateStyle: "medium" })}</p></div><div className="flex gap-2"><button onClick={() => void decide(item, "needs_review")} disabled={busyId === item.id} className="secondary-btn">Needs review</button><button onClick={() => void decide(item, "verified")} disabled={busyId === item.id} className="primary-btn"><ShieldCheck size={17} /> {busyId === item.id ? "Saving…" : "Approve"}</button></div></div>)}</div>}</div></section></div>;
 }
 
 function AccountModal({ close, session, profile, onSaved }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void }) {
@@ -821,6 +821,7 @@ export default function Home() {
         setProfile(null);
         setOfficeId(null);
         setOffice(null);
+        setRole("office");
         return;
       }
       try {
@@ -860,7 +861,9 @@ export default function Home() {
         ? session && profile
           ? <ProfessionalWorkspace userId={session.user.id} profile={profile} refreshKey={refreshKey} />
           : <ProfessionalDashboard userId={null} refreshKey={refreshKey} />
-        : <AdminDashboard />,
+        : session && profile?.role === "admin"
+          ? <AdminDashboard userId={session.user.id} />
+          : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />,
     [role, session, profile, office, refreshKey],
   );
 
