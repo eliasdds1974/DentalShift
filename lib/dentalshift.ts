@@ -400,6 +400,9 @@ export async function updateAttendance(bookingId: string, action: "check_in" | "
   if (error) throw error;
 }
 
+export type ProfessionalAvailability = { id: string; starts_at: string; ends_at: string; available: boolean };
+export type FavouriteOffice = { office_id: string; offices: { id: string; name: string; city: string; province: string } | null };
+
 export type WorkflowApplication = {
   id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string;
   professional_id: string;
@@ -429,16 +432,38 @@ async function addBookingContacts(bookings: WorkflowBooking[]) {
 
 export type OfficeShift = LiveShift & { applications: WorkflowApplication[] };
 
+export async function addProfessionalAvailability(userId: string, startsAt: string, endsAt: string) {
+  const { error } = await supabase.from("availability").insert({ professional_id: userId, starts_at: startsAt, ends_at: endsAt, available: true });
+  if (error) throw error;
+}
+
+export async function removeProfessionalAvailability(id: string) {
+  const { error } = await supabase.from("availability").delete().eq("id", id);
+  if (error) throw error;
+}
+
+export async function setFavouriteOffice(userId: string, officeId: string, favourite: boolean) {
+  const request = favourite
+    ? supabase.from("favourites").insert({ professional_id: userId, office_id: officeId })
+    : supabase.from("favourites").delete().eq("professional_id", userId).eq("office_id", officeId);
+  const { error } = await request;
+  if (error) throw error;
+}
+
 export async function loadProfessionalWorkflow(userId: string) {
-  const [open, applicationsResult, bookingsResult] = await Promise.all([
+  const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult] = await Promise.all([
     loadOpenShifts(),
     supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province))").eq("professional_id", userId).order("created_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
+    supabase.from("availability").select("id,starts_at,ends_at,available").eq("professional_id", userId).order("starts_at", { ascending: true }),
+    supabase.from("favourites").select("office_id,offices!favourites_office_id_fkey(id,name,city,province)").eq("professional_id", userId).order("created_at", { ascending: false }),
   ]);
   if (applicationsResult.error) throw applicationsResult.error;
   if (bookingsResult.error) throw bookingsResult.error;
+  if (availabilityResult.error) throw availabilityResult.error;
+  if (favouritesResult.error) throw favouritesResult.error;
   const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[]);
-  return { open, applications: (applicationsResult.data ?? []) as unknown as WorkflowApplication[], bookings };
+  return { open, applications: (applicationsResult.data ?? []) as unknown as WorkflowApplication[], bookings, availability: (availabilityResult.data ?? []) as ProfessionalAvailability[], favourites: (favouritesResult.data ?? []) as unknown as FavouriteOffice[] };
 }
 
 export async function loadOfficeWorkflow(officeId: string) {
