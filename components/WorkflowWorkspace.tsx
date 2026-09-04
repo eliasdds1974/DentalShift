@@ -16,6 +16,8 @@ import {
   saveAccountDetails,
   setFavouriteOffice,
   submitReview,
+  submitOfficeForVerification,
+  updateOfficeProfile,
   withdrawApplication,
   type AccountDetails,
   type AccountProfile,
@@ -549,17 +551,114 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
 
 type DirectoryPerson = { user_id: string; profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number };
 
-export function OfficeWorkspace({ userId, office, onPost, refreshKey }: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number }) {
+export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number; view: "overview" | "shifts" | "bookings" | "talent" | "profile" }) {
   const [data, setData] = useState<{ shifts: OfficeShift[]; bookings: WorkflowBooking[]; directory: DirectoryPerson[]; availability: AvailableProfessionalSlot[] }>({ shifts: [], bookings: [], directory: [], availability: [] });
+  const [officeDetails, setOfficeDetails] = useState(office);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const refresh = async () => { setLoading(true); setError(""); try { setData(await loadOfficeWorkflow(office.id) as typeof data); } catch (value) { setError(value instanceof Error ? value.message : "Could not load the office workflow."); } finally { setLoading(false); } };
   useEffect(() => { void refresh(); }, [office.id, refreshKey]);
+  useEffect(() => { setOfficeDetails(office); }, [office]);
   const act = async (key: string, action: () => Promise<unknown>) => { setBusy(key); setError(""); try { await action(); await refresh(); } catch (value) { setError(value instanceof Error ? value.message : "The action could not be completed."); } finally { setBusy(""); } };
   const open = data.shifts.filter((shift) => shift.status === "open");
+
+  const profileFields = [officeDetails.name, officeDetails.address, officeDetails.city, officeDetails.province, officeDetails.postal_code, officeDetails.phone, officeDetails.website, officeDetails.contact_name, officeDetails.contact_title, officeDetails.office_hours, officeDetails.operatories, officeDetails.parking_info, officeDetails.software?.length, officeDetails.languages?.length, officeDetails.description, officeDetails.authorization_confirmed];
+  const profileCompleteness = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100);
+  const readyForVerification = Boolean(officeDetails.name && officeDetails.address && officeDetails.city && officeDetails.province && officeDetails.postal_code && officeDetails.phone && officeDetails.contact_name && officeDetails.contact_title && officeDetails.office_hours && officeDetails.authorization_confirmed);
+
+  const saveOfficeProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const next: OfficeDetails = {
+      ...officeDetails,
+      name: String(form.get("name") || ""),
+      address: String(form.get("address") || ""),
+      city: String(form.get("city") || ""),
+      province: String(form.get("province") || ""),
+      postal_code: String(form.get("postal_code") || ""),
+      phone: String(form.get("phone") || "") || null,
+      website: String(form.get("website") || "") || null,
+      contact_name: String(form.get("contact_name") || "") || null,
+      contact_title: String(form.get("contact_title") || "") || null,
+      office_hours: String(form.get("office_hours") || "") || null,
+      operatories: form.get("operatories") ? Number(form.get("operatories")) : null,
+      parking_info: String(form.get("parking_info") || "") || null,
+      software: String(form.get("software") || "").split(",").map((item) => item.trim()).filter(Boolean),
+      languages: String(form.get("languages") || "").split(",").map((item) => item.trim()).filter(Boolean),
+      description: String(form.get("description") || "") || null,
+      benefits: String(form.get("benefits") || "") || null,
+      authorization_confirmed: form.get("authorization_confirmed") === "on",
+    };
+    setBusy("profile"); setError(""); setNotice("");
+    try {
+      const saved = await updateOfficeProfile(next);
+      setOfficeDetails(saved);
+      setNotice("Office profile saved successfully.");
+    } catch (value) { setError(value instanceof Error ? value.message : "The office profile could not be saved."); }
+    finally { setBusy(""); }
+  };
+
+  const submitVerification = async () => {
+    if (!readyForVerification) { setError("Complete the required office and authorization information before submitting."); return; }
+    setBusy("verification"); setError(""); setNotice("");
+    try {
+      const result = await submitOfficeForVerification(officeDetails.id, userId);
+      setOfficeDetails({ ...officeDetails, verification_status: result.verification_status, submitted_for_verification_at: result.submitted_for_verification_at });
+      setNotice("Your office was submitted to DentalShift for verification.");
+    } catch (value) { setError(value instanceof Error ? value.message : "The verification request could not be submitted."); }
+    finally { setBusy(""); }
+  };
+
+  if (view === "profile") return <div className="page-wrap">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div><Pill tone={officeDetails.verification_status === "verified" ? "green" : "amber"}><ShieldCheck size={13} />Office {officeDetails.verification_status.replace("_", " ")}</Pill><h1 className="page-title">Office profile & verification</h1><p className="page-subtitle">Complete your clinic profile so professionals can confidently accept your shifts.</p></div>
+      <button type="button" onClick={() => void submitVerification()} disabled={!readyForVerification || busy === "verification" || officeDetails.verification_status === "verified"} className="primary-btn"><ShieldCheck size={17} />{busy === "verification" ? "Submitting…" : officeDetails.verification_status === "verified" ? "Office verified" : "Submit for verification"}</button>
+    </div>
+    <ErrorNote text={error} />
+    {notice && <p className="mt-5 rounded-xl bg-[#eaf8ee] p-3 text-sm font-extrabold text-[#017f27]"><Check size={16} className="mr-1 inline" />{notice}</p>}
+
+    <section className="mt-7 grid gap-4 sm:grid-cols-3">
+      <div className="rounded-2xl bg-[#002757] p-5 text-white shadow-sm"><p className="text-sm font-extrabold text-white/80">Profile complete</p><strong className="mt-1 block text-3xl font-black">{profileCompleteness}%</strong><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-[#01A32E]" style={{ width: `${profileCompleteness}%` }} /></div></div>
+      <div className="rounded-2xl bg-[#0078FE] p-5 text-white shadow-sm"><p className="text-sm font-extrabold text-white/80">Verification status</p><strong className="mt-1 block text-xl font-black capitalize">{officeDetails.verification_status.replace("_", " ")}</strong><p className="mt-2 text-xs font-bold text-white/80">{officeDetails.submitted_for_verification_at ? `Submitted ${new Date(officeDetails.submitted_for_verification_at).toLocaleDateString("en-CA")}` : "Not submitted yet"}</p></div>
+      <div className="rounded-2xl border border-[#01A32E]/20 bg-[#eaf8ee] p-5 text-[#002757] shadow-sm"><p className="text-sm font-extrabold text-[#017f27]">Verification readiness</p><strong className="mt-1 block text-xl font-black">{readyForVerification ? "Ready to submit" : "More details needed"}</strong><p className="mt-2 text-xs font-bold text-[#017f27]">Required fields and authorization</p></div>
+    </section>
+
+    <form onSubmit={saveOfficeProfile} className="panel mt-5 overflow-hidden">
+      <div className="border-b border-slate-200 p-5"><h2 className="section-title">Clinic information</h2><p className="text-sm text-slate-500">Required information is marked with an asterisk.</p></div>
+      <div className="grid gap-5 p-5 sm:grid-cols-2">
+        <div className="sm:col-span-2"><h3 className="font-black text-[#002757]">Office identity</h3></div>
+        <label className="field sm:col-span-2"><span>Clinic name *</span><input name="name" required defaultValue={officeDetails.name} /></label>
+        <label className="field sm:col-span-2"><span>Street address *</span><input name="address" required defaultValue={officeDetails.address} /></label>
+        <label className="field"><span>City *</span><input name="city" required defaultValue={officeDetails.city} /></label>
+        <label className="field"><span>Province *</span><select name="province" required defaultValue={officeDetails.province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
+        <label className="field"><span>Postal code *</span><input name="postal_code" required defaultValue={officeDetails.postal_code} /></label>
+        <label className="field"><span>Main phone *</span><input name="phone" required type="tel" defaultValue={officeDetails.phone || ""} /></label>
+        <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" placeholder="https://" defaultValue={officeDetails.website || ""} /></label>
+
+        <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Primary contact</h3><p className="mt-1 text-xs text-slate-500">Visible only to DentalShift administration unless a booking requires contact.</p></div>
+        <label className="field"><span>Contact name *</span><input name="contact_name" required defaultValue={officeDetails.contact_name || ""} /></label>
+        <label className="field"><span>Position or title *</span><input name="contact_title" required placeholder="Office manager, owner…" defaultValue={officeDetails.contact_title || ""} /></label>
+
+        <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Workplace details</h3><p className="mt-1 text-xs text-slate-500">These details help professionals understand the office before accepting.</p></div>
+        <label className="field sm:col-span-2"><span>Office hours *</span><textarea name="office_hours" required rows={3} placeholder="Monday–Thursday 8:00 AM–5:00 PM; Friday 8:00 AM–3:00 PM" defaultValue={officeDetails.office_hours || ""} /></label>
+        <label className="field"><span>Number of operatories</span><input name="operatories" type="number" min="1" max="100" defaultValue={officeDetails.operatories || ""} /></label>
+        <label className="field"><span>Practice software</span><input name="software" placeholder="Tracker, Cleardent" defaultValue={officeDetails.software?.join(", ") || ""} /></label>
+        <label className="field sm:col-span-2"><span>Parking and transit</span><textarea name="parking_info" rows={2} placeholder="Free staff parking behind the clinic…" defaultValue={officeDetails.parking_info || ""} /></label>
+        <label className="field sm:col-span-2"><span>Languages spoken (comma separated)</span><input name="languages" placeholder="English, French" defaultValue={officeDetails.languages?.join(", ") || ""} /></label>
+        <label className="field sm:col-span-2"><span>About the workplace</span><textarea name="description" rows={4} placeholder="Describe your team, culture and typical patient day." defaultValue={officeDetails.description || ""} /></label>
+        <label className="field sm:col-span-2"><span>Staff benefits and amenities</span><textarea name="benefits" rows={3} placeholder="Paid lunch, staff room, uniform allowance…" defaultValue={officeDetails.benefits || ""} /></label>
+
+        <label className="flex items-start gap-3 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-4 sm:col-span-2"><input name="authorization_confirmed" type="checkbox" defaultChecked={officeDetails.authorization_confirmed} className="mt-1 h-5 w-5 accent-[#01A32E]" /><span className="text-sm leading-6 text-slate-700"><strong className="block text-[#002757]">Office authorization *</strong>I confirm that I am authorized to create and manage staffing requests for this dental clinic and that the information supplied is accurate.</span></label>
+
+        <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:items-center sm:justify-between"><p className="text-xs text-slate-500">Save changes before submitting the office for verification.</p><button disabled={busy === "profile"} className="primary-btn justify-center"><Check size={17} />{busy === "profile" ? "Saving…" : "Save office profile"}</button></div>
+      </div>
+    </form>
+  </div>;
+
   return <div className="page-wrap">
-    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><Pill tone={office.verification_status === "verified" ? "green" : "amber"}><ShieldCheck size={13} />Office {office.verification_status.replace("_", " ")}</Pill><h1 className="page-title">{office.name}</h1><p className="page-subtitle">Manage every shift from posting through verified completion.</p></div><button onClick={onPost} className="primary-btn">Post a shift</button></div>
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><Pill tone={officeDetails.verification_status === "verified" ? "green" : "amber"}><ShieldCheck size={13} />Office {officeDetails.verification_status.replace("_", " ")}</Pill><h1 className="page-title">{officeDetails.name}</h1><p className="page-subtitle">Manage every shift from posting through verified completion.</p></div><button onClick={onPost} className="primary-btn">Post a shift</button></div>
     <ErrorNote text={error} />
     {loading ? <p className="mt-8 text-sm text-slate-500">Loading your live workflow…</p> : <>
       <section className="mt-7 grid gap-4 sm:grid-cols-3"><div className="panel p-5"><p className="text-sm font-bold text-slate-500">Open shifts</p><strong className="mt-1 block text-3xl">{open.length}</strong></div><div className="panel p-5"><p className="text-sm font-bold text-slate-500">New applicants</p><strong className="mt-1 block text-3xl">{data.shifts.flatMap((shift) => shift.applications || []).filter((item) => item.status === "applied").length}</strong></div><div className="panel p-5"><p className="text-sm font-bold text-slate-500">Bookings</p><strong className="mt-1 block text-3xl">{data.bookings.length}</strong></div></section>
