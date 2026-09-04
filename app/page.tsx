@@ -489,10 +489,13 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
     const password = String(form.get("password") || "");
 
     if (mode === "signin") {
+      // Save the intended workspace before Supabase emits SIGNED_IN.
+      window.sessionStorage.setItem("dentalshift_signin_role", role);
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) setError(signInError.message);
-      else {
-        window.sessionStorage.setItem("dentalshift_signin_role", role);
+      if (signInError) {
+        window.sessionStorage.removeItem("dentalshift_signin_role");
+        setError(signInError.message);
+      } else {
         close();
       }
     } else {
