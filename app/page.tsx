@@ -689,6 +689,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
+      contact_phone: String(form.get("contact_phone") || "") || null,
     };
     setBusy(true); setError(""); setNotice("");
     try {
@@ -753,6 +754,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={details.office.website || ""} /></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
+            <label className="field sm:col-span-2"><span>Primary contact direct phone</span><input name="contact_phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="e.g. 780-555-0123" defaultValue={details.office.contact_phone || ""} /></label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
             <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
