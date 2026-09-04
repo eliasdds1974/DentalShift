@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
+import Image from "next/image";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
@@ -26,7 +27,12 @@ const openShifts = [
 ];
 
 function Brand({ compact = false }: { compact?: boolean }) {
-  return <div className="flex items-center gap-3"><div className="logo-mark" aria-hidden="true"><span className="logo-tooth">✓</span></div>{!compact && <div className="text-[1.35rem] font-extrabold tracking-[-0.04em] text-[#002757]">Dental<span className="text-[#01A32E]">Shift</span></div>}</div>;
+  if (compact) {
+    return <div className="h-11 w-11 overflow-hidden" aria-label="DentalShift">
+      <Image src="/dentalshift-logo.svg" alt="" width={2171} height={724} className="h-11 w-[132px] max-w-none object-contain object-left" priority />
+    </div>;
+  }
+  return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-12 w-auto" priority />;
 }
 
 function StatusPill({ children, tone = "green" }: { children: React.ReactNode; tone?: "green" | "blue" | "amber" | "gray" }) {
@@ -1005,7 +1011,7 @@ export default function Home() {
   );
 
   if (session === undefined) {
-    return <main className="grid min-h-screen place-items-center bg-white"><div className="text-center"><div className="logo-mark mx-auto" aria-hidden="true"><span className="logo-tooth">✓</span></div><p className="mt-4 text-sm font-extrabold text-[#002757]">Loading DentalShift…</p></div></main>;
+    return <main className="grid min-h-screen place-items-center bg-white"><div className="text-center"><div className="mx-auto w-fit"><Brand /></div><p className="mt-4 text-sm font-extrabold text-[#002757]">Loading DentalShift…</p></div></main>;
   }
 
   if (!session) {
