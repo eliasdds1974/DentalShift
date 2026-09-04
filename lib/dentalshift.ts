@@ -2,6 +2,27 @@ import { supabase } from "./supabase";
 
 export type AccountRole = "office" | "professional" | "admin";
 
+export function normalizeWebsiteUrl(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    if (!url.hostname.includes(".")) throw new Error();
+    return url.toString();
+  } catch {
+    throw new Error("Enter a valid website, for example www.chappellefamilydental.ca.");
+  }
+}
+
+export function websiteUrlForDisplay(value: string | null | undefined) {
+  try {
+    return normalizeWebsiteUrl(value);
+  } catch {
+    return null;
+  }
+}
+
 export type AccountProfile = {
   id: string;
   role: AccountRole;
@@ -42,6 +63,7 @@ export type OfficeDetails = {
   verification_status: string;
   contact_name: string | null;
   contact_title: string | null;
+  contact_phone: string | null;
   office_hours: string | null;
   operatories: number | null;
   parking_info: string | null;
@@ -159,7 +181,7 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
       .maybeSingle(),
     supabase
       .from("offices")
-      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
       .eq("owner_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
@@ -199,12 +221,12 @@ export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id
       province: input.province,
       postal_code: input.postal_code,
       phone: input.phone,
-      website: input.website,
+      website: normalizeWebsiteUrl(input.website),
       software: input.software,
       description: input.description,
       verification_status: "pending",
     })
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -220,11 +242,12 @@ export async function updateOfficeProfile(office: OfficeDetails) {
       province: office.province,
       postal_code: office.postal_code,
       phone: office.phone,
-      website: office.website,
+      website: normalizeWebsiteUrl(office.website),
       software: office.software,
       description: office.description,
       contact_name: office.contact_name,
       contact_title: office.contact_title,
+      contact_phone: office.contact_phone,
       office_hours: office.office_hours,
       operatories: office.operatories,
       parking_info: office.parking_info,
@@ -235,7 +258,7 @@ export async function updateOfficeProfile(office: OfficeDetails) {
     })
     .eq("id", office.id)
     .eq("owner_id", office.owner_id)
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -243,12 +266,18 @@ export async function updateOfficeProfile(office: OfficeDetails) {
 
 export async function uploadOfficeLogo(userId: string, officeId: string, file: File) {
   const extensions: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
-  const extension = extensions[file.type];
+  const extensionFromName = file.name.split(".").pop()?.toLowerCase();
+  const normalizedNameExtension = extensionFromName === "jpeg" ? "jpg" : extensionFromName;
+  const extension = extensions[file.type] ?? (["png", "jpg", "webp"].includes(normalizedNameExtension || "") ? normalizedNameExtension : undefined);
   if (!extension) throw new Error("Choose a PNG, JPG or WebP logo.");
   if (file.size > 5 * 1024 * 1024) throw new Error("The logo must be smaller than 5 MB.");
   const path = `${userId}/${officeId}.${extension}`;
   const { error: uploadError } = await supabase.storage.from("office-logos").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    if (/bucket.*not found/i.test(uploadError.message)) throw new Error("Logo storage is not configured yet. Please contact DentalShift support.");
+    if (/row-level security|policy|unauthorized/i.test(uploadError.message)) throw new Error("Your account does not have permission to upload this logo. Sign out, sign back in and try again.");
+    throw new Error(`The logo could not be uploaded: ${uploadError.message}`);
+  }
   const { data } = supabase.storage.from("office-logos").getPublicUrl(path);
   const logoUrl = `${data.publicUrl}?v=${Date.now()}`;
   const { error: officeError } = await supabase.from("offices").update({ logo_url: logoUrl }).eq("id", officeId).eq("owner_id", userId);
@@ -314,11 +343,12 @@ export async function saveAccountDetails(input: AccountDetails) {
         province: input.office.province,
         postal_code: input.office.postal_code,
         phone: input.office.phone,
-        website: input.office.website,
+        website: normalizeWebsiteUrl(input.office.website),
         software: input.office.software,
         description: input.office.description,
         contact_name: input.office.contact_name,
         contact_title: input.office.contact_title,
+        contact_phone: input.office.contact_phone,
         office_hours: input.office.office_hours,
         operatories: input.office.operatories,
         parking_info: input.office.parking_info,

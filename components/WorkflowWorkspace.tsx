@@ -559,9 +559,10 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [addDirectContactPhone, setAddDirectContactPhone] = useState(Boolean(office.contact_phone));
   const refresh = async () => { setLoading(true); setError(""); try { setData(await loadOfficeWorkflow(office.id) as typeof data); } catch (value) { setError(value instanceof Error ? value.message : "Could not load the office workflow."); } finally { setLoading(false); } };
   useEffect(() => { void refresh(); }, [office.id, refreshKey]);
-  useEffect(() => { setOfficeDetails(office); }, [office]);
+  useEffect(() => { setOfficeDetails(office); setAddDirectContactPhone(Boolean(office.contact_phone)); }, [office]);
   const act = async (key: string, action: () => Promise<unknown>) => { setBusy(key); setError(""); try { await action(); await refresh(); } catch (value) { setError(value instanceof Error ? value.message : "The action could not be completed."); } finally { setBusy(""); } };
   const open = data.shifts.filter((shift) => shift.status === "open");
 
@@ -583,6 +584,7 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
+      contact_phone: addDirectContactPhone ? String(form.get("contact_phone") || "") || null : null,
       office_hours: String(form.get("office_hours") || "") || null,
       operatories: form.get("operatories") ? Number(form.get("operatories")) : null,
       parking_info: String(form.get("parking_info") || "") || null,
@@ -642,7 +644,7 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
       <div className="grid gap-5 p-5 sm:grid-cols-2">
         <div className="flex flex-col gap-4 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2 sm:flex-row sm:items-center">
           <div role="img" aria-label={`${officeDetails.name} logo`} className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white bg-contain bg-center bg-no-repeat text-2xl font-black text-[#002757] shadow-sm" style={officeDetails.logo_url ? { backgroundImage: `url(${officeDetails.logo_url})` } : undefined}>{officeDetails.logo_url ? null : officeDetails.name.slice(0, 2).toUpperCase()}</div>
-          <div className="flex-1"><h3 className="font-black text-[#002757]">Office logo</h3><p className="mt-1 text-sm leading-6 text-slate-600">Upload a clear PNG, JPG or WebP logo. Maximum size: 5 MB.</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy === "logo" ? "Uploading…" : officeDetails.logo_url ? "Replace logo" : "Upload logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy === "logo"} onChange={(event) => void uploadLogo(event.target.files?.[0])} /></label></div>
+          <div className="flex-1"><h3 className="font-black text-[#002757]">Office logo</h3><p className="mt-1 text-sm leading-6 text-slate-600"><strong className="text-slate-800">Ideal size: 512 × 512 px (square).</strong><br />PNG, JPG or WebP · maximum 5 MB. Use a transparent PNG for the best result.</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy === "logo" ? "Uploading…" : officeDetails.logo_url ? "Replace logo" : "Upload logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" className="sr-only" disabled={busy === "logo"} onChange={(event) => { void uploadLogo(event.target.files?.[0]); event.currentTarget.value = ""; }} /></label></div>
         </div>
         <div className="sm:col-span-2"><h3 className="font-black text-[#002757]">Office identity</h3></div>
         <label className="field sm:col-span-2"><span>Clinic name *</span><input name="name" required defaultValue={officeDetails.name} /></label>
@@ -651,11 +653,13 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
         <label className="field"><span>Province *</span><select name="province" required defaultValue={officeDetails.province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
         <label className="field"><span>Postal code *</span><input name="postal_code" required defaultValue={officeDetails.postal_code} /></label>
         <label className="field"><span>Main phone *</span><input name="phone" required type="tel" defaultValue={officeDetails.phone || ""} /></label>
-        <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" placeholder="https://" defaultValue={officeDetails.website || ""} /></label>
+        <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="www.chappellefamilydental.ca" defaultValue={officeDetails.website || ""} /><small>You can enter www.example.ca — DentalShift will add the secure link automatically.</small></label>
 
         <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Primary contact</h3><p className="mt-1 text-xs text-slate-500">Visible only to DentalShift administration unless a booking requires contact.</p></div>
         <label className="field"><span>Contact name *</span><input name="contact_name" required defaultValue={officeDetails.contact_name || ""} /></label>
         <label className="field"><span>Position or title *</span><input name="contact_title" required placeholder="Office manager, owner…" defaultValue={officeDetails.contact_title || ""} /></label>
+        <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 sm:col-span-2"><input type="checkbox" checked={addDirectContactPhone} onChange={(event) => setAddDirectContactPhone(event.target.checked)} className="h-5 w-5 accent-[#01A32E]" /><span className="text-sm font-extrabold text-[#002757]">Add a direct contact phone number</span></label>
+        {addDirectContactPhone && <label className="field sm:col-span-2"><span>Direct contact phone</span><input name="contact_phone" type="tel" autoComplete="tel" required placeholder="e.g. 780-555-0123" defaultValue={officeDetails.contact_phone || ""} /><small>Used to reach the primary contact directly.</small></label>}
 
         <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Workplace details</h3><p className="mt-1 text-xs text-slate-500">These details help professionals understand the office before accepting.</p></div>
         <label className="field sm:col-span-2"><span>Office hours *</span><textarea name="office_hours" required rows={3} placeholder="Monday–Thursday 8:00 AM–5:00 PM; Friday 8:00 AM–3:00 PM" defaultValue={officeDetails.office_hours || ""} /></label>
