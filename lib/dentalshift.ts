@@ -2,6 +2,27 @@ import { supabase } from "./supabase";
 
 export type AccountRole = "office" | "professional" | "admin";
 
+export function normalizeWebsiteUrl(value: string | null | undefined) {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const candidate = /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+  try {
+    const url = new URL(candidate);
+    if (!url.hostname.includes(".")) throw new Error();
+    return url.toString();
+  } catch {
+    throw new Error("Enter a valid website, for example www.chappellefamilydental.ca.");
+  }
+}
+
+export function websiteUrlForDisplay(value: string | null | undefined) {
+  try {
+    return normalizeWebsiteUrl(value);
+  } catch {
+    return null;
+  }
+}
+
 export type AccountProfile = {
   id: string;
   role: AccountRole;
@@ -199,7 +220,7 @@ export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id
       province: input.province,
       postal_code: input.postal_code,
       phone: input.phone,
-      website: input.website,
+      website: normalizeWebsiteUrl(input.website),
       software: input.software,
       description: input.description,
       verification_status: "pending",
@@ -220,7 +241,7 @@ export async function updateOfficeProfile(office: OfficeDetails) {
       province: office.province,
       postal_code: office.postal_code,
       phone: office.phone,
-      website: office.website,
+      website: normalizeWebsiteUrl(office.website),
       software: office.software,
       description: office.description,
       contact_name: office.contact_name,
@@ -320,7 +341,7 @@ export async function saveAccountDetails(input: AccountDetails) {
         province: input.office.province,
         postal_code: input.office.postal_code,
         phone: input.office.phone,
-        website: input.office.website,
+        website: normalizeWebsiteUrl(input.office.website),
         software: input.office.software,
         description: input.office.description,
         contact_name: input.office.contact_name,
