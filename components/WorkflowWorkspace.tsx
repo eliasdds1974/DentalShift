@@ -126,9 +126,72 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
       </>}
 
       {view === "shifts" && <>
-      <section className="mt-7 panel overflow-hidden">
-        <div className="border-b border-slate-200 p-5"><h2 className="section-title">Invitations and applications</h2><p className="text-sm text-slate-500">Invitations become confirmed bookings when you accept.</p></div>
-        {data.applications.length === 0 ? <p className="p-6 text-sm text-slate-500">No applications yet.</p> : <div className="divide-y divide-slate-100">{data.applications.map((application) => <div key={application.id} className="p-5 sm:flex sm:items-center sm:gap-4"><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><strong>{application.shifts?.offices?.name || "Dental office"}</strong><Pill tone={application.status === "accepted" ? "green" : application.status === "invited" ? "blue" : application.status === "applied" ? "amber" : "gray"}>{application.status.replace("_", " ")}</Pill></div>{application.shifts && <><p className="mt-1 text-sm font-bold text-slate-700">{application.shifts.profession}</p><ShiftFacts shift={application.shifts} /></>}</div><div className="mt-3 flex gap-2 sm:mt-0">{application.status === "invited" && <><button disabled={busy === application.id} onClick={() => void act(application.id, () => respondToInvitation(application.id, false))} className="secondary-btn">Decline</button><button disabled={busy === application.id} onClick={() => void act(application.id, () => respondToInvitation(application.id, true))} className="primary-btn"><Check size={16} />Accept</button></>}{application.status === "applied" && <button disabled={busy === application.id} onClick={() => void act(application.id, () => withdrawApplication(application.id))} className="secondary-btn">Withdraw</button>}</div></div>)}</div>}
+      <section className="mt-7 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl bg-[#0078FE] p-5 text-white shadow-sm">
+          <p className="text-sm font-extrabold text-white/85">Invitations</p>
+          <strong className="mt-1 block text-3xl font-black">{data.applications.filter((item) => item.status === "invited").length}</strong>
+          <p className="mt-1 text-xs font-bold text-white/80">Waiting for your response</p>
+        </div>
+        <div className="rounded-2xl bg-[#002757] p-5 text-white shadow-sm">
+          <p className="text-sm font-extrabold text-white/85">Applications</p>
+          <strong className="mt-1 block text-3xl font-black">{data.applications.filter((item) => item.status === "applied").length}</strong>
+          <p className="mt-1 text-xs font-bold text-white/80">Submitted to offices</p>
+        </div>
+        <div className="rounded-2xl bg-[#eaf8ee] p-5 text-[#002757] shadow-sm ring-1 ring-[#01A32E]/20">
+          <p className="text-sm font-extrabold text-[#017f27]">Accepted</p>
+          <strong className="mt-1 block text-3xl font-black">{data.applications.filter((item) => item.status === "accepted").length}</strong>
+          <p className="mt-1 text-xs font-bold text-[#017f27]">Added to your schedule</p>
+        </div>
+      </section>
+
+      <section className="mt-5 panel overflow-hidden">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="section-title">My applications</h2>
+          <p className="text-sm text-slate-500">Review invitations, track office decisions and manage applications.</p>
+        </div>
+        {data.applications.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#edf3fa] text-[#002757]"><FileCheck2 size={22} /></div>
+            <p className="mt-3 font-extrabold text-[#002757]">No applications yet</p>
+            <p className="mt-1 text-sm text-slate-500">Apply for an available shift and its progress will appear here.</p>
+          </div>
+        ) : (
+          <div className="space-y-3 p-4 sm:p-5">
+            {data.applications.map((application) => {
+              const isInvited = application.status === "invited";
+              const isAccepted = application.status === "accepted";
+              const cardStyle = isInvited
+                ? "border-[#0078FE]/30 bg-[#0078FE]/5"
+                : isAccepted
+                  ? "border-[#01A32E]/25 bg-[#eaf8ee]"
+                  : "border-slate-200 bg-white";
+              return <article key={application.id} className={`rounded-2xl border p-4 sm:p-5 ${cardStyle}`}>
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#002757] text-white"><CalendarDays size={20} /></div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong className="text-base text-[#002757]">{application.shifts?.offices?.name || "Dental office"}</strong>
+                      <Pill tone={isAccepted ? "green" : isInvited ? "blue" : application.status === "applied" ? "amber" : "gray"}>{application.status.replace("_", " ")}</Pill>
+                    </div>
+                    {application.shifts && <>
+                      <p className="mt-1 text-sm font-extrabold text-slate-700">{application.shifts.profession}</p>
+                      <ShiftFacts shift={application.shifts} />
+                    </>}
+                    {isInvited && <p className="mt-2 text-xs font-bold text-[#0078FE]">This office invited you directly. Accepting creates a confirmed booking.</p>}
+                    {isAccepted && <p className="mt-2 text-xs font-bold text-[#017f27]"><Check size={14} className="mr-1 inline" />Confirmed and added to My schedule.</p>}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {isInvited && <>
+                      <button disabled={busy === application.id} onClick={() => void act(application.id, () => respondToInvitation(application.id, false))} className="rounded-xl bg-[#F21C13] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#d9160f] disabled:opacity-50">Decline</button>
+                      <button disabled={busy === application.id} onClick={() => void act(application.id, () => respondToInvitation(application.id, true))} className="primary-btn"><Check size={16} />Accept</button>
+                    </>}
+                    {application.status === "applied" && <button disabled={busy === application.id} onClick={() => void act(application.id, () => withdrawApplication(application.id))} className="rounded-xl bg-[#F21C13] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#d9160f] disabled:opacity-50">Withdraw</button>}
+                  </div>
+                </div>
+              </article>;
+            })}
+          </div>
+        )}
       </section>
 
       </>}
