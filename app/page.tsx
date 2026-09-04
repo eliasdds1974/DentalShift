@@ -470,6 +470,9 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   const [emailValue, setEmailValue] = useState("");
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [signInRoleChosen, setSignInRoleChosen] = useState(initialMode !== "signin");
+  const [addDirectContactPhone, setAddDirectContactPhone] = useState(false);
+
+  useEffect(() => { setAddDirectContactPhone(Boolean(details?.office?.contact_phone)); }, [details?.office?.contact_phone]);
 
   useEffect(() => {
     if (!session) return;
@@ -623,6 +626,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
         postal_code: String(form.get("office_postal_code") || ""),
         phone: String(form.get("office_phone") || "") || null,
         website: String(form.get("website") || "") || null,
+        contact_phone: addDirectContactPhone ? String(form.get("contact_phone") || "") || null : null,
         software: String(form.get("software") || "").split(",").map((value) => value.trim()).filter(Boolean),
         description: String(form.get("description") || "") || null,
       } : null,
@@ -668,6 +672,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
+      contact_phone: addDirectContactPhone ? String(form.get("contact_phone") || "") || null : null,
     };
     setBusy(true); setError(""); setNotice("");
     try {
@@ -732,6 +737,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="www.chappellefamilydental.ca" defaultValue={details.office.website || ""} /><small>You can enter www.example.ca — DentalShift will add the secure link automatically.</small></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
+            <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 sm:col-span-2"><input type="checkbox" checked={addDirectContactPhone} onChange={(event) => setAddDirectContactPhone(event.target.checked)} className="h-5 w-5 accent-[#01A32E]" /><span className="text-sm font-extrabold text-[#002757]">Add a direct contact phone number</span></label>
+            {addDirectContactPhone && <label className="field sm:col-span-2"><span>Direct contact phone</span><input name="contact_phone" type="tel" autoComplete="tel" required placeholder="e.g. 780-555-0123" defaultValue={details.office.contact_phone || ""} /><small>Used to reach the primary contact directly.</small></label>}
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
             <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
@@ -780,6 +787,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
                 <label className="field"><span>Office postal code</span><input name="office_postal_code" required defaultValue={details.office.postal_code} /></label>
                 <label className="field"><span>Office phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone ?? ""} /></label>
                 <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="www.chappellefamilydental.ca" defaultValue={details.office.website ?? ""} /><small>You can enter www.example.ca — DentalShift will add the secure link automatically.</small></label>
+                <label className="flex items-center gap-3 rounded-2xl border border-slate-200 p-4 sm:col-span-2"><input type="checkbox" checked={addDirectContactPhone} onChange={(event) => setAddDirectContactPhone(event.target.checked)} className="h-5 w-5 accent-[#01A32E]" /><span className="text-sm font-extrabold text-[#002757]">Add a direct contact phone number</span></label>
+                {addDirectContactPhone && <label className="field sm:col-span-2"><span>Direct contact phone</span><input name="contact_phone" type="tel" autoComplete="tel" required placeholder="e.g. 780-555-0123" defaultValue={details.office.contact_phone || ""} /><small>Used to reach the primary contact directly.</small></label>}
                 <label className="field sm:col-span-2"><span>Practice software (comma separated)</span><input name="software" defaultValue={details.office.software?.join(", ") ?? ""} /></label>
                 <label className="field sm:col-span-2"><span>About the office</span><textarea name="description" rows={3} defaultValue={details.office.description ?? ""} /></label>
               </>}
