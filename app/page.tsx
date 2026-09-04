@@ -566,7 +566,6 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
     else {
       setPasswordChanged(true);
       setNotice("Your password has been changed successfully.");
-      onPasswordRecoveryComplete?.();
     }
     setBusy(false);
   };
@@ -668,7 +667,7 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">{notice}</p>}
             {passwordChanged
-              ? <button type="button" onClick={close} className="primary-btn justify-center">Continue to DentalShift</button>
+              ? <button type="button" onClick={() => { onPasswordRecoveryComplete?.(); close(); }} className="primary-btn justify-center">Continue to DentalShift</button>
               : <button type="submit" disabled={busy} className="primary-btn justify-center">{busy ? "Updating password…" : "Save new password"}</button>}
           </form>
         ) : session ? (
