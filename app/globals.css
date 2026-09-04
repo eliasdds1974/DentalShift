@@ -13,7 +13,7 @@ button:disabled { cursor:default; opacity:.8; }
 .section-title { font-size:1.05rem; font-weight:850; letter-spacing:-.015em; color:#132b46; }
 .panel { border:1px solid #d9e3ed; border-radius:1.15rem; background:#fff; box-shadow:0 1px 2px rgb(0 39 87/.055); }
 .primary-btn,.secondary-btn { display:inline-flex; min-height:42px; align-items:center; justify-content:center; gap:.45rem; border-radius:.75rem; padding:.65rem 1rem; font-size:.875rem; font-weight:800; transition:.18s ease; }
-.primary-btn { border:1px solid #002757; background:#002757; color:#fff; box-shadow:0 4px 12px rgb(0 39 87/.2); }
+.primary-btn { border:1px solid #002757; background:#002757; color:#fff; font-weight:900; box-shadow:0 4px 12px rgb(0 39 87/.2); }
 .primary-btn:hover { background:#001d42; transform:translateY(-1px); }
 .secondary-btn { border:1px solid #cbd8e5; background:#fff; color:#31465d; }
 .secondary-btn:hover { border-color:#9eafc1; background:#f7f9fc; }
