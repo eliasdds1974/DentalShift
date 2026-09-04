@@ -46,7 +46,7 @@ function Metric({ icon, label, value, detail, color }: { icon: React.ReactNode; 
 
 function Sidebar({ role, setRole, view, setView, open, setOpen }: { role: Role; setRole: (r: Role) => void; view: View; setView: (v: View) => void; open: boolean; setOpen: (v: boolean) => void }) {
   const nav = role === "office"
-    ? [["overview", "Overview", <LayoutDashboard key="a" size={19} />], ["shifts", "My shifts", <CalendarDays key="b" size={19} />], ["talent", "Find professionals", <UsersRound key="c" size={19} />], ["bookings", "Bookings", <BriefcaseBusiness key="d" size={19} />]]
+    ? [["overview", "Overview", <LayoutDashboard key="a" size={19} />], ["shifts", "My shifts", <CalendarDays key="b" size={19} />], ["talent", "Find professionals", <UsersRound key="c" size={19} />], ["bookings", "Bookings", <BriefcaseBusiness key="d" size={19} />], ["profile", "Office profile", <Building2 key="op" size={19} />]]
     : role === "professional"
       ? [["overview", "Find shifts", <Search key="e" size={19} />], ["shifts", "My applications", <FileCheck2 key="f" size={19} />], ["bookings", "My schedule", <CalendarDays key="g" size={19} />], ["talent", "Favourite offices", <Heart key="h" size={19} />], ["profile", "Profile & credentials", <UserRound key="p" size={19} />]]
       : [["overview", "Admin overview", <LayoutDashboard key="i" size={19} />], ["talent", "Verification", <ShieldCheck key="j" size={19} />], ["shifts", "All shifts", <CalendarDays key="k" size={19} />], ["bookings", "Disputes", <MessageCircle key="l" size={19} />]];
@@ -1093,7 +1093,7 @@ export default function Home() {
   const content = useMemo(
     () => role === "office"
       ? session && profile && office
-        ? <OfficeWorkspace userId={session.user.id} office={office} onPost={() => setPost(true)} refreshKey={refreshKey} />
+        ? <OfficeWorkspace userId={session.user.id} office={office} onPost={() => setPost(true)} refreshKey={refreshKey} view={view} />
         : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />
       : role === "professional"
         ? session && profile
