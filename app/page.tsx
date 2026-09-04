@@ -599,7 +599,7 @@ function AccountModal({ close, session, profile, onSaved }: { close: () => void;
               <label className="field"><span>Postal code</span><input name="postal_code" defaultValue={details.profile.postal_code ?? ""} /></label>
               {details.professional && <>
                 <div className="border-t border-slate-200 pt-5 sm:col-span-2"><h3 className="font-extrabold text-slate-900">Professional profile</h3><p className="mt-1 text-sm text-slate-500">Licence identity changes automatically trigger a fresh review.</p></div>
-                <label className="field"><span>Profession</span><select name="profession" defaultValue={details.professional.profession}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Receptionist</option><option>Dentist</option></select></label>
+                <label className="field"><span>Profession</span><select name="profession" defaultValue={details.professional.profession}><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
                 <label className="field"><span>Licence number</span><input name="licence_number" required defaultValue={details.professional.licence_number} /></label>
                 <label className="field"><span>Licence province</span><input name="licence_province" required defaultValue={details.professional.licence_province} /></label>
                 <label className="field"><span>Preferred hourly rate</span><input name="hourly_rate" min="0" step="1" type="number" defaultValue={details.professional.hourly_rate ?? ""} /></label>
@@ -636,8 +636,14 @@ function AccountModal({ close, session, profile, onSaved }: { close: () => void;
             {mode === "signup" && <>
               <label className="field"><span>First name</span><input name="first_name" required /></label>
               <label className="field"><span>Last name</span><input name="last_name" required /></label>
-              <label className="field sm:col-span-2"><span>Account type</span><select value={role} onChange={(event) => setRole(event.target.value as "office" | "professional")}><option value="office">Dental office</option><option value="professional">Dental professional</option></select></label>
-              {role === "professional" && <><label className="field"><span>Profession</span><select name="profession"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Receptionist</option><option>Dentist</option></select></label><label className="field"><span>Licence number</span><input name="licence_number" required /></label></>}
+              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#edf3fa] p-1.5 sm:col-span-2">
+                <button type="button" onClick={() => setRole("office")} className={"rounded-xl px-3 py-3 text-sm font-extrabold transition " + (role === "office" ? "bg-[#002757] text-white shadow-sm" : "text-[#002757] hover:bg-white")}>For Dental Clinics</button>
+                <button type="button" onClick={() => setRole("professional")} className={"rounded-xl px-3 py-3 text-sm font-extrabold transition " + (role === "professional" ? "bg-[#002757] text-white shadow-sm" : "text-[#002757] hover:bg-white")}>For Dental Professionals</button>
+              </div>
+              {role === "professional" && <>
+                <label className="field sm:col-span-2"><span>Account type</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
+                <label className="field sm:col-span-2"><span>Licence or registration number (if applicable)</span><input name="licence_number" /></label>
+              </>}
               <GoogleAddressAutocomplete key={role} kind={role} />
             </>}
 
@@ -823,7 +829,7 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
 
               <label className="field sm:col-span-2">
                 <span>Professional required</span>
-                <select name="profession" required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dentist</option><option>Dental Receptionist</option></select>
+                <select name="profession" required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select>
               </label>
 
               <label className="field"><span>First date</span><input name="date_1" required type="date" defaultValue="2026-09-04" /></label>
