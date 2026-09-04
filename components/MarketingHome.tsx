@@ -14,7 +14,7 @@ function CheckLine({ children }: { children: React.ReactNode }) {
   return <li className="flex items-start gap-2.5"><span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#e5f7ea] text-[#01A32E]"><Check size={13} strokeWidth={3} /></span><span>{children}</span></li>;
 }
 
-export function MarketingHome({ onSignIn, onGetStarted }: { onSignIn: () => void; onGetStarted: (audience: Audience) => void }) {
+export function MarketingHome({ onSignIn, onGetStarted, onAdmin, signedIn = false }: { onSignIn: () => void; onGetStarted: (audience: Audience) => void; onAdmin: () => void; signedIn?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [audience, setAudience] = useState<Audience>("office");
 
@@ -33,7 +33,8 @@ export function MarketingHome({ onSignIn, onGetStarted }: { onSignIn: () => void
           <a href="#trust" className="transition hover:text-[#002757]">Trust & safety</a>
         </nav>
         <div className="hidden items-center gap-3 sm:flex">
-          <button onClick={onSignIn} className="rounded-xl px-4 py-2.5 text-sm font-extrabold text-[#002757] hover:bg-[#edf3fa]">Sign in</button>
+          <button onClick={onAdmin} className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs font-extrabold text-amber-800 hover:bg-amber-100">Temporary admin</button>
+          <button onClick={onSignIn} className="rounded-xl px-4 py-2.5 text-sm font-extrabold text-[#002757] hover:bg-[#edf3fa]">{signedIn ? "My account" : "Sign in"}</button>
           <button onClick={() => start("office")} className="inline-flex items-center gap-2 rounded-xl bg-[#002757] px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#003d80]">Get started <ArrowRight size={16} /></button>
         </div>
         <button onClick={() => setMenuOpen(!menuOpen)} aria-label="Open navigation" className="rounded-xl border border-slate-200 p-2.5 text-[#002757] sm:hidden">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
@@ -42,7 +43,8 @@ export function MarketingHome({ onSignIn, onGetStarted }: { onSignIn: () => void
         <div className="grid gap-2">
           <a onClick={() => setMenuOpen(false)} href="#how-it-works" className="rounded-xl px-3 py-3 font-bold text-slate-700">How it works</a>
           <a onClick={() => setMenuOpen(false)} href="#why-dentalshift" className="rounded-xl px-3 py-3 font-bold text-slate-700">Why DentalShift</a>
-          <button onClick={onSignIn} className="rounded-xl border border-[#002757]/15 px-4 py-3 text-left font-extrabold text-[#002757]">Sign in</button>
+          <button onClick={onAdmin} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-left font-extrabold text-amber-800">Temporary admin</button>
+          <button onClick={onSignIn} className="rounded-xl border border-[#002757]/15 px-4 py-3 text-left font-extrabold text-[#002757]">{signedIn ? "My account" : "Sign in"}</button>
           <button onClick={() => start("office")} className="rounded-xl bg-[#002757] px-4 py-3 font-extrabold text-white">Get started</button>
         </div>
       </div>}
@@ -181,7 +183,7 @@ export function MarketingHome({ onSignIn, onGetStarted }: { onSignIn: () => void
     <footer className="border-t border-slate-200 bg-slate-50">
       <div className="mx-auto flex max-w-7xl flex-col gap-6 px-5 py-10 sm:px-8 lg:flex-row lg:items-center lg:justify-between">
         <div><MarketingBrand /><p className="mt-3 text-sm text-slate-500">Dental staffing made simple across Canada.</p></div>
-        <div className="flex flex-wrap gap-5 text-sm font-bold text-slate-500"><a href="#how-it-works">How it works</a><a href="#trust">Trust & safety</a><button onClick={onSignIn}>Sign in</button><a href="mailto:support@dentalshift.ca">Support</a></div>
+        <div className="flex flex-wrap gap-5 text-sm font-bold text-slate-500"><a href="#how-it-works">How it works</a><a href="#trust">Trust & safety</a><button onClick={onAdmin} className="text-amber-700">Temporary admin</button><button onClick={onSignIn}>{signedIn ? "My account" : "Sign in"}</button><a href="mailto:support@dentalshift.ca">Support</a></div>
         <p className="text-xs text-slate-400">© 2026 DentalShift. All rights reserved.</p>
       </div>
     </footer>
