@@ -76,6 +76,14 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [shiftSearch, setShiftSearch] = useState("");
+  const [shiftDate, setShiftDate] = useState("");
+  const [minimumRate, setMinimumRate] = useState("");
+  const [sortShifts, setSortShifts] = useState<"best" | "soonest" | "highest">("best");
+  const [availabilityOnly, setAvailabilityOnly] = useState(false);
+  const [expandedShift, setExpandedShift] = useState("");
+  const [rateShift, setRateShift] = useState("");
+  const [rateDraft, setRateDraft] = useState("");
   const refresh = async () => {
     setLoading(true); setError("");
     try { setData(await loadProfessionalWorkflow(userId)); }
@@ -92,6 +100,23 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
   const existing = new Map(data.applications.map((application) => [application.shifts?.id, application]));
   const upcomingBookings = data.bookings.filter((booking) => !booking.cancelled_at);
   const favouriteOfficeIds = new Set(data.favourites.map((favourite) => favourite.office_id));
+  const matchesAvailability = (shift: LiveShift) => data.availability.some((slot) => slot.available && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at));
+  const hasScheduleConflict = (shift: LiveShift) => upcomingBookings.some((booking) => booking.shifts && new Date(booking.shifts.starts_at) < new Date(shift.ends_at) && new Date(booking.shifts.ends_at) > new Date(shift.starts_at));
+  const visibleShifts = data.open
+    .filter((shift) => {
+      const haystack = [shift.offices?.name, shift.offices?.city, shift.offices?.province, shift.profession, shift.required_software].filter(Boolean).join(" ").toLowerCase();
+      const matchesSearch = !shiftSearch.trim() || haystack.includes(shiftSearch.trim().toLowerCase());
+      const matchesDate = !shiftDate || shift.starts_at.slice(0, 10) === shiftDate;
+      const matchesRate = !minimumRate || Number(shift.hourly_rate) >= Number(minimumRate);
+      return matchesSearch && matchesDate && matchesRate && (!availabilityOnly || matchesAvailability(shift));
+    })
+    .sort((first, second) => {
+      if (sortShifts === "highest") return Number(second.hourly_rate) - Number(first.hourly_rate);
+      if (sortShifts === "soonest") return new Date(first.starts_at).getTime() - new Date(second.starts_at).getTime();
+      const firstScore = (matchesAvailability(first) ? 2 : 0) + (favouriteOfficeIds.has(first.office_id) ? 1 : 0);
+      const secondScore = (matchesAvailability(second) ? 2 : 0) + (favouriteOfficeIds.has(second.office_id) ? 1 : 0);
+      return secondScore - firstScore || new Date(first.starts_at).getTime() - new Date(second.starts_at).getTime();
+    });
   const addAvailability = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
@@ -295,10 +320,84 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
 
       {view === "overview" && <>
       <section className="mt-7 panel overflow-hidden">
-        <div className="border-b border-slate-200 p-5"><h2 className="section-title">Available shifts</h2><p className="text-sm text-slate-500">Only shifts matching your verified profession can be accepted by the system.</p></div>
-        {data.open.length === 0 ? <p className="p-6 text-sm text-slate-500">No open shifts right now.</p> : <div className="divide-y divide-slate-100">{data.open.map((shift) => { const application = existing.get(shift.id); return <div key={shift.id} className="p-5 sm:flex sm:items-center sm:gap-4"><div className="flex-1"><div className="flex flex-wrap items-center gap-2"><strong>{shift.offices?.name || "Dental office"}</strong>{shift.offices && <span className="flex items-center gap-1 text-xs text-slate-500"><MapPin size={13} />{shift.offices.city}, {shift.offices.province}</span>}</div><p className="mt-1 text-sm font-bold text-slate-700">{shift.profession}</p><ShiftFacts shift={shift} /></div><div className="mt-3 flex flex-wrap gap-2 sm:mt-0"><button disabled={Boolean(application) || busy === shift.id} onClick={() => void act(shift.id, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className={application ? "secondary-btn" : "primary-btn"}>{application ? application.status.replace("_", " ") : "Apply now"}</button><button type="button" disabled={busy === shift.office_id} onClick={() => void act(shift.office_id, () => setFavouriteOffice(userId, shift.office_id, !favouriteOfficeIds.has(shift.office_id)))} className="secondary-btn">{favouriteOfficeIds.has(shift.office_id) ? "Saved office" : "Save office"}</button></div></div>; })}</div>}
+        <div className="border-b border-slate-200 p-5">
+          <div className="flex flex-col justify-between gap-2 sm:flex-row sm:items-end">
+            <div><h2 className="section-title">Find shifts</h2><p className="text-sm text-slate-500">Search verified dental offices and apply for shifts that fit your schedule.</p></div>
+            <Pill tone="blue">{visibleShifts.length} matching {visibleShifts.length === 1 ? "shift" : "shifts"}</Pill>
+          </div>
+        </div>
+
+        <div className="grid gap-3 border-b border-slate-200 bg-slate-50 p-4 sm:grid-cols-2 lg:grid-cols-4">
+          <label className="field sm:col-span-2"><span>Search</span><input value={shiftSearch} onChange={(event) => setShiftSearch(event.target.value)} placeholder="Office, city, role or software" /></label>
+          <label className="field"><span>Date</span><input type="date" value={shiftDate} onChange={(event) => setShiftDate(event.target.value)} /></label>
+          <label className="field"><span>Minimum hourly rate</span><div className="relative"><span className="absolute left-3 top-3 text-slate-400">{"$"}</span><input type="number" min="0" value={minimumRate} onChange={(event) => setMinimumRate(event.target.value)} className="pl-7!" placeholder="Any rate" /></div></label>
+          <label className="field sm:col-span-1"><span>Sort by</span><select value={sortShifts} onChange={(event) => setSortShifts(event.target.value as "best" | "soonest" | "highest")}><option value="best">Best match</option><option value="soonest">Soonest date</option><option value="highest">Highest pay</option></select></label>
+          <label className="flex min-h-12 items-center gap-3 rounded-xl border border-[#0078FE]/20 bg-white px-4 py-3 text-sm font-extrabold text-[#002757] sm:col-span-2">
+            <input type="checkbox" checked={availabilityOnly} onChange={(event) => setAvailabilityOnly(event.target.checked)} className="h-4 w-4 accent-[#002757]" />
+            Only show shifts matching my availability
+          </label>
+          <button type="button" onClick={() => { setShiftSearch(""); setShiftDate(""); setMinimumRate(""); setAvailabilityOnly(false); setSortShifts("best"); }} className="secondary-btn self-end">Clear filters</button>
+        </div>
+
+        {visibleShifts.length === 0 ? (
+          <div className="p-8 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#edf3fa] text-[#002757]"><Search size={22} /></div><p className="mt-3 font-extrabold text-[#002757]">No matching shifts</p><p className="mt-1 text-sm text-slate-500">Adjust your filters or post another availability window.</p></div>
+        ) : (
+          <div className="space-y-4 p-4 sm:p-5">
+            {visibleShifts.map((shift) => {
+              const application = existing.get(shift.id);
+              const available = matchesAvailability(shift);
+              const conflict = hasScheduleConflict(shift);
+              const favourite = favouriteOfficeIds.has(shift.office_id);
+              const expanded = expandedShift === shift.id;
+              return <article key={shift.id} className={`overflow-hidden rounded-2xl border shadow-sm transition ${available ? "border-[#01A32E]/30 bg-[#eaf8ee]/30" : "border-[#0078FE]/25 bg-white"}`}>
+                <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:p-5">
+                  <div className="flex min-w-20 shrink-0 items-center gap-3 rounded-xl bg-[#0078FE] px-4 py-3 text-white sm:flex-col sm:gap-0 sm:text-center">
+                    <strong className="text-2xl font-black leading-none">{new Date(shift.starts_at).toLocaleDateString("en-CA", { day: "numeric" })}</strong>
+                    <span className="text-sm font-extrabold uppercase tracking-wide">{new Date(shift.starts_at).toLocaleDateString("en-CA", { month: "short" })}</span>
+                    <span className="text-xs font-bold text-white/85">{new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short" })}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <strong className="text-lg text-[#002757]">{shift.offices?.name || "Dental office"}</strong>
+                      {favourite && <Pill tone="green"><Star size={13} className="fill-[#01A32E] text-[#01A32E]" />Favourite</Pill>}
+                      {available && <Pill tone="green"><Check size={13} />Matches availability</Pill>}
+                    </div>
+                    <p className="mt-1 text-sm font-extrabold text-slate-700">{shift.profession}</p>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold text-slate-600">
+                      <span className="flex items-center gap-1"><MapPin size={15} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span>
+                      <span className="flex items-center gap-1"><Clock3 size={15} />{new Date(shift.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(shift.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span>
+                      <strong className="text-[#002757]">{"$"}{Number(shift.hourly_rate)}/hr</strong>
+                    </div>
+                    {conflict && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-extrabold text-[#F21C13]">Schedule conflict: you already have a confirmed booking during this time.</p>}
+                    {application && <p className="mt-3 rounded-xl bg-[#edf3fa] px-3 py-2 text-xs font-extrabold text-[#002757]">Application status: {application.status.replace("_", " ")}{application.proposed_rate ? <> · proposed {"$"}{Number(application.proposed_rate)}/hr</> : null}</p>}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    <button type="button" onClick={() => setExpandedShift(expanded ? "" : shift.id)} className="secondary-btn">{expanded ? "Hide details" : "View details"}</button>
+                    {!application && !conflict && <button disabled={busy === shift.id} onClick={() => void act(shift.id, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn">{busy === shift.id ? "Applying…" : "Apply now"}</button>}
+                  </div>
+                </div>
+
+                {expanded && <div className="border-t border-[#0078FE]/15 bg-[#edf3fa] p-4 sm:p-5">
+                  <div className="grid gap-4 text-sm sm:grid-cols-2">
+                    <div><p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Practice software</p><p className="mt-1 font-extrabold text-[#002757]">{shift.required_software || "No specific software required"}</p></div>
+                    <div><p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Shift notes</p><p className="mt-1 font-semibold text-slate-700">{shift.notes || "No additional notes provided."}</p></div>
+                  </div>
+                  <p className="mt-4 text-xs font-semibold text-slate-500"><ShieldCheck size={14} className="mr-1 inline text-[#01A32E]" />Exact contact information remains protected until the booking is confirmed.</p>
+                  {!application && !conflict && <div className="mt-4 border-t border-[#0078FE]/15 pt-4">
+                    {rateShift === shift.id ? <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
+                      <label className="field flex-1"><span>Proposed hourly rate</span><div className="relative"><span className="absolute left-3 top-3 text-slate-400">{"$"}</span><input type="number" min="1" value={rateDraft} onChange={(event) => setRateDraft(event.target.value)} className="pl-7!" placeholder={String(shift.hourly_rate)} /></div></label>
+                      <button type="button" onClick={() => { setRateShift(""); setRateDraft(""); }} className="secondary-btn">Cancel</button>
+                      <button type="button" disabled={!rateDraft || Number(rateDraft) <= 0 || busy === shift.id} onClick={() => void act(shift.id, () => applyForShift({ shiftId: shift.id, professionalId: userId, proposedRate: Number(rateDraft) })).then(() => { setRateShift(""); setRateDraft(""); })} className="primary-btn">Send proposal</button>
+                    </div> : <button type="button" onClick={() => { setRateShift(shift.id); setRateDraft(String(shift.hourly_rate)); }} className="secondary-btn">Propose another rate</button>}
+                  </div>}
+                </div>}
+              </article>;
+            })}
+          </div>
+        )}
       </section>
       </>}
+
     </>}
   </div>;
 }
