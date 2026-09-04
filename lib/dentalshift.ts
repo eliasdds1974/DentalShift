@@ -40,6 +40,15 @@ export type OfficeDetails = {
   software: string[] | null;
   description: string | null;
   verification_status: string;
+  contact_name: string | null;
+  contact_title: string | null;
+  office_hours: string | null;
+  operatories: number | null;
+  parking_info: string | null;
+  languages: string[] | null;
+  benefits: string | null;
+  authorization_confirmed: boolean;
+  submitted_for_verification_at: string | null;
 };
 
 export type AccountDetails = {
@@ -149,7 +158,7 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
       .maybeSingle(),
     supabase
       .from("offices")
-      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status")
+      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at")
       .eq("owner_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
@@ -178,7 +187,7 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
   return { profile, professional, office, verificationRequest };
 }
 
-export async function createOfficeWorkspace(input: Omit<OfficeDetails, "id" | "verification_status">) {
+export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id" | "name" | "address" | "city" | "province" | "postal_code" | "phone" | "website" | "software" | "description">) {
   const { data, error } = await supabase
     .from("offices")
     .insert({
@@ -194,10 +203,55 @@ export async function createOfficeWorkspace(input: Omit<OfficeDetails, "id" | "v
       description: input.description,
       verification_status: "pending",
     })
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status")
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
+}
+
+export async function updateOfficeProfile(office: OfficeDetails) {
+  const { data, error } = await supabase
+    .from("offices")
+    .update({
+      name: office.name,
+      address: office.address,
+      city: office.city,
+      province: office.province,
+      postal_code: office.postal_code,
+      phone: office.phone,
+      website: office.website,
+      software: office.software,
+      description: office.description,
+      contact_name: office.contact_name,
+      contact_title: office.contact_title,
+      office_hours: office.office_hours,
+      operatories: office.operatories,
+      parking_info: office.parking_info,
+      languages: office.languages,
+      benefits: office.benefits,
+      authorization_confirmed: office.authorization_confirmed,
+    })
+    .eq("id", office.id)
+    .eq("owner_id", office.owner_id)
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at")
+    .single();
+  if (error) throw error;
+  return data as OfficeDetails;
+}
+
+export async function submitOfficeForVerification(officeId: string, ownerId: string) {
+  const { data, error } = await supabase
+    .from("offices")
+    .update({
+      verification_status: "pending",
+      submitted_for_verification_at: new Date().toISOString(),
+    })
+    .eq("id", officeId)
+    .eq("owner_id", ownerId)
+    .select("id,verification_status,submitted_for_verification_at")
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 export async function saveAccountDetails(input: AccountDetails) {
@@ -246,6 +300,14 @@ export async function saveAccountDetails(input: AccountDetails) {
         website: input.office.website,
         software: input.office.software,
         description: input.office.description,
+        contact_name: input.office.contact_name,
+        contact_title: input.office.contact_title,
+        office_hours: input.office.office_hours,
+        operatories: input.office.operatories,
+        parking_info: input.office.parking_info,
+        languages: input.office.languages,
+        benefits: input.office.benefits,
+        authorization_confirmed: input.office.authorization_confirmed,
       })
       .eq("id", input.office.id);
     if (error) throw error;
