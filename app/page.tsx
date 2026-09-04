@@ -44,13 +44,13 @@ function Metric({ icon, label, value, detail, color }: { icon: React.ReactNode; 
   return <article className="panel flex min-w-0 items-start gap-4 p-5"><div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${color}`}>{icon}</div><div><p className="text-sm font-semibold text-slate-500">{label}</p><p className="mt-0.5 text-2xl font-extrabold tracking-tight text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div></article>;
 }
 
-function Sidebar({ role, setRole, view, setView, open, setOpen }: { role: Role; setRole: (r: Role) => void; view: View; setView: (v: View) => void; open: boolean; setOpen: (v: boolean) => void }) {
+function Sidebar({ role, view, setView, open, setOpen }: { role: Role; view: View; setView: (v: View) => void; open: boolean; setOpen: (v: boolean) => void }) {
   const nav = role === "office"
     ? [["overview", "Overview", <LayoutDashboard key="a" size={19} />], ["shifts", "Review applicants", <FileCheck2 key="b" size={19} />], ["talent", "Find professionals", <UsersRound key="c" size={19} />], ["bookings", "Bookings", <BriefcaseBusiness key="d" size={19} />], ["profile", "Office profile", <Building2 key="op" size={19} />]]
     : role === "professional"
       ? [["overview", "Find shifts", <Search key="e" size={19} />], ["shifts", "My applications", <FileCheck2 key="f" size={19} />], ["bookings", "My schedule", <CalendarDays key="g" size={19} />], ["talent", "Favourite offices", <Heart key="h" size={19} />], ["profile", "Profile & credentials", <UserRound key="p" size={19} />]]
       : [["overview", "Admin overview", <LayoutDashboard key="i" size={19} />], ["talent", "Verification", <ShieldCheck key="j" size={19} />], ["shifts", "All shifts", <CalendarDays key="k" size={19} />], ["bookings", "Disputes", <MessageCircle key="l" size={19} />]];
-  return <>{open && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden" onClick={() => setOpen(false)} />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="px-2"><Brand /></div><div className="mt-8 rounded-2xl bg-slate-100 p-1"><div className="grid grid-cols-3 gap-1">{(["office", "professional", "admin"] as Role[]).map((r) => <button key={r} onClick={() => { setRole(r); setOpen(false); }} className={`rounded-xl px-2 py-2 text-xs font-bold capitalize transition ${role === r ? "bg-white text-[#002757] shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{r === "professional" ? "Pro" : r}</button>)}</div></div><p className="mb-2 mt-7 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Workspace</p><nav className="space-y-1">{nav.map(([key, label, icon]) => <button key={key as string} onClick={() => { setView(key as View); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${view === key ? "bg-[#eaf8ee] text-[#017f27]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}>{icon}{label}</button>)}</nav><div className="mt-auto rounded-2xl border border-[#01A32E]/20 bg-[#eaf8ee] p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-[#017f27]"><ShieldCheck size={18} /> Trust & safety</div><p className="mt-2 text-xs leading-5 text-[#017f27]">Licences are checked against the applicable provincial registry.</p></div><div className="mt-4 flex items-center gap-3 px-2"><div className="grid h-10 w-10 place-items-center rounded-full bg-[#002757] text-sm font-bold text-white">{role === "office" ? "LD" : role === "professional" ? "MR" : "EK"}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{role === "office" ? "Lakeside Dental" : role === "professional" ? "Maya Roberts" : "DentalShift Admin"}</p><p className="truncate text-xs text-slate-500">{role === "admin" ? "Platform administrator" : "Verified account"}</p></div></div></aside></>;
+  return <>{open && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden" onClick={() => setOpen(false)} />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="px-2"><Brand /></div><p className="mb-2 mt-8 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Workspace</p><nav className="space-y-1">{nav.map(([key, label, icon]) => <button key={key as string} onClick={() => { setView(key as View); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${view === key ? "bg-[#eaf8ee] text-[#017f27]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}>{icon}{label}</button>)}</nav><div className="mt-auto rounded-2xl border border-[#01A32E]/20 bg-[#eaf8ee] p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-[#017f27]"><ShieldCheck size={18} /> Trust & safety</div><p className="mt-2 text-xs leading-5 text-[#017f27]">Licences are checked against the applicable provincial registry.</p></div><div className="mt-4 flex items-center gap-3 px-2"><div className="grid h-10 w-10 place-items-center rounded-full bg-[#002757] text-sm font-bold text-white">{role === "office" ? "LD" : role === "professional" ? "MR" : "EK"}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{role === "office" ? "Lakeside Dental" : role === "professional" ? "Maya Roberts" : "DentalShift Admin"}</p><p className="truncate text-xs text-slate-500">{role === "admin" ? "Platform administrator" : "Verified account"}</p></div></div></aside></>;
 }
 
 function Header({ role, onMenu, onPost, onMessages, onAccount, onSignOut, signedIn }: { role: Role; onMenu: () => void; onPost: () => void; onMessages: () => void; onAccount: () => void; onSignOut: () => void; signedIn: boolean }) {
@@ -1124,8 +1124,8 @@ export default function Home() {
         const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
         const requestedDestination = window.sessionStorage.getItem("dentalshift_home_destination");
         window.sessionStorage.removeItem("dentalshift_signin_role");
-        if (requestedRole === "office" && details.office) setRole("office");
-        else if (requestedRole === "professional" && details.professional) setRole("professional");
+        if (requestedRole === "office" && details.office) { setRole("office"); setShowHome(false); }
+        else if (requestedRole === "professional" && details.professional) { setRole("professional"); setShowHome(false); }
         else setRole(account.profile.role);
         const destinationAllowed = (requestedDestination === "office" && details.office) || (requestedDestination === "professional" && details.professional) || (requestedDestination === "admin" && account.profile.role === "admin");
         if (destinationAllowed) {
@@ -1156,6 +1156,13 @@ export default function Home() {
       listener.subscription.unsubscribe();
     };
   }, []);
+
+  const signOutToHome = async () => {
+    await supabase.auth.signOut();
+    setShowHome(true);
+    setMenu(false);
+    setView("overview");
+  };
 
   const content = useMemo(
     () => role === "office"
@@ -1203,13 +1210,9 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
-      <Sidebar role={role} setRole={(nextRole) => {
-        const canOpenRole = nextRole === profile?.role || (nextRole === "office" && Boolean(officeId)) || (nextRole === "admin" && profile?.role === "admin");
-        if (canOpenRole) setRole(nextRole);
-        setView("overview");
-      }} view={view} setView={setView} open={menu} setOpen={setMenu} />
+      <Sidebar role={role} view={view} setView={setView} open={menu} setOpen={setMenu} />
       <div className="lg:pl-[270px]">
-        <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} onSignOut={() => void supabase.auth.signOut()} signedIn={Boolean(session)} />
+        <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} onSignOut={() => void signOutToHome()} signedIn={Boolean(session)} />
         {session && profile && <div className="border-b border-[#01A32E]/20 bg-[#eaf8ee] px-5 py-2 text-center text-xs font-bold text-[#017f27]">Live account connected · changes are saved securely</div>}
         {content}
       </div>
