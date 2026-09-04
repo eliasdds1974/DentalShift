@@ -605,18 +605,6 @@ export async function acceptApplication(applicationId: string) {
   return data;
 }
 
-export async function declineApplication(applicationId: string) {
-  const { data, error } = await supabase
-    .from("applications")
-    .update({ status: "declined" })
-    .eq("id", applicationId)
-    .eq("status", "applied")
-    .select("id")
-    .single();
-  if (error) throw error;
-  return data;
-}
-
 export async function inviteProfessional(shiftId: string, professionalId: string, rate?: number) {
   const { data, error } = await supabase.rpc("office_invite_professional", { p_shift_id: shiftId, p_professional_id: professionalId, p_proposed_rate: rate ?? null });
   if (error) throw error;
