@@ -1171,9 +1171,7 @@ export default function Home() {
         setRole(nextRole);
         window.localStorage.setItem("dentalshift_portal_role", nextRole);
 
-        if (window.location.pathname === "/") {
-          router.replace(portalRoutes[nextRole].overview);
-        }
+
       } catch {
         if (active) {
           setProfile(null);
@@ -1217,13 +1215,15 @@ export default function Home() {
     return <main className="grid min-h-screen place-items-center bg-white"><div className="text-center"><div className="mx-auto w-fit"><Brand /></div><p className="mt-4 text-sm font-extrabold text-[#002757]">Loading DentalShift…</p></div></main>;
   }
 
-  if (!session) {
+  if (!session || pathname === "/") {
     return <main className="min-h-screen bg-white">
       <MarketingHome
+        signedIn={Boolean(session)}
         onSignIn={() => { setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true); }}
         onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
+        onWorkspace={() => navigate(role, "overview")}
       />
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={null} profile={null} initialMode={accountIntent.mode} initialRole={accountIntent.role} onSaved={() => undefined} />}
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} initialMode={accountIntent.mode} initialRole={accountIntent.role} onSaved={() => setRefreshKey((key) => key + 1)} />}
     </main>;
   }
 
