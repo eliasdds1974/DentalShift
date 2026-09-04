@@ -111,6 +111,18 @@ export type AdminShift = {
   openDisputeCount: number;
 };
 
+export function normalizeWebsite(value?: string | null) {
+  const candidate = value?.trim();
+  if (!candidate) return null;
+  const withProtocol = /^https?:\/\//i.test(candidate) ? candidate : `https://${candidate}`;
+  try {
+    const parsed = new URL(withProtocol);
+    return (parsed.protocol === "https:" || parsed.protocol === "http:") && parsed.hostname ? parsed.href : null;
+  } catch {
+    return null;
+  }
+}
+
 export type LiveShift = {
   id: string;
   office_id: string;
@@ -121,7 +133,7 @@ export type LiveShift = {
   required_software: string | null;
   notes: string | null;
   status: string;
-  offices: { name: string; city: string; province: string } | null;
+  offices: { name: string; city: string; province: string; website: string | null } | null;
 };
 
 export async function loadAccount(userId: string) {
@@ -199,7 +211,7 @@ export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id
       province: input.province,
       postal_code: input.postal_code,
       phone: input.phone,
-      website: input.website,
+      website: normalizeWebsite(input.website),
       software: input.software,
       description: input.description,
       verification_status: "pending",
@@ -220,7 +232,7 @@ export async function updateOfficeProfile(office: OfficeDetails) {
       province: office.province,
       postal_code: office.postal_code,
       phone: office.phone,
-      website: office.website,
+      website: normalizeWebsite(office.website),
       software: office.software,
       description: office.description,
       contact_name: office.contact_name,
@@ -446,7 +458,7 @@ export async function cancelAdminShift(shiftId: string, reason: string) {
 export async function loadOpenShifts() {
   const { data, error } = await supabase
     .from("shifts")
-    .select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province)")
+    .select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website)")
     .eq("status", "open")
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true });
@@ -500,7 +512,7 @@ export async function updateAttendance(bookingId: string, action: "check_in" | "
 }
 
 export type ProfessionalAvailability = { id: string; starts_at: string; ends_at: string; available: boolean };
-export type FavouriteOffice = { office_id: string; offices: { id: string; name: string; city: string; province: string } | null };
+export type FavouriteOffice = { office_id: string; offices: { id: string; name: string; city: string; province: string; website: string | null } | null };
 
 export type WorkflowApplication = {
   id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string;
@@ -560,10 +572,10 @@ export async function setFavouriteOffice(userId: string, officeId: string, favou
 export async function loadProfessionalWorkflow(userId: string) {
   const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult] = await Promise.all([
     loadOpenShifts(),
-    supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province))").eq("professional_id", userId).order("created_at", { ascending: false }),
-    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
+    supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website))").eq("professional_id", userId).order("created_at", { ascending: false }),
+    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
     supabase.from("availability").select("id,starts_at,ends_at,available").eq("professional_id", userId).order("starts_at", { ascending: true }),
-    supabase.from("favourites").select("office_id,offices!favourites_office_id_fkey(id,name,city,province)").eq("professional_id", userId).order("created_at", { ascending: false }),
+    supabase.from("favourites").select("office_id,offices!favourites_office_id_fkey(id,name,city,province,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
   ]);
   if (applicationsResult.error) throw applicationsResult.error;
   if (bookingsResult.error) throw bookingsResult.error;
@@ -575,8 +587,8 @@ export async function loadProfessionalWorkflow(userId: string) {
 
 export async function loadOfficeWorkflow(officeId: string) {
   const [shiftsResult, bookingsResult, directoryResult, availabilityResult] = await Promise.all([
-    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
-    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
+    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
+    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
     supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").eq("available_for_work", true).order("rating", { ascending: false }).limit(12),
     supabase.from("availability").select("id,professional_id,starts_at,ends_at,professional_profiles!availability_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score)").eq("available", true).gte("ends_at", new Date().toISOString()),
   ]);
