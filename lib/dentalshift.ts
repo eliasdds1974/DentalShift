@@ -49,6 +49,7 @@ export type OfficeDetails = {
   benefits: string | null;
   authorization_confirmed: boolean;
   submitted_for_verification_at: string | null;
+  logo_url: string | null;
 };
 
 export type AccountDetails = {
@@ -158,7 +159,7 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
       .maybeSingle(),
     supabase
       .from("offices")
-      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at")
+      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
       .eq("owner_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
@@ -203,7 +204,7 @@ export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id
       description: input.description,
       verification_status: "pending",
     })
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at")
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -230,13 +231,29 @@ export async function updateOfficeProfile(office: OfficeDetails) {
       languages: office.languages,
       benefits: office.benefits,
       authorization_confirmed: office.authorization_confirmed,
+      logo_url: office.logo_url,
     })
     .eq("id", office.id)
     .eq("owner_id", office.owner_id)
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at")
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
+}
+
+export async function uploadOfficeLogo(userId: string, officeId: string, file: File) {
+  const extensions: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+  const extension = extensions[file.type];
+  if (!extension) throw new Error("Choose a PNG, JPG or WebP logo.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("The logo must be smaller than 5 MB.");
+  const path = `${userId}/${officeId}.${extension}`;
+  const { error: uploadError } = await supabase.storage.from("office-logos").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+  if (uploadError) throw uploadError;
+  const { data } = supabase.storage.from("office-logos").getPublicUrl(path);
+  const logoUrl = `${data.publicUrl}?v=${Date.now()}`;
+  const { error: officeError } = await supabase.from("offices").update({ logo_url: logoUrl }).eq("id", officeId).eq("owner_id", userId);
+  if (officeError) throw officeError;
+  return logoUrl;
 }
 
 export async function submitOfficeForVerification(officeId: string, ownerId: string) {
@@ -308,6 +325,7 @@ export async function saveAccountDetails(input: AccountDetails) {
         languages: input.office.languages,
         benefits: input.office.benefits,
         authorization_confirmed: input.office.authorization_confirmed,
+        logo_url: input.office.logo_url,
       })
       .eq("id", input.office.id);
     if (error) throw error;
