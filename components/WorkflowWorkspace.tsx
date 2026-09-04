@@ -651,7 +651,7 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
         <label className="field"><span>Province *</span><select name="province" required defaultValue={officeDetails.province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
         <label className="field"><span>Postal code *</span><input name="postal_code" required defaultValue={officeDetails.postal_code} /></label>
         <label className="field"><span>Main phone *</span><input name="phone" required type="tel" defaultValue={officeDetails.phone || ""} /></label>
-        <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" placeholder="https://" defaultValue={officeDetails.website || ""} /></label>
+        <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoCapitalize="none" spellCheck={false} placeholder="www.chappellefamilydental.ca" defaultValue={officeDetails.website || ""} /><small>You can enter www.example.ca — DentalShift will add the secure link automatically.</small></label>
 
         <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Primary contact</h3><p className="mt-1 text-xs text-slate-500">Visible only to DentalShift administration unless a booking requires contact.</p></div>
         <label className="field"><span>Contact name *</span><input name="contact_name" required defaultValue={officeDetails.contact_name || ""} /></label>
