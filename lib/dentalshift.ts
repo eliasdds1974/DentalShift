@@ -243,12 +243,18 @@ export async function updateOfficeProfile(office: OfficeDetails) {
 
 export async function uploadOfficeLogo(userId: string, officeId: string, file: File) {
   const extensions: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
-  const extension = extensions[file.type];
+  const extensionFromName = file.name.split(".").pop()?.toLowerCase();
+  const normalizedNameExtension = extensionFromName === "jpeg" ? "jpg" : extensionFromName;
+  const extension = extensions[file.type] ?? (["png", "jpg", "webp"].includes(normalizedNameExtension || "") ? normalizedNameExtension : undefined);
   if (!extension) throw new Error("Choose a PNG, JPG or WebP logo.");
   if (file.size > 5 * 1024 * 1024) throw new Error("The logo must be smaller than 5 MB.");
   const path = `${userId}/${officeId}.${extension}`;
   const { error: uploadError } = await supabase.storage.from("office-logos").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
-  if (uploadError) throw uploadError;
+  if (uploadError) {
+    if (/bucket.*not found/i.test(uploadError.message)) throw new Error("Logo storage is not configured yet. Please contact DentalShift support.");
+    if (/row-level security|policy|unauthorized/i.test(uploadError.message)) throw new Error("Your account does not have permission to upload this logo. Sign out, sign back in and try again.");
+    throw new Error(`The logo could not be uploaded: ${uploadError.message}`);
+  }
   const { data } = supabase.storage.from("office-logos").getPublicUrl(path);
   const logoUrl = `${data.publicUrl}?v=${Date.now()}`;
   const { error: officeError } = await supabase.from("offices").update({ logo_url: logoUrl }).eq("id", officeId).eq("owner_id", userId);
