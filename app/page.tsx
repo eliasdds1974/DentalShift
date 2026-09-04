@@ -6,6 +6,7 @@ import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronR
 import { supabase } from "@/lib/supabase";
 import { addVerificationInternalNote, applyForShift, cancelAdminShift, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
+import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import type { OfficeDetails } from "@/lib/dentalshift";
 
 type Role = "office" | "professional" | "admin";
@@ -487,10 +488,19 @@ function AccountModal({ close, session, profile, onSaved }: { close: () => void;
         office_name: String(form.get("office_name") || ""),
         profession: String(form.get("profession") || ""),
         licence_number: String(form.get("licence_number") || ""),
+        address: String(form.get("address") || ""),
         city: String(form.get("city") || ""),
         province: String(form.get("province") || "BC"),
         postal_code: String(form.get("postal_code") || ""),
+        google_place_id: String(form.get("google_place_id") || ""),
+        latitude: String(form.get("latitude") || ""),
+        longitude: String(form.get("longitude") || ""),
       };
+      if (!metadata.address || !metadata.city || !metadata.province || !metadata.postal_code || (role === "office" && !metadata.office_name)) {
+        setError("Select an address from Google or enter the complete address manually.");
+        setBusy(false);
+        return;
+      }
       const { data, error: signUpError } = await supabase.auth.signUp({
         email,
         password,
@@ -627,10 +637,8 @@ function AccountModal({ close, session, profile, onSaved }: { close: () => void;
               <label className="field"><span>First name</span><input name="first_name" required /></label>
               <label className="field"><span>Last name</span><input name="last_name" required /></label>
               <label className="field sm:col-span-2"><span>Account type</span><select value={role} onChange={(event) => setRole(event.target.value as "office" | "professional")}><option value="office">Dental office</option><option value="professional">Dental professional</option></select></label>
-              {role === "office" ? <label className="field sm:col-span-2"><span>Office name</span><input name="office_name" required /></label> : <><label className="field"><span>Profession</span><select name="profession"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Receptionist</option><option>Dentist</option></select></label><label className="field"><span>Licence number</span><input name="licence_number" required /></label></>}
-              <label className="field"><span>City</span><input name="city" required /></label>
-              <label className="field"><span>Province</span><select name="province" defaultValue="BC"><option>BC</option><option>AB</option><option>SK</option><option>MB</option><option>ON</option><option>QC</option><option>NB</option><option>NS</option><option>PE</option><option>NL</option></select></label>
-              <label className="field sm:col-span-2"><span>Postal code</span><input name="postal_code" required /></label>
+              {role === "professional" && <><label className="field"><span>Profession</span><select name="profession"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Receptionist</option><option>Dentist</option></select></label><label className="field"><span>Licence number</span><input name="licence_number" required /></label></>}
+              <GoogleAddressAutocomplete key={role} kind={role} />
             </>}
 
             <label className="field sm:col-span-2"><span>Email</span><input name="email" type="email" required /></label>
