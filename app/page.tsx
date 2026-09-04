@@ -1108,6 +1108,7 @@ export default function Home() {
       if (!active) return;
       setSession(nextSession);
       if (!nextSession) {
+        window.sessionStorage.removeItem("dentalshift_active_portal");
         setProfile(null);
         setOfficeId(null);
         setOffice(null);
@@ -1123,16 +1124,17 @@ export default function Home() {
         setOffice(details.office);
         const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
         const requestedDestination = window.sessionStorage.getItem("dentalshift_home_destination");
+        const activePortal = window.sessionStorage.getItem("dentalshift_active_portal");
         window.sessionStorage.removeItem("dentalshift_signin_role");
-        if (requestedRole === "office" && details.office) { setRole("office"); setShowHome(false); }
-        else if (requestedRole === "professional" && details.professional) { setRole("professional"); setShowHome(false); }
-        else setRole(account.profile.role);
+        const roleAllowed = (candidate: string | null) => (candidate === "office" && Boolean(details.office)) || (candidate === "professional" && Boolean(details.professional)) || (candidate === "admin" && account.profile.role === "admin");
         const destinationAllowed = (requestedDestination === "office" && details.office) || (requestedDestination === "professional" && details.professional) || (requestedDestination === "admin" && account.profile.role === "admin");
-        if (destinationAllowed) {
-          setRole(requestedDestination as Role);
+        const portalToOpen = destinationAllowed ? requestedDestination : roleAllowed(requestedRole) ? requestedRole : roleAllowed(activePortal) ? activePortal : null;
+        if (portalToOpen) {
+          setRole(portalToOpen as Role);
           setShowHome(false);
+          window.sessionStorage.setItem("dentalshift_active_portal", portalToOpen);
           window.sessionStorage.removeItem("dentalshift_home_destination");
-        }
+        } else setRole(account.profile.role);
       } catch {
         if (active) {
           setProfile(null);
@@ -1158,6 +1160,7 @@ export default function Home() {
   }, []);
 
   const signOutToHome = async () => {
+    window.sessionStorage.removeItem("dentalshift_active_portal");
     await supabase.auth.signOut();
     setShowHome(true);
     setMenu(false);
@@ -1188,17 +1191,17 @@ export default function Home() {
       <MarketingHome
         signedIn={Boolean(session)}
         onSignIn={() => {
-          if (session) { setShowHome(false); return; }
+          if (session) { window.sessionStorage.setItem("dentalshift_active_portal", role); setShowHome(false); return; }
           setAdminEntry(false); setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true);
         }}
         onGetStarted={(nextRole) => {
           const canOpen = nextRole === profile?.role || (nextRole === "office" && Boolean(officeId));
-          if (session && canOpen) { setRole(nextRole); setView("overview"); setShowHome(false); return; }
+          if (session && canOpen) { window.sessionStorage.setItem("dentalshift_active_portal", nextRole); setRole(nextRole); setView("overview"); setShowHome(false); return; }
           window.sessionStorage.setItem("dentalshift_home_destination", nextRole);
           setAdminEntry(false); setAccountIntent({ mode: session ? "signin" : "signup", role: nextRole }); setAccountOpen(true);
         }}
         onAdmin={() => {
-          if (session && profile?.role === "admin") { setRole("admin"); setView("overview"); setShowHome(false); return; }
+          if (session && profile?.role === "admin") { window.sessionStorage.setItem("dentalshift_active_portal", "admin"); setRole("admin"); setView("overview"); setShowHome(false); return; }
           if (session) { window.alert("Sign out of this account before entering the temporary admin area with an administrator account."); return; }
           window.sessionStorage.setItem("dentalshift_home_destination", "admin");
           setAdminEntry(true); setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true);
