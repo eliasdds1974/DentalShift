@@ -591,6 +591,7 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
+      contact_phone: String(form.get("contact_phone") || "") || null,
       office_hours: String(form.get("office_hours") || "") || null,
       operatories: form.get("operatories") ? Number(form.get("operatories")) : null,
       parking_info: String(form.get("parking_info") || "") || null,
@@ -664,6 +665,7 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
         <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Primary contact</h3><p className="mt-1 text-xs text-slate-500">Visible only to DentalShift administration unless a booking requires contact.</p></div>
         <label className="field"><span>Contact name *</span><input name="contact_name" required defaultValue={officeDetails.contact_name || ""} /></label>
         <label className="field"><span>Position or title *</span><input name="contact_title" required placeholder="Office manager, owner…" defaultValue={officeDetails.contact_title || ""} /></label>
+        <label className="field sm:col-span-2"><span>Primary contact direct phone</span><input name="contact_phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="e.g. 780-555-0123" defaultValue={officeDetails.contact_phone || ""} /></label>
 
         <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Workplace details</h3><p className="mt-1 text-xs text-slate-500">These details help professionals understand the office before accepting.</p></div>
         <label className="field sm:col-span-2"><span>Office hours *</span><textarea name="office_hours" required rows={3} placeholder="Monday–Thursday 8:00 AM–5:00 PM; Friday 8:00 AM–3:00 PM" defaultValue={officeDetails.office_hours || ""} /></label>
