@@ -457,7 +457,7 @@ function NeedsReviewModal({ item, saving, close, submit }: { item: VerificationI
   return <div className="fixed inset-0 z-[95] grid place-items-center bg-[#002757]/60 p-4"><button aria-label="Close" onClick={close} className="absolute inset-0" /><section role="dialog" aria-modal="true" aria-labelledby="review-title" className="relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl"><form onSubmit={(event) => { event.preventDefault(); void submit(notes); }}><div className="border-b border-slate-200 px-6 py-5"><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-amber-700">Verification follow-up</p><h2 id="review-title" className="mt-1 text-2xl font-extrabold text-slate-900">Request information</h2><p className="mt-2 text-sm text-slate-500">Tell {item.name} what is needed. This message will be visible in their DentalShift account.</p></div><div className="p-6"><label className="field"><span>Message to applicant</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} minLength={10} maxLength={1000} required rows={5} placeholder="Example: Please confirm your Alberta licence number or upload a current licence document." /></label><p className="mt-2 text-xs text-slate-500">Be specific and do not include private internal comments.</p></div><div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-5"><button type="button" onClick={close} disabled={saving} className="secondary-btn">Cancel</button><button type="submit" disabled={saving || notes.trim().length < 10} className="primary-btn">{saving ? "Sending…" : "Send review request"}</button></div></form></section></div>;
 }
 
-function AccountModal({ close, session, profile, onSaved, activeRole = "professional", initialMode = "signin", initialRole = "office", passwordRecovery = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; activeRole?: Role; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional"; passwordRecovery?: boolean; onPasswordRecoveryComplete?: () => void }) {
+function AccountModal({ close, session, profile, onSaved, activeRole = "professional", initialMode = "signin", initialRole = "office", passwordRecovery = false, adminEntry = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; activeRole?: Role; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional"; passwordRecovery?: boolean; adminEntry?: boolean; onPasswordRecoveryComplete?: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [role, setRole] = useState<"office" | "professional">(initialRole);
   const [busy, setBusy] = useState(false);
@@ -468,7 +468,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   const [createdEmail, setCreatedEmail] = useState("");
   const [emailValue, setEmailValue] = useState("");
   const [passwordChanged, setPasswordChanged] = useState(false);
-  const [signInRoleChosen, setSignInRoleChosen] = useState(initialMode !== "signin");
+  const [signInRoleChosen, setSignInRoleChosen] = useState(adminEntry || initialMode !== "signin");
 
   useEffect(() => {
     if (!session) return;
@@ -695,7 +695,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
       <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session && activeRole === "office" ? "Dental office account" : session ? "Professional account" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session && activeRole === "office" ? "Dental office account" : session ? "Professional account" : accountCreated ? "Account created" : adminEntry ? "Administrator sign in" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
         </div>
 
@@ -1084,6 +1084,7 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
 }
 
 export default function Home() {
+  const [showHome, setShowHome] = useState(true);
   const [role, setRole] = useState<Role>("office");
   const [view, setView] = useState<View>("overview");
   const [menu, setMenu] = useState(false);
@@ -1091,6 +1092,7 @@ export default function Home() {
   const [rebook, setRebook] = useState(false);
   const [messages, setMessages] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [adminEntry, setAdminEntry] = useState(false);
   const [accountIntent, setAccountIntent] = useState<{ mode: "signin" | "signup"; role: "office" | "professional" }>({ mode: "signin", role: "office" });
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -1120,10 +1122,17 @@ export default function Home() {
         setOfficeId(account.officeId);
         setOffice(details.office);
         const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
+        const requestedDestination = window.sessionStorage.getItem("dentalshift_home_destination");
         window.sessionStorage.removeItem("dentalshift_signin_role");
         if (requestedRole === "office" && details.office) setRole("office");
         else if (requestedRole === "professional" && details.professional) setRole("professional");
         else setRole(account.profile.role);
+        const destinationAllowed = (requestedDestination === "office" && details.office) || (requestedDestination === "professional" && details.professional) || (requestedDestination === "admin" && account.profile.role === "admin");
+        if (destinationAllowed) {
+          setRole(requestedDestination as Role);
+          setShowHome(false);
+          window.sessionStorage.removeItem("dentalshift_home_destination");
+        }
       } catch {
         if (active) {
           setProfile(null);
@@ -1167,13 +1176,28 @@ export default function Home() {
     return <main className="grid min-h-screen place-items-center bg-white"><div className="text-center"><div className="mx-auto w-fit"><Brand /></div><p className="mt-4 text-sm font-extrabold text-[#002757]">Loading DentalShift…</p></div></main>;
   }
 
-  if (!session) {
+  if (showHome) {
     return <main className="min-h-screen bg-white">
       <MarketingHome
-        onSignIn={() => { setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true); }}
-        onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
+        signedIn={Boolean(session)}
+        onSignIn={() => {
+          if (session) { setShowHome(false); return; }
+          setAdminEntry(false); setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true);
+        }}
+        onGetStarted={(nextRole) => {
+          const canOpen = nextRole === profile?.role || (nextRole === "office" && Boolean(officeId));
+          if (session && canOpen) { setRole(nextRole); setView("overview"); setShowHome(false); return; }
+          window.sessionStorage.setItem("dentalshift_home_destination", nextRole);
+          setAdminEntry(false); setAccountIntent({ mode: session ? "signin" : "signup", role: nextRole }); setAccountOpen(true);
+        }}
+        onAdmin={() => {
+          if (session && profile?.role === "admin") { setRole("admin"); setView("overview"); setShowHome(false); return; }
+          if (session) { window.alert("Sign out of this account before entering the temporary admin area with an administrator account."); return; }
+          window.sessionStorage.setItem("dentalshift_home_destination", "admin");
+          setAdminEntry(true); setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true);
+        }}
       />
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={null} profile={null} initialMode={accountIntent.mode} initialRole={accountIntent.role} onSaved={() => undefined} />}
+      {accountOpen && <AccountModal close={() => { setAccountOpen(false); setAdminEntry(false); }} session={session} profile={profile} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} adminEntry={adminEntry} onSaved={() => undefined} />}
     </main>;
   }
 
