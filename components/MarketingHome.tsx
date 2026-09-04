@@ -14,7 +14,7 @@ function CheckLine({ children }: { children: React.ReactNode }) {
   return <li className="flex items-start gap-2.5"><span className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#e5f7ea] text-[#01A32E]"><Check size={13} strokeWidth={3} /></span><span>{children}</span></li>;
 }
 
-export function MarketingHome({ onSignIn, onGetStarted, onAdmin, signedIn = false }: { onSignIn: () => void; onGetStarted: (audience: Audience) => void; onAdmin: () => void; signedIn?: boolean }) {
+export function MarketingHome({ onSignIn, onGetStarted, onAdmin = onSignIn, signedIn = false }: { onSignIn: () => void; onGetStarted: (audience: Audience) => void; onAdmin?: () => void; signedIn?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [audience, setAudience] = useState<Audience>("office");
 
