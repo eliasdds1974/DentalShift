@@ -197,9 +197,49 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
       </>}
 
       {view === "bookings" && <>
-      <section className="mt-7 panel overflow-hidden">
-        <div className="border-b border-slate-200 p-5"><h2 className="section-title">Confirmed bookings</h2><p className="text-sm text-slate-500">Your contact details are released only after confirmation.</p></div>
-        {upcomingBookings.length === 0 ? <p className="p-6 text-sm text-slate-500">No confirmed bookings yet.</p> : <div className="divide-y divide-slate-100">{upcomingBookings.map((booking) => <div key={booking.id} className="p-5"><div className="flex flex-col justify-between gap-4 sm:flex-row"><div><strong className="text-lg">{booking.shifts?.offices?.name || "Dental office"}</strong>{booking.shifts && <><p className="mt-1 text-sm font-bold text-slate-700">{booking.shifts.profession}</p><ShiftFacts shift={booking.shifts} /></>}{booking.contact && <div className="mt-3 rounded-xl bg-[#edf3fa] p-3 text-sm text-[#002757]"><strong>Confirmed contact</strong><p className="mt-1">{booking.contact.phone || "No phone listed"} · {booking.contact.email}</p>{booking.contact.address && <p>{booking.contact.address}, {booking.contact.city}, {booking.contact.province} {booking.contact.postal_code}</p>}</div>}</div><div className="flex flex-wrap gap-2">{!booking.check_in_at && <button disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_in"))} className="primary-btn">Check in</button>}{booking.check_in_at && !booking.check_out_at && <button disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_out"))} className="primary-btn">Check out</button>}{booking.check_out_at && <Pill>{booking.office_confirmed_completion ? "Completed" : "Waiting for office confirmation"}</Pill>}</div></div><ReviewBox booking={booking} userId={userId} onDone={() => void refresh()} /></div>)}</div>}
+      <section className="mt-7 grid gap-4 sm:grid-cols-3">
+        <div className="rounded-2xl bg-[#0078FE] p-5 text-white shadow-sm"><p className="text-sm font-extrabold text-white/85">Confirmed</p><strong className="mt-1 block text-3xl font-black">{upcomingBookings.filter((booking) => !booking.check_in_at).length}</strong><p className="mt-1 text-xs font-bold text-white/80">Ready for check-in</p></div>
+        <div className="rounded-2xl bg-[#002757] p-5 text-white shadow-sm"><p className="text-sm font-extrabold text-white/85">In progress</p><strong className="mt-1 block text-3xl font-black">{upcomingBookings.filter((booking) => booking.check_in_at && !booking.check_out_at).length}</strong><p className="mt-1 text-xs font-bold text-white/80">Currently checked in</p></div>
+        <div className="rounded-2xl bg-[#eaf8ee] p-5 text-[#002757] shadow-sm ring-1 ring-[#01A32E]/20"><p className="text-sm font-extrabold text-[#017f27]">Completed</p><strong className="mt-1 block text-3xl font-black">{upcomingBookings.filter((booking) => booking.office_confirmed_completion && booking.professional_confirmed_completion).length}</strong><p className="mt-1 text-xs font-bold text-[#017f27]">Verified shift history</p></div>
+      </section>
+
+      <section className="mt-5 panel overflow-hidden">
+        <div className="border-b border-slate-200 p-5"><h2 className="section-title">My schedule</h2><p className="text-sm text-slate-500">Manage confirmed shifts from arrival through verified completion.</p></div>
+        {upcomingBookings.length === 0 ? (
+          <div className="p-8 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#edf3fa] text-[#002757]"><CalendarDays size={22} /></div><p className="mt-3 font-extrabold text-[#002757]">No confirmed shifts yet</p><p className="mt-1 text-sm text-slate-500">Accepted invitations and applications will appear in your schedule.</p></div>
+        ) : (
+          <div className="space-y-4 p-4 sm:p-5">
+            {upcomingBookings.map((booking) => {
+              const checkedIn = Boolean(booking.check_in_at);
+              const checkedOut = Boolean(booking.check_out_at);
+              const completed = Boolean(booking.office_confirmed_completion && booking.professional_confirmed_completion);
+              const waiting = checkedOut && !completed;
+              const start = booking.shifts ? new Date(booking.shifts.starts_at) : null;
+              const statusLabel = completed ? "Completed" : waiting ? "Awaiting office" : checkedIn ? "In progress" : "Confirmed";
+              return <article key={booking.id} className={`overflow-hidden rounded-2xl border shadow-sm ${completed ? "border-[#01A32E]/25 bg-[#eaf8ee]/40" : "border-[#0078FE]/25 bg-white"}`}>
+                <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-start sm:p-5">
+                  <div className="flex min-w-20 shrink-0 items-center gap-3 rounded-xl bg-[#0078FE] px-4 py-3 text-white sm:flex-col sm:gap-0 sm:text-center">
+                    <strong className="text-2xl font-black leading-none">{start ? start.toLocaleDateString("en-CA", { day: "numeric" }) : "—"}</strong>
+                    <span className="text-sm font-extrabold uppercase tracking-wide">{start ? start.toLocaleDateString("en-CA", { month: "short" }) : "Date"}</span>
+                    <span className="text-xs font-bold text-white/85">{start ? start.toLocaleDateString("en-CA", { weekday: "short" }) : ""}</span>
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2"><strong className="text-lg text-[#002757]">{booking.shifts?.offices?.name || "Dental office"}</strong><Pill tone={completed ? "green" : "blue"}>{statusLabel}</Pill></div>
+                    {booking.shifts && <><p className="mt-1 text-sm font-extrabold text-slate-700">{booking.shifts.profession}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold text-slate-600"><span className="flex items-center gap-1"><Clock3 size={15} />{new Date(booking.shifts.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(booking.shifts.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><span>{"$"}{Number(booking.shifts.hourly_rate)}/hr</span></div></>}
+                    {booking.contact && <div className="mt-3 rounded-xl bg-[#edf3fa] p-3 text-sm text-[#002757]"><strong className="font-extrabold">Confirmed office contact</strong><p className="mt-1 font-semibold">{booking.contact.phone || "No phone listed"} · {booking.contact.email}</p>{booking.contact.address && <p className="mt-1 text-xs font-semibold">{booking.contact.address}, {booking.contact.city}, {booking.contact.province} {booking.contact.postal_code}</p>}</div>}
+                  </div>
+                  <div className="flex shrink-0 flex-wrap gap-2">
+                    {!checkedIn && <button disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_in"))} className="primary-btn">Check in</button>}
+                    {checkedIn && !checkedOut && <button disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_out"))} className="primary-btn">Check out</button>}
+                    {waiting && <Pill tone="amber">Office confirmation pending</Pill>}
+                    {completed && <Pill tone="green"><Check size={14} />Verified complete</Pill>}
+                  </div>
+                </div>
+                <div className="px-4 pb-4 sm:px-5 sm:pb-5"><ReviewBox booking={booking} userId={userId} onDone={() => void refresh()} /></div>
+              </article>;
+            })}
+          </div>
+        )}
       </section>
 
       </>}
