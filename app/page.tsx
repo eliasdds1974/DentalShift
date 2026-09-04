@@ -468,6 +468,7 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
   const [createdEmail, setCreatedEmail] = useState("");
   const [emailValue, setEmailValue] = useState("");
   const [passwordChanged, setPasswordChanged] = useState(false);
+  const [signInRoleChosen, setSignInRoleChosen] = useState(initialMode !== "signin");
 
   useEffect(() => {
     if (!session) return;
@@ -490,7 +491,10 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
     if (mode === "signin") {
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) setError(signInError.message);
-      else close();
+      else {
+        window.sessionStorage.setItem("dentalshift_signin_role", role);
+        close();
+      }
     } else {
       const metadata = {
         role,
@@ -650,7 +654,7 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
       <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session ? "Account connected" : accountCreated ? "Account created" : mode === "signin" ? "Sign in" : "Create your account"}</h2></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session ? "Account connected" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
         </div>
 
@@ -738,15 +742,33 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
               </ol>
             </div>
             <div className="mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row sm:justify-center">
-              <button type="button" onClick={() => { setAccountCreated(false); setMode("signin"); setError(""); setNotice(""); }} className="primary-btn justify-center">Go to sign in</button>
+              <button type="button" onClick={() => { setAccountCreated(false); setMode("signin"); setSignInRoleChosen(false); setError(""); setNotice(""); }} className="primary-btn justify-center">Go to sign in</button>
               <button type="button" onClick={close} className="secondary-btn justify-center">Close</button>
             </div>
             <p className="mt-5 text-xs leading-5 text-slate-500">If you do not see the email, check your junk or spam folder.</p>
           </div>
+        ) : mode === "signin" && !signInRoleChosen ? (
+          <div className="p-6 sm:p-8">
+            <p className="text-center text-sm leading-6 text-slate-600">Select the type of DentalShift account you want to access.</p>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <button type="button" onClick={() => { setRole("office"); setSignInRoleChosen(true); setError(""); setNotice(""); }} className="group rounded-2xl border-2 border-[#002757]/15 bg-white p-6 text-left transition hover:border-[#002757] hover:bg-[#edf3fa] focus:outline-none focus:ring-4 focus:ring-[#002757]/15">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#002757] text-white"><Building2 size={24} /></span>
+                <strong className="mt-5 block text-lg font-extrabold text-[#002757]">Dental Office</strong>
+                <span className="mt-2 block text-sm leading-6 text-slate-600">Manage shifts, applicants and confirmed bookings.</span>
+                <span className="mt-4 flex items-center gap-1 text-sm font-extrabold text-[#01A32E]">Continue <ChevronRight size={17} /></span>
+              </button>
+              <button type="button" onClick={() => { setRole("professional"); setSignInRoleChosen(true); setError(""); setNotice(""); }} className="group rounded-2xl border-2 border-[#002757]/15 bg-white p-6 text-left transition hover:border-[#002757] hover:bg-[#edf3fa] focus:outline-none focus:ring-4 focus:ring-[#002757]/15">
+                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-[#01A32E] text-white"><UserRound size={24} /></span>
+                <strong className="mt-5 block text-lg font-extrabold text-[#002757]">Dental Professional</strong>
+                <span className="mt-2 block text-sm leading-6 text-slate-600">Find shifts, manage availability and view your schedule.</span>
+                <span className="mt-4 flex items-center gap-1 text-sm font-extrabold text-[#01A32E]">Continue <ChevronRight size={17} /></span>
+              </button>
+            </div>
+          </div>
         ) : (
           <form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">
             <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:col-span-2">
-              <button type="button" onClick={() => setMode("signin")} className={"rounded-xl px-3 py-2.5 text-sm font-extrabold " + (mode === "signin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Sign in</button>
+              <button type="button" onClick={() => { setMode("signin"); setSignInRoleChosen(false); }} className={"rounded-xl px-3 py-2.5 text-sm font-extrabold " + (mode === "signin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Sign in</button>
               <button type="button" onClick={() => setMode("signup")} className={"rounded-xl px-3 py-2.5 text-sm font-extrabold " + (mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Create account</button>
             </div>
 
@@ -764,6 +786,7 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
               <GoogleAddressAutocomplete key={role} kind={role} />
             </>}
 
+            {mode === "signin" && <div className="flex items-center justify-between rounded-2xl border border-[#002757]/15 bg-[#edf3fa] px-4 py-3 sm:col-span-2"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#002757] text-white">{role === "office" ? <Building2 size={18} /> : <UserRound size={18} />}</span><div><p className="text-xs font-bold text-slate-500">Signing in as</p><p className="text-sm font-extrabold text-[#002757]">{role === "office" ? "Dental Office" : "Dental Professional"}</p></div></div><button type="button" onClick={() => setSignInRoleChosen(false)} className="text-sm font-extrabold text-[#002757] underline underline-offset-4">Change</button></div>}
             <label className="field sm:col-span-2"><span>Email</span><input name="email" type="email" value={emailValue} onChange={(event) => setEmailValue(event.target.value)} autoComplete="email" required /></label>
             <label className="field sm:col-span-2"><span>Password</span><input name="password" type="password" minLength={8} required /></label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
@@ -1035,7 +1058,11 @@ export default function Home() {
         setProfile(account.profile);
         setOfficeId(account.officeId);
         setOffice(details.office);
-        setRole(account.profile.role);
+        const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
+        window.sessionStorage.removeItem("dentalshift_signin_role");
+        if (requestedRole === "office" && details.office) setRole("office");
+        else if (requestedRole === "professional" && details.professional) setRole("professional");
+        else setRole(account.profile.role);
       } catch {
         if (active) {
           setProfile(null);
