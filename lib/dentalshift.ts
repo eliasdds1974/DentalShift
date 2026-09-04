@@ -122,18 +122,15 @@ export async function loadAccount(userId: string) {
     .single();
   if (profileError) throw profileError;
 
-  let officeId: string | null = null;
-  if (profile.role === "office") {
-    const { data: office, error: officeError } = await supabase
-      .from("offices")
-      .select("id")
-      .eq("owner_id", userId)
-      .order("created_at", { ascending: true })
-      .limit(1)
-      .maybeSingle();
-    if (officeError) throw officeError;
-    officeId = office?.id ?? null;
-  }
+  const { data: office, error: officeError } = await supabase
+    .from("offices")
+    .select("id")
+    .eq("owner_id", userId)
+    .order("created_at", { ascending: true })
+    .limit(1)
+    .maybeSingle();
+  if (officeError) throw officeError;
+  const officeId = office?.id ?? null;
 
   return { profile: profile as AccountProfile, officeId };
 }
@@ -144,41 +141,63 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
   let office: OfficeDetails | null = null;
   let verificationRequest: { notes: string; created_at: string } | null = null;
 
-  if (profile.role === "professional") {
-    const { data, error } = await supabase
+  const [{ data: professionalData, error: professionalError }, { data: officeData, error: officeError }] = await Promise.all([
+    supabase
       .from("professional_profiles")
       .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,available_for_work")
       .eq("user_id", userId)
-      .single();
-    if (error) throw error;
-    professional = data as ProfessionalDetails;
-    if (professional.licence_status === "needs_review") {
-      const { data: decision, error: decisionError } = await supabase
-        .from("verification_decisions")
-        .select("notes,created_at")
-        .eq("target_kind", "professional")
-        .eq("target_id", userId)
-        .eq("new_status", "needs_review")
-        .not("notes", "is", null)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      if (decisionError) throw decisionError;
-      verificationRequest = decision?.notes ? { notes: decision.notes, created_at: decision.created_at } : null;
-    }
-  } else if (profile.role === "office") {
-    const { data, error } = await supabase
+      .maybeSingle(),
+    supabase
       .from("offices")
       .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status")
       .eq("owner_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
-      .single();
-    if (error) throw error;
-    office = data as OfficeDetails;
+      .maybeSingle(),
+  ]);
+  if (professionalError) throw professionalError;
+  if (officeError) throw officeError;
+  professional = professionalData as ProfessionalDetails | null;
+  office = officeData as OfficeDetails | null;
+
+  if (professional?.licence_status === "needs_review") {
+    const { data: decision, error: decisionError } = await supabase
+      .from("verification_decisions")
+      .select("notes,created_at")
+      .eq("target_kind", "professional")
+      .eq("target_id", userId)
+      .eq("new_status", "needs_review")
+      .not("notes", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (decisionError) throw decisionError;
+    verificationRequest = decision?.notes ? { notes: decision.notes, created_at: decision.created_at } : null;
   }
 
   return { profile, professional, office, verificationRequest };
+}
+
+export async function createOfficeWorkspace(input: Omit<OfficeDetails, "id" | "verification_status">) {
+  const { data, error } = await supabase
+    .from("offices")
+    .insert({
+      owner_id: input.owner_id,
+      name: input.name,
+      address: input.address,
+      city: input.city,
+      province: input.province,
+      postal_code: input.postal_code,
+      phone: input.phone,
+      website: input.website,
+      software: input.software,
+      description: input.description,
+      verification_status: "pending",
+    })
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status")
+    .single();
+  if (error) throw error;
+  return data as OfficeDetails;
 }
 
 export async function saveAccountDetails(input: AccountDetails) {
