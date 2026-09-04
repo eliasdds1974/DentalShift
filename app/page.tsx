@@ -309,7 +309,7 @@ function ProfessionalDashboard({ userId, refreshKey }: { userId: string | null; 
           <div className="panel p-5">
             <div className="flex items-center justify-between"><h2 className="section-title">Your week</h2><span className="text-sm font-extrabold text-[#01A32E]">$896 booked</span></div>
             <div className="mt-4 grid grid-cols-7 gap-1">
-              {["M","T","W","T","F","S","S"].map((day, i) => <div key={i} className="text-center"><p className="text-[11px] font-bold text-slate-400">{day}</p><div className={"mx-auto mt-2 grid h-8 w-8 place-items-center rounded-full text-xs font-bold " + (i === 1 || i === 3 ? "bg-[#01A32E] text-white" : "bg-slate-50 text-slate-500")}>{3 + i}</div></div>)}
+              {["M","T","W","T","F","S","S"].map((day, i) => <div key={i} className="text-center"><p className="text-[11px] font-bold text-slate-400">{day}</p><div className={"mx-auto mt-2 grid h-8 w-8 place-items-center rounded-full text-xs font-bold " + (i === 1 || i === 3 ? "bg-[#002757] text-white" : "bg-slate-50 text-slate-500")}>{3 + i}</div></div>)}
             </div>
             <div className="mt-5 space-y-3">
               <div className="rounded-xl border-l-4 border-[#01A32E] bg-[#eaf8ee] p-3"><p className="text-xs font-bold text-[#017f27]">Tue, Sept 4 · Confirmed</p><p className="mt-1 text-sm font-extrabold text-slate-800">Lakeside Dental</p></div>
@@ -323,7 +323,7 @@ function ProfessionalDashboard({ userId, refreshKey }: { userId: string | null; 
               <p className="mt-3 font-extrabold">Lakeside Dental · 8:00 AM</p>
               <p className="mt-1 text-sm text-slate-300">Reminder scheduled · Licence current · Replacement support active</p>
               {shiftStatus === "ready" && <button onClick={() => setShiftStatus("checked-in")} className="mt-4 w-full rounded-xl bg-white py-2.5 text-sm font-extrabold text-[#002757]">Check in</button>}
-              {shiftStatus === "checked-in" && <button onClick={() => setShiftStatus("completed")} className="mt-4 w-full rounded-xl bg-[#01A32E] py-2.5 text-sm font-extrabold text-white">Check out & record shift</button>}
+              {shiftStatus === "checked-in" && <button onClick={() => setShiftStatus("completed")} className="mt-4 w-full rounded-xl bg-[#002757] py-2.5 text-sm font-extrabold text-white transition hover:bg-[#001d42]">Check out & record shift</button>}
               {shiftStatus === "completed" && <div className="mt-4 rounded-xl bg-white/10 p-3 text-sm font-bold text-[#9be5ae]"><Check size={16} className="mr-1 inline" />8 verified hours added to your history.</div>}
             </div>
           </div>
