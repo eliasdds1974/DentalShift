@@ -457,7 +457,7 @@ function NeedsReviewModal({ item, saving, close, submit }: { item: VerificationI
   return <div className="fixed inset-0 z-[95] grid place-items-center bg-[#002757]/60 p-4"><button aria-label="Close" onClick={close} className="absolute inset-0" /><section role="dialog" aria-modal="true" aria-labelledby="review-title" className="relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl"><form onSubmit={(event) => { event.preventDefault(); void submit(notes); }}><div className="border-b border-slate-200 px-6 py-5"><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-amber-700">Verification follow-up</p><h2 id="review-title" className="mt-1 text-2xl font-extrabold text-slate-900">Request information</h2><p className="mt-2 text-sm text-slate-500">Tell {item.name} what is needed. This message will be visible in their DentalShift account.</p></div><div className="p-6"><label className="field"><span>Message to applicant</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} minLength={10} maxLength={1000} required rows={5} placeholder="Example: Please confirm your Alberta licence number or upload a current licence document." /></label><p className="mt-2 text-xs text-slate-500">Be specific and do not include private internal comments.</p></div><div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-5"><button type="button" onClick={close} disabled={saving} className="secondary-btn">Cancel</button><button type="submit" disabled={saving || notes.trim().length < 10} className="primary-btn">{saving ? "Sending…" : "Send review request"}</button></div></form></section></div>;
 }
 
-function AccountModal({ close, session, profile, onSaved, initialMode = "signin", initialRole = "office" }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional" }) {
+function AccountModal({ close, session, profile, onSaved, initialMode = "signin", initialRole = "office", passwordRecovery = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional"; passwordRecovery?: boolean; onPasswordRecoveryComplete?: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [role, setRole] = useState<"office" | "professional">(initialRole);
   const [busy, setBusy] = useState(false);
@@ -466,6 +466,8 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
   const [details, setDetails] = useState<AccountDetails | null>(null);
   const [accountCreated, setAccountCreated] = useState(false);
   const [createdEmail, setCreatedEmail] = useState("");
+  const [emailValue, setEmailValue] = useState("");
+  const [passwordChanged, setPasswordChanged] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -523,6 +525,48 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
         setCreatedEmail(email);
         setAccountCreated(true);
       } else close();
+    }
+    setBusy(false);
+  };
+
+  const sendPasswordReset = async () => {
+    setError("");
+    setNotice("");
+    if (!emailValue.trim()) {
+      setError("Enter your email address first, then select Forgot password.");
+      return;
+    }
+    setBusy(true);
+    const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailValue.trim(), {
+      redirectTo: `${window.location.origin}/`,
+    });
+    if (resetError) setError(resetError.message);
+    else setNotice("Password-reset email sent. Check your inbox and junk folder, then open the secure link.");
+    setBusy(false);
+  };
+
+  const updatePassword = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError("");
+    setNotice("");
+    const form = new FormData(event.currentTarget);
+    const password = String(form.get("new_password") || "");
+    const confirmation = String(form.get("confirm_password") || "");
+    if (password.length < 8) {
+      setError("Your new password must contain at least 8 characters.");
+      return;
+    }
+    if (password !== confirmation) {
+      setError("The two passwords do not match.");
+      return;
+    }
+    setBusy(true);
+    const { error: updateError } = await supabase.auth.updateUser({ password });
+    if (updateError) setError(updateError.message);
+    else {
+      setPasswordChanged(true);
+      setNotice("Your password has been changed successfully.");
+      onPasswordRecoveryComplete?.();
     }
     setBusy(false);
   };
@@ -607,11 +651,27 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
       <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{session ? "Account connected" : accountCreated ? "Account created" : mode === "signin" ? "Sign in" : "Create your account"}</h2></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session ? "Account connected" : accountCreated ? "Account created" : mode === "signin" ? "Sign in" : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
         </div>
 
-        {session ? (
+        {session && passwordRecovery ? (
+          <form onSubmit={updatePassword} className="grid gap-5 p-6">
+            <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5">
+              <div className="flex items-center gap-2 font-extrabold text-[#002757]"><ShieldCheck size={19} /> Secure password reset</div>
+              <p className="mt-2 text-sm leading-6 text-slate-600">{passwordChanged ? "Your new password is active. You can continue to your DentalShift account." : "Choose a new password containing at least 8 characters."}</p>
+            </div>
+            {!passwordChanged && <>
+              <label className="field"><span>New password</span><input name="new_password" type="password" minLength={8} autoComplete="new-password" required /></label>
+              <label className="field"><span>Confirm new password</span><input name="confirm_password" type="password" minLength={8} autoComplete="new-password" required /></label>
+            </>}
+            {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+            {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">{notice}</p>}
+            {passwordChanged
+              ? <button type="button" onClick={close} className="primary-btn justify-center">Continue to DentalShift</button>
+              : <button type="submit" disabled={busy} className="primary-btn justify-center">{busy ? "Updating password…" : "Save new password"}</button>}
+          </form>
+        ) : session ? (
           <form onSubmit={saveProfile} className="grid gap-4 p-6 sm:grid-cols-2">
             <div className="rounded-2xl bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex flex-wrap items-center justify-between gap-2"><StatusPill><Check size={13} /> Email confirmed</StatusPill>{details?.professional && <StatusPill tone={details.professional.licence_status === "verified" ? "green" : "amber"}>Licence: {details.professional.licence_status.replace("_", " ")}</StatusPill>}{details?.office && <StatusPill tone={details.office.verification_status === "verified" ? "green" : "amber"}>Office: {details.office.verification_status.replace("_", " ")}</StatusPill>}</div><p className="mt-3 text-lg font-extrabold text-slate-900">{profile?.first_name || session.user.email}</p><p className="mt-1 text-sm text-slate-600">{session.user.email}</p></div>
             {!details ? <p className="py-8 text-center text-sm text-slate-500 sm:col-span-2">Loading your account details…</p> : <>
@@ -705,10 +765,11 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
               <GoogleAddressAutocomplete key={role} kind={role} />
             </>}
 
-            <label className="field sm:col-span-2"><span>Email</span><input name="email" type="email" required /></label>
+            <label className="field sm:col-span-2"><span>Email</span><input name="email" type="email" value={emailValue} onChange={(event) => setEmailValue(event.target.value)} autoComplete="email" required /></label>
             <label className="field sm:col-span-2"><span>Password</span><input name="password" type="password" minLength={8} required /></label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
+            {mode === "signin" && <button type="button" onClick={() => void sendPasswordReset()} disabled={busy} className="justify-self-start text-sm font-extrabold text-[#002757] underline underline-offset-4 sm:col-span-2">Forgot password?</button>}
             <button disabled={busy} className="primary-btn sm:col-span-2">{busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : "Create account"}</button>
           </form>
         )}
@@ -948,6 +1009,7 @@ export default function Home() {
   const [messages, setMessages] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [accountIntent, setAccountIntent] = useState<{ mode: "signin" | "signup"; role: "office" | "professional" }>({ mode: "signin", role: "office" });
+  const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [officeId, setOfficeId] = useState<string | null>(null);
@@ -985,7 +1047,11 @@ export default function Home() {
     };
 
     supabase.auth.getSession().then(({ data }) => syncAccount(data.session));
-    const { data: listener } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      if (event === "PASSWORD_RECOVERY") {
+        setPasswordRecovery(true);
+        setAccountOpen(true);
+      }
       setTimeout(() => syncAccount(nextSession), 0);
     });
 
@@ -1039,7 +1105,7 @@ export default function Home() {
       {post && <ShiftModal close={() => setPost(false)} officeId={officeId} onSaved={() => setRefreshKey((value) => value + 1)} />}
       {rebook && <RebookModal close={() => setRebook(false)} />}
       {messages && <MessageCenter role={role} close={() => setMessages(false)} />}
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} onSaved={() => {
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={() => setPasswordRecovery(false)} onSaved={() => {
         setRefreshKey((value) => value + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
           setProfile(details.profile);
