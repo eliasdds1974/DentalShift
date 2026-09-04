@@ -7,6 +7,7 @@ import {
   addProfessionalAvailability,
   applyForShift,
   bookingAction,
+  declineApplication,
   inviteProfessional,
   loadAccountDetails,
   loadOfficeWorkflow,
@@ -559,11 +560,52 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [applicantFilter, setApplicantFilter] = useState<"new" | "all" | "accepted" | "declined">("new");
+  const [expandedApplicant, setExpandedApplicant] = useState("");
+  const [bookingFilter, setBookingFilter] = useState<"active" | "all" | "completed" | "cancelled">("active");
+  const [talentSearch, setTalentSearch] = useState("");
+  const [inviteShiftId, setInviteShiftId] = useState("");
   const refresh = async () => { setLoading(true); setError(""); try { setData(await loadOfficeWorkflow(office.id) as typeof data); } catch (value) { setError(value instanceof Error ? value.message : "Could not load the office workflow."); } finally { setLoading(false); } };
   useEffect(() => { void refresh(); }, [office.id, refreshKey]);
   useEffect(() => { setOfficeDetails(office); }, [office]);
   const act = async (key: string, action: () => Promise<unknown>) => { setBusy(key); setError(""); try { await action(); await refresh(); } catch (value) { setError(value instanceof Error ? value.message : "The action could not be completed."); } finally { setBusy(""); } };
+  const reviewApplication = async (applicationId: string, decision: "accept" | "decline") => {
+    setBusy(applicationId); setError(""); setNotice("");
+    try {
+      if (decision === "accept") await acceptApplication(applicationId);
+      else await declineApplication(applicationId);
+      await refresh();
+      setNotice(decision === "accept" ? "Professional confirmed for the shift." : "Application declined.");
+    } catch (value) { setError(value instanceof Error ? value.message : "The application decision could not be saved."); }
+    finally { setBusy(""); }
+  };
   const open = data.shifts.filter((shift) => shift.status === "open");
+  const applicantRows = data.shifts
+    .flatMap((shift) => (shift.applications || []).map((application) => ({ shift, application })))
+    .sort((a, b) => {
+      if (a.application.status === "applied" && b.application.status !== "applied") return -1;
+      if (a.application.status !== "applied" && b.application.status === "applied") return 1;
+      return b.application.created_at.localeCompare(a.application.created_at);
+    });
+  const filteredApplicants = applicantRows.filter(({ application }) => applicantFilter === "all" || (applicantFilter === "new" ? application.status === "applied" : application.status === applicantFilter));
+  const bookingStatus = (booking: WorkflowBooking) => booking.cancelled_at ? "cancelled" : booking.office_confirmed_completion ? "completed" : booking.check_out_at ? "awaiting confirmation" : booking.check_in_at ? "in progress" : "upcoming";
+  const filteredBookings = data.bookings.filter((booking) => bookingFilter === "all" || (bookingFilter === "active" ? !["completed", "cancelled"].includes(bookingStatus(booking)) : bookingStatus(booking) === bookingFilter));
+  const selectedInviteShift = open.find((shift) => shift.id === inviteShiftId) || open[0];
+  const talentQuery = talentSearch.trim().toLowerCase();
+  const filteredTalent = data.directory.filter((person) => {
+    if (selectedInviteShift && person.profession !== selectedInviteShift.profession) return false;
+    return !talentQuery || [person.profession, person.licence_province, person.user_id].join(" ").toLowerCase().includes(talentQuery);
+  });
+  const sendInvitation = async (professionalId: string) => {
+    if (!selectedInviteShift) { setError("Post or reopen a shift before inviting professionals."); return; }
+    setBusy(professionalId); setError(""); setNotice("");
+    try {
+      await inviteProfessional(selectedInviteShift.id, professionalId, Number(selectedInviteShift.hourly_rate));
+      await refresh();
+      setNotice("Invitation sent to the professional.");
+    } catch (value) { setError(value instanceof Error ? value.message : "The invitation could not be sent."); }
+    finally { setBusy(""); }
+  };
 
   const profileFields = [officeDetails.name, officeDetails.address, officeDetails.city, officeDetails.province, officeDetails.postal_code, officeDetails.phone, officeDetails.website, officeDetails.contact_name, officeDetails.contact_title, officeDetails.office_hours, officeDetails.operatories, officeDetails.parking_info, officeDetails.software?.length, officeDetails.languages?.length, officeDetails.description, officeDetails.authorization_confirmed];
   const profileCompleteness = Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100);
@@ -622,6 +664,57 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
     } catch (value) { setError(value instanceof Error ? value.message : "The office logo could not be uploaded."); }
     finally { setBusy(""); }
   };
+
+  if (view === "bookings") return <div className="page-wrap">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><Pill tone="blue"><CalendarDays size={13} /> Booking operations</Pill><h1 className="page-title">Bookings</h1><p className="page-subtitle">Track upcoming coverage, active shifts and completed work.</p></div><button onClick={onPost} className="primary-btn">Post a shift</button></div>
+    <ErrorNote text={error} />
+    {notice && <p className="mt-5 rounded-xl bg-[#eaf8ee] p-3 text-sm font-extrabold text-[#017f27]"><Check size={16} className="mr-1 inline" />{notice}</p>}
+    <section className="mt-7 grid gap-4 sm:grid-cols-3"><div className="panel p-5"><p className="text-sm font-bold text-slate-500">Active bookings</p><strong className="mt-1 block text-3xl text-[#002757]">{data.bookings.filter((booking) => !["completed", "cancelled"].includes(bookingStatus(booking))).length}</strong></div><div className="panel p-5"><p className="text-sm font-bold text-slate-500">Awaiting confirmation</p><strong className="mt-1 block text-3xl text-amber-700">{data.bookings.filter((booking) => bookingStatus(booking) === "awaiting confirmation").length}</strong></div><div className="panel p-5"><p className="text-sm font-bold text-slate-500">Completed</p><strong className="mt-1 block text-3xl text-[#017f27]">{data.bookings.filter((booking) => bookingStatus(booking) === "completed").length}</strong></div></section>
+    <section className="panel mt-7 overflow-hidden"><div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between"><div><h2 className="section-title">Booking schedule</h2><p className="text-sm text-slate-500">Confirmed contact information is shown for operational coordination.</p></div><div className="flex flex-wrap gap-2">{(["active", "all", "completed", "cancelled"] as const).map((filter) => <button key={filter} type="button" onClick={() => setBookingFilter(filter)} className={bookingFilter === filter ? "primary-btn" : "secondary-btn"}>{filter[0].toUpperCase() + filter.slice(1)}</button>)}</div></div>
+      {loading ? <p className="p-8 text-sm text-slate-500">Loading bookings…</p> : filteredBookings.length === 0 ? <div className="p-10 text-center"><CalendarDays size={30} className="mx-auto text-slate-300" /><p className="mt-3 font-extrabold text-[#002757]">No bookings in this view</p><p className="mt-1 text-sm text-slate-500">Accepted applicants will appear here as confirmed bookings.</p></div> : <div className="divide-y divide-slate-100">{filteredBookings.map((booking) => { const status = bookingStatus(booking); return <article key={booking.id} className="p-5"><div className="flex flex-col justify-between gap-4 lg:flex-row"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-[#002757]">{booking.contact?.name || `Professional ${booking.professional_id.slice(0, 6).toUpperCase()}`}</h3><Pill tone={status === "completed" ? "green" : status === "cancelled" ? "gray" : status === "awaiting confirmation" ? "amber" : "blue"}>{status}</Pill></div>{booking.shifts && <><p className="mt-2 font-bold text-slate-700">{booking.shifts.profession}</p><ShiftFacts shift={booking.shifts} /></>}{booking.contact && <div className="mt-3 rounded-xl bg-[#edf3fa] p-3 text-sm text-[#002757]"><strong>Confirmed contact</strong><p className="mt-1">{booking.contact.phone || "No phone listed"} · {booking.contact.email}</p></div>}</div><div className="shrink-0">{booking.check_out_at && !booking.office_confirmed_completion ? <button disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "confirm_completion"))} className="primary-btn"><FileCheck2 size={16} />{busy === booking.id ? "Saving…" : "Confirm completion"}</button> : null}</div></div><ReviewBox booking={booking} userId={userId} onDone={() => void refresh()} /></article>; })}</div>}
+    </section>
+  </div>;
+
+  if (view === "talent") return <div className="page-wrap">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><Pill tone="green"><UsersRound size={13} /> Verified talent</Pill><h1 className="page-title">Find professionals</h1><p className="page-subtitle">Choose an open shift, compare matching professionals and send an invitation.</p></div><button onClick={onPost} className="primary-btn">Post a shift</button></div>
+    <ErrorNote text={error} />
+    {notice && <p className="mt-5 rounded-xl bg-[#eaf8ee] p-3 text-sm font-extrabold text-[#017f27]"><Check size={16} className="mr-1 inline" />{notice}</p>}
+    <section className="panel mt-7 p-5"><div className="grid gap-4 lg:grid-cols-[1fr_1fr]"><label className="field"><span>Invite for shift</span><select value={selectedInviteShift?.id || ""} onChange={(event) => setInviteShiftId(event.target.value)} disabled={open.length === 0}><option value="">{open.length ? "Select an open shift" : "No open shifts"}</option>{open.map((shift) => <option key={shift.id} value={shift.id}>{shift.profession} · {new Date(shift.starts_at).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}</option>)}</select></label><label className="field"><span>Search professionals</span><div className="relative"><Search size={17} className="absolute left-3 top-3 text-slate-400" /><input value={talentSearch} onChange={(event) => setTalentSearch(event.target.value)} placeholder="Profession, province or candidate ID" className="pl-10!" /></div></label></div></section>
+    <section className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-3">{loading ? <p className="text-sm text-slate-500">Loading verified professionals…</p> : filteredTalent.length === 0 ? <div className="panel p-8 text-center md:col-span-2 xl:col-span-3"><UsersRound size={30} className="mx-auto text-slate-300" /><p className="mt-3 font-extrabold text-[#002757]">No matching professionals found</p><p className="mt-1 text-sm text-slate-500">Try another search or choose a different open shift.</p></div> : filteredTalent.map((person) => { const availableSlot = data.availability.find((slot) => slot.professional_id === person.user_id && (!selectedInviteShift || (new Date(slot.starts_at) <= new Date(selectedInviteShift.starts_at) && new Date(slot.ends_at) >= new Date(selectedInviteShift.ends_at)))); const alreadyInvited = selectedInviteShift?.applications?.some((application) => application.professional_id === person.user_id); return <article key={person.user_id} className="panel p-5"><div className="flex items-start justify-between gap-3"><div className="grid h-12 w-12 place-items-center rounded-2xl bg-[#002757] font-black text-white">{person.profession.split(" ").map((word) => word[0]).join("").slice(0, 2)}</div>{availableSlot ? <Pill tone="green">Available</Pill> : <Pill tone="gray">Directory</Pill>}</div><h3 className="mt-4 text-lg font-black text-[#002757]">Verified {person.profession}</h3><p className="mt-1 text-xs text-slate-500">Candidate ID {person.user_id.slice(0, 6).toUpperCase()}</p><div className="mt-4 grid grid-cols-3 gap-2 rounded-xl bg-slate-50 p-3 text-center"><div><strong className="block text-[#002757]">{person.rating || 0}</strong><span className="text-[11px] text-slate-500">Rating</span></div><div><strong className="block text-[#002757]">{person.completed_shifts || 0}</strong><span className="text-[11px] text-slate-500">Shifts</span></div><div><strong className="block text-[#002757]">{person.reliability_score || 0}%</strong><span className="text-[11px] text-slate-500">Reliable</span></div></div><p className="mt-3 text-sm font-bold text-slate-600">{person.licence_province} licence</p><button type="button" disabled={!selectedInviteShift || alreadyInvited || busy === person.user_id} onClick={() => void sendInvitation(person.user_id)} className="primary-btn mt-4 w-full justify-center">{busy === person.user_id ? "Sending…" : alreadyInvited ? "Already invited" : "Invite to shift"}</button></article>; })}</section>
+  </div>;
+
+  if (view === "shifts") return <div className="page-wrap">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div><Pill tone="blue"><FileCheck2 size={13} /> Applicant review</Pill><h1 className="page-title">Review applicants</h1><p className="page-subtitle">Compare verified professionals and fill each open shift with confidence.</p></div>
+      <button onClick={onPost} className="primary-btn">Post another shift</button>
+    </div>
+    <ErrorNote text={error} />
+    {notice && <p className="mt-5 rounded-xl bg-[#eaf8ee] p-3 text-sm font-extrabold text-[#017f27]"><Check size={16} className="mr-1 inline" />{notice}</p>}
+    <section className="mt-7 grid gap-4 sm:grid-cols-3">
+      <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Needs review</p><strong className="mt-1 block text-3xl text-amber-700">{applicantRows.filter(({ application }) => application.status === "applied").length}</strong></div>
+      <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Accepted</p><strong className="mt-1 block text-3xl text-[#017f27]">{applicantRows.filter(({ application }) => application.status === "accepted").length}</strong></div>
+      <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Open shifts</p><strong className="mt-1 block text-3xl text-[#002757]">{open.length}</strong></div>
+    </section>
+    <section className="panel mt-7 overflow-hidden">
+      <div className="flex flex-col gap-4 border-b border-slate-200 p-5 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 className="section-title">Applicant queue</h2><p className="text-sm text-slate-500">Contact information remains protected until you confirm a booking.</p></div>
+        <div className="flex flex-wrap gap-2" role="group" aria-label="Filter applicants">{(["new", "all", "accepted", "declined"] as const).map((filter) => <button key={filter} type="button" onClick={() => setApplicantFilter(filter)} className={applicantFilter === filter ? "primary-btn" : "secondary-btn"}>{filter === "new" ? "Needs review" : filter[0].toUpperCase() + filter.slice(1)}</button>)}</div>
+      </div>
+      {loading ? <p className="p-8 text-sm text-slate-500">Loading applicants…</p> : filteredApplicants.length === 0 ? <div className="p-10 text-center"><div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E]"><Check size={23} /></div><p className="mt-3 font-extrabold text-[#002757]">No applicants in this view</p><p className="mt-1 text-sm text-slate-500">New applications will appear here as professionals apply.</p></div> : <div className="divide-y divide-slate-100">{filteredApplicants.map(({ shift, application }) => {
+        const professional = application.professional_profiles;
+        const expanded = expandedApplicant === application.id;
+        const pending = application.status === "applied";
+        return <article key={application.id} className="p-5">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-center">
+            <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#002757] font-black text-white">{(professional?.profession || "DP").split(" ").map((word) => word[0]).join("").slice(0, 2)}</div>
+            <div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-black text-[#002757]">Verified {professional?.profession || "dental professional"}</h3><Pill tone={pending ? "amber" : application.status === "accepted" ? "green" : "gray"}>{application.status === "applied" ? "Needs review" : application.status}</Pill></div><p className="mt-1 text-sm font-bold text-slate-700">{shift.profession} · {new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })}</p><p className="mt-1 text-xs text-slate-500">Applied {new Date(application.created_at).toLocaleDateString("en-CA", { dateStyle: "medium" })} · Candidate ID {application.professional_id.slice(0, 6).toUpperCase()}</p></div>
+            <div className="flex flex-wrap gap-2"><button type="button" onClick={() => setExpandedApplicant(expanded ? "" : application.id)} className="secondary-btn">{expanded ? "Hide details" : "Review details"}</button>{pending && <><button type="button" disabled={busy === application.id} onClick={() => { if (window.confirm("Decline this application?")) void reviewApplication(application.id, "decline"); }} className="rounded-xl border border-rose-200 px-4 py-2 text-sm font-extrabold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Decline</button><button type="button" disabled={busy === application.id} onClick={() => void reviewApplication(application.id, "accept")} className="primary-btn"><Check size={16} />{busy === application.id ? "Confirming…" : "Accept & confirm"}</button></>}</div>
+          </div>
+          {expanded && <div className="mt-4 grid gap-4 rounded-2xl border border-[#002757]/10 bg-[#edf3fa] p-4 text-sm sm:grid-cols-2 lg:grid-cols-4"><div><p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Licence</p><p className="mt-1 font-black text-[#002757]">{professional?.licence_province || "—"}</p></div><div><p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Rating</p><p className="mt-1 font-black text-[#002757]">{professional?.rating || 0} / 5</p></div><div><p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Completed shifts</p><p className="mt-1 font-black text-[#002757]">{professional?.completed_shifts || 0}</p></div><div><p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Reliability</p><p className="mt-1 font-black text-[#002757]">{professional?.reliability_score || 0}%</p></div><div className="sm:col-span-2 lg:col-span-4"><p className="text-xs font-extrabold uppercase tracking-wide text-slate-400">Rate</p><p className="mt-1 font-black text-[#002757]">{application.proposed_rate ? `Proposed $${Number(application.proposed_rate)}/hr` : `Posted rate $${Number(shift.hourly_rate)}/hr`}</p></div></div>}
+        </article>;
+      })}</div>}
+    </section>
+  </div>;
 
   if (view === "profile") return <div className="page-wrap">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
