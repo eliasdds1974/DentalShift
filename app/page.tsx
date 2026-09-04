@@ -695,6 +695,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
     setBusy(true); setError(""); setNotice("");
     try {
       const result = await submitOfficeForVerification(details.office.id, session.user.id);
+      if (!result) throw new Error("The verification request did not return an office record.");
       setDetails({ ...details, office: { ...details.office, verification_status: result.verification_status, submitted_for_verification_at: result.submitted_for_verification_at } });
       setNotice("Your office was submitted to DentalShift for verification.");
       onSaved();
