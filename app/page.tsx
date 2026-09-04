@@ -1162,7 +1162,7 @@ export default function Home() {
         const savedRole = window.localStorage.getItem("dentalshift_portal_role");
         window.sessionStorage.removeItem("dentalshift_signin_role");
 
-        const canUseRole = (candidate: string | null): candidate is Role =>
+        const canUseRole = (candidate: string | null | undefined): candidate is Role =>
           (candidate === "office" && Boolean(details.office)) ||
           (candidate === "professional" && Boolean(details.professional)) ||
           (candidate === "admin" && account.profile.role === "admin");
