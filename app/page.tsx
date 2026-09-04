@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addVerificationInternalNote, applyForShift, cancelAdminShift, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
@@ -573,6 +573,20 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
     };
     try {
       await saveAccountDetails(next);
+      if (!details.office && String(form.get("new_office_name") || "").trim()) {
+        await createOfficeWorkspace({
+          owner_id: session!.user.id,
+          name: String(form.get("new_office_name") || "").trim(),
+          address: String(form.get("new_office_address") || "").trim(),
+          city: String(form.get("new_office_city") || "").trim(),
+          province: String(form.get("new_office_province") || "").trim(),
+          postal_code: String(form.get("new_office_postal_code") || "").trim(),
+          phone: String(form.get("new_office_phone") || "").trim() || null,
+          website: null,
+          software: [],
+          description: null,
+        });
+      }
       const refreshed = await loadAccountDetails(session!.user.id);
       setDetails(refreshed);
       setNotice("Profile saved. Identity changes may return verification to review.");
@@ -613,6 +627,18 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
                 <label className="field sm:col-span-2"><span>Skills (comma separated)</span><input name="skills" defaultValue={details.professional.skills?.join(", ") ?? ""} placeholder="Tracker, Cleardent, orthodontics" /></label>
                 <label className="field sm:col-span-2"><span>Professional bio</span><textarea name="bio" rows={3} defaultValue={details.professional.bio ?? ""} /></label>
                 <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2"><input name="available_for_work" type="checkbox" defaultChecked={details.professional.available_for_work} className="h-4 w-4 accent-[#01A32E]" /><span className="text-sm font-bold text-slate-700">Available for new shifts</span></label>
+              </>}
+              {!details.office && details.professional && <>
+                <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2">
+                  <div className="flex items-center gap-2 font-extrabold text-[#002757]"><Building2 size={19} /> Add a Dental Office workspace</div>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Use this same email and password for both sides of DentalShift. Enter the office details below and save your profile.</p>
+                </div>
+                <label className="field sm:col-span-2"><span>Dental office name</span><input name="new_office_name" required /></label>
+                <label className="field sm:col-span-2"><span>Street address</span><input name="new_office_address" required /></label>
+                <label className="field"><span>City</span><input name="new_office_city" required /></label>
+                <label className="field"><span>Province</span><select name="new_office_province" required defaultValue="AB"><option>AB</option><option>BC</option><option>SK</option><option>MB</option><option>ON</option><option>QC</option><option>NB</option><option>NS</option><option>PE</option><option>NL</option><option>NT</option><option>NU</option><option>YT</option></select></label>
+                <label className="field"><span>Postal code</span><input name="new_office_postal_code" required /></label>
+                <label className="field"><span>Office phone</span><input name="new_office_phone" type="tel" /></label>
               </>}
               {details.office && <>
                 <div className="border-t border-slate-200 pt-5 sm:col-span-2"><h3 className="font-extrabold text-slate-900">Office profile</h3><p className="mt-1 text-sm text-slate-500">Keep the public practice information current for professionals.</p></div>
@@ -994,7 +1020,11 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
-      <Sidebar role={role} setRole={(nextRole) => { if (!session) setRole(nextRole); setView("overview"); }} view={view} setView={setView} open={menu} setOpen={setMenu} />
+      <Sidebar role={role} setRole={(nextRole) => {
+        const canOpenRole = nextRole === profile?.role || (nextRole === "office" && Boolean(officeId)) || (nextRole === "admin" && profile?.role === "admin");
+        if (canOpenRole) setRole(nextRole);
+        setView("overview");
+      }} view={view} setView={setView} open={menu} setOpen={setMenu} />
       <div className="lg:pl-[270px]">
         <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} onSignOut={() => void supabase.auth.signOut()} signedIn={Boolean(session)} />
         {session && profile && <div className="border-b border-[#01A32E]/20 bg-[#eaf8ee] px-5 py-2 text-center text-xs font-bold text-[#017f27]">Live account connected · changes are saved securely</div>}
