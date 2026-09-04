@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import Image from "next/image";
+import { usePathname, useRouter } from "next/navigation";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
@@ -13,6 +14,21 @@ import type { OfficeDetails } from "@/lib/dentalshift";
 
 type Role = "office" | "professional" | "admin";
 type View = "overview" | "shifts" | "talent" | "bookings" | "profile";
+
+const portalRoutes: Record<Role, Record<View, string>> = {
+  office: { overview: "/office/overview", shifts: "/office/shifts", talent: "/office/professionals", bookings: "/office/bookings", profile: "/office/account" },
+  professional: { overview: "/professionals/find-shifts", shifts: "/professionals/applications", talent: "/professionals/favourite-offices", bookings: "/professionals/schedule", profile: "/professionals/profile" },
+  admin: { overview: "/admin/overview", shifts: "/admin/shifts", talent: "/admin/verification", bookings: "/admin/disputes", profile: "/admin/overview" },
+};
+
+function portalState(pathname: string): { role: Role; view: View } | null {
+  for (const [role, views] of Object.entries(portalRoutes) as [Role, Record<View, string>][]) {
+    for (const [view, route] of Object.entries(views) as [View, string][]) {
+      if (pathname === route) return { role, view };
+    }
+  }
+  return null;
+}
 
 const candidates = [
   { name: "Maya R.", role: "Registered Dental Hygienist", city: "Kelowna, BC", rating: "4.9", shifts: 84, match: 98, rate: 56, initials: "MR", tint: "bg-sky-100 text-sky-800" },
@@ -1090,6 +1106,8 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
 }
 
 export default function Home() {
+  const pathname = usePathname();
+  const router = useRouter();
   const [role, setRole] = useState<Role>("office");
   const [view, setView] = useState<View>("overview");
   const [menu, setMenu] = useState(false);
@@ -1104,6 +1122,19 @@ export default function Home() {
   const [officeId, setOfficeId] = useState<string | null>(null);
   const [office, setOffice] = useState<OfficeDetails | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
+
+  const navigate = useCallback((nextRole: Role, nextView: View) => {
+    setRole(nextRole);
+    setView(nextView);
+    router.push(portalRoutes[nextRole][nextView]);
+  }, [router]);
+
+  useEffect(() => {
+    const next = portalState(pathname);
+    if (!next) return;
+    setRole(next.role);
+    setView(next.view);
+  }, [pathname]);
 
   useEffect(() => {
     let active = true;
@@ -1187,9 +1218,8 @@ export default function Home() {
     <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
       <Sidebar role={role} setRole={(nextRole) => {
         const canOpenRole = nextRole === profile?.role || (nextRole === "office" && Boolean(officeId)) || (nextRole === "admin" && profile?.role === "admin");
-        if (canOpenRole) setRole(nextRole);
-        setView("overview");
-      }} view={view} setView={setView} open={menu} setOpen={setMenu} />
+        if (canOpenRole) navigate(nextRole, "overview");
+      }} view={view} setView={(nextView) => navigate(role, nextView)} open={menu} setOpen={setMenu} />
       <div className="lg:pl-[270px]">
         <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} onSignOut={() => void supabase.auth.signOut()} signedIn={Boolean(session)} />
         {session && profile && <div className="border-b border-[#01A32E]/20 bg-[#eaf8ee] px-5 py-2 text-center text-xs font-bold text-[#017f27]">Live account connected · changes are saved securely</div>}
