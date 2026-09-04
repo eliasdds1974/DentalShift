@@ -2,14 +2,12 @@
 
 import { ArrowRight, BadgeCheck, BellRing, BriefcaseBusiness, CalendarCheck2, Check, Clock3, HeartHandshake, MapPin, Menu, Search, ShieldCheck, Sparkles, Star, UserCheck, X } from "lucide-react";
 import { useState } from "react";
+import Image from "next/image";
 
 type Audience = "office" | "professional";
 
 function MarketingBrand() {
-  return <div className="flex items-center gap-3">
-    <div className="logo-mark" aria-hidden="true"><span className="logo-tooth">✓</span></div>
-    <div className="text-[1.35rem] font-extrabold tracking-[-0.04em] text-[#002757]">Dental<span className="text-[#01A32E]">Shift</span></div>
-  </div>;
+  return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-14 w-auto" priority />;
 }
 
 function CheckLine({ children }: { children: React.ReactNode }) {
