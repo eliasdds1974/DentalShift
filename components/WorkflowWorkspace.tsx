@@ -117,10 +117,59 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
         <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Confirmed bookings</p><strong className="mt-1 block text-3xl">{upcomingBookings.length}</strong></div>
       </section>
 
-      {(view === "overview" || view === "talent") && <>
+      {view === "overview" && <>
       <section className="mt-7 grid gap-5 lg:grid-cols-2">
         <div className="panel overflow-hidden"><div className="border-b border-slate-200 p-5"><h2 className="section-title">My availability</h2><p className="text-sm text-slate-500">Post a work window that verified offices can see and match to their open shifts.</p></div><form onSubmit={addAvailability} className="grid gap-3 p-5 sm:grid-cols-3"><label className="field"><span>Date</span><input name="date" type="date" required min={new Date().toISOString().slice(0, 10)} /></label><label className="field"><span>Available from</span><select name="start" required defaultValue="08:00" aria-label="Available from">{availabilityTimes.map((time) => <option key={`start-${time.value}`} value={time.value}>{time.label}</option>)}</select></label><label className="field"><span>Available to</span><select name="end" required defaultValue="17:00" aria-label="Available to">{availabilityTimes.map((time) => <option key={`end-${time.value}`} value={time.value}>{time.label}</option>)}</select></label><div className="sm:col-span-3"><button type="submit" disabled={busy === "availability"} className="primary-btn">{busy === "availability" ? "Saving…" : "Post availability"}</button></div></form><div className="border-t border-slate-100 px-5 py-4">{data.availability.length === 0 ? <p className="text-sm text-slate-500">No availability windows added yet.</p> : <div className="space-y-2">{data.availability.map((slot) => <div key={slot.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#0078FE] p-3 text-base font-extrabold text-white shadow-sm"><span><strong>{new Date(slot.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })}</strong> · {new Date(slot.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(slot.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><button type="button" disabled={busy === slot.id} onClick={() => void act(slot.id, () => removeProfessionalAvailability(slot.id))} className="shrink-0 rounded-lg bg-[#F21C13] px-3 py-2 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#d9160f] disabled:opacity-50">Remove</button></div>)}</div>}</div></div>
         <div className="panel overflow-hidden"><div className="border-b border-slate-200 p-5"><h2 className="section-title">Favourite offices</h2><p className="text-sm text-slate-500">Save offices you enjoy working with so their shifts are easy to spot.</p></div><div className="p-5">{data.favourites.length === 0 ? <p className="text-sm text-slate-500">Save an office from an available shift to build your preferred list.</p> : <div className="space-y-2">{data.favourites.map((favourite) => <div key={favourite.office_id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"><div><p className="font-extrabold text-slate-800">{favourite.offices?.name || "Dental office"}</p><p className="text-xs text-slate-500">{favourite.offices?.city}, {favourite.offices?.province}</p></div><button type="button" disabled={busy === favourite.office_id} onClick={() => void act(favourite.office_id, () => setFavouriteOffice(userId, favourite.office_id, false))} className="text-xs font-extrabold text-slate-600 underline">Remove</button></div>)}</div>}</div></div>
+      </section>
+
+      </>}
+
+      {view === "talent" && <>
+      <section className="mt-7 grid gap-4 sm:grid-cols-2">
+        <div className="rounded-2xl bg-[#002757] p-5 text-white shadow-sm">
+          <p className="text-sm font-extrabold text-white/85">Favourite offices</p>
+          <strong className="mt-1 block text-3xl font-black">{data.favourites.length}</strong>
+          <p className="mt-1 text-xs font-bold text-white/80">Offices saved to your list</p>
+        </div>
+        <div className="rounded-2xl bg-[#0078FE] p-5 text-white shadow-sm">
+          <p className="text-sm font-extrabold text-white/85">Available shifts</p>
+          <strong className="mt-1 block text-3xl font-black">{data.open.filter((shift) => favouriteOfficeIds.has(shift.office_id)).length}</strong>
+          <p className="mt-1 text-xs font-bold text-white/80">Open now from favourite offices</p>
+        </div>
+      </section>
+
+      <section className="mt-5 panel overflow-hidden">
+        <div className="border-b border-slate-200 p-5">
+          <h2 className="section-title">Favourite offices</h2>
+          <p className="text-sm text-slate-500">Keep preferred workplaces organized and quickly recognize their available shifts.</p>
+        </div>
+        {data.favourites.length === 0 ? (
+          <div className="p-8 text-center">
+            <div className="mx-auto grid h-12 w-12 place-items-center rounded-full bg-[#edf3fa] text-[#002757]"><Star size={22} /></div>
+            <p className="mt-3 font-extrabold text-[#002757]">No favourite offices yet</p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-slate-500">Use Save office beside an available shift to add an office to this list.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4 p-4 sm:grid-cols-2 sm:p-5">
+            {data.favourites.map((favourite) => {
+              const matchingShifts = data.open.filter((shift) => shift.office_id === favourite.office_id).length;
+              return <article key={favourite.office_id} className="overflow-hidden rounded-2xl border border-[#0078FE]/25 bg-white shadow-sm">
+                <div className="h-2 bg-[#0078FE]" />
+                <div className="p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[#002757] text-sm font-black text-white">{(favourite.offices?.name || "DO").split(" ").map((word) => word[0]).join("").slice(0, 2).toUpperCase()}</div>
+                    <Pill tone="green"><Star size={13} className="fill-[#01A32E] text-[#01A32E]" />Preferred</Pill>
+                  </div>
+                  <h3 className="mt-4 text-lg font-black text-[#002757]">{favourite.offices?.name || "Dental office"}</h3>
+                  <p className="mt-1 flex items-center gap-1 text-sm font-bold text-slate-500"><MapPin size={15} />{favourite.offices?.city || "City"}, {favourite.offices?.province || "Province"}</p>
+                  <div className="mt-4 rounded-xl bg-[#edf3fa] px-3 py-2.5 text-sm font-extrabold text-[#002757]">{matchingShifts > 0 ? <>{matchingShifts} available {matchingShifts === 1 ? "shift" : "shifts"}</> : "No open shifts right now"}</div>
+                  <button type="button" disabled={busy === favourite.office_id} onClick={() => void act(favourite.office_id, () => setFavouriteOffice(userId, favourite.office_id, false))} className="mt-4 w-full rounded-xl bg-[#F21C13] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#d9160f] disabled:opacity-50">{busy === favourite.office_id ? "Removing…" : "Remove favourite"}</button>
+                </div>
+              </article>;
+            })}
+          </div>
+        )}
       </section>
 
       </>}
