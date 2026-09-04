@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, submitOfficeForVerification, updateOfficeProfile, uploadOfficeLogo, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
@@ -44,13 +44,13 @@ function Metric({ icon, label, value, detail, color }: { icon: React.ReactNode; 
   return <article className="panel flex min-w-0 items-start gap-4 p-5"><div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ${color}`}>{icon}</div><div><p className="text-sm font-semibold text-slate-500">{label}</p><p className="mt-0.5 text-2xl font-extrabold tracking-tight text-slate-900">{value}</p><p className="mt-1 text-xs text-slate-500">{detail}</p></div></article>;
 }
 
-function Sidebar({ role, view, setView, open, setOpen }: { role: Role; view: View; setView: (v: View) => void; open: boolean; setOpen: (v: boolean) => void }) {
+function Sidebar({ role, setRole, view, setView, open, setOpen }: { role: Role; setRole: (r: Role) => void; view: View; setView: (v: View) => void; open: boolean; setOpen: (v: boolean) => void }) {
   const nav = role === "office"
-    ? [["overview", "Overview", <LayoutDashboard key="a" size={19} />], ["shifts", "Review applicants", <FileCheck2 key="b" size={19} />], ["talent", "Find professionals", <UsersRound key="c" size={19} />], ["bookings", "Bookings", <BriefcaseBusiness key="d" size={19} />], ["profile", "Office profile", <Building2 key="op" size={19} />]]
+    ? [["overview", "Overview", <LayoutDashboard key="a" size={19} />], ["shifts", "My shifts", <CalendarDays key="b" size={19} />], ["talent", "Find professionals", <UsersRound key="c" size={19} />], ["bookings", "Bookings", <BriefcaseBusiness key="d" size={19} />]]
     : role === "professional"
       ? [["overview", "Find shifts", <Search key="e" size={19} />], ["shifts", "My applications", <FileCheck2 key="f" size={19} />], ["bookings", "My schedule", <CalendarDays key="g" size={19} />], ["talent", "Favourite offices", <Heart key="h" size={19} />], ["profile", "Profile & credentials", <UserRound key="p" size={19} />]]
       : [["overview", "Admin overview", <LayoutDashboard key="i" size={19} />], ["talent", "Verification", <ShieldCheck key="j" size={19} />], ["shifts", "All shifts", <CalendarDays key="k" size={19} />], ["bookings", "Disputes", <MessageCircle key="l" size={19} />]];
-  return <>{open && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden" onClick={() => setOpen(false)} />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="px-2"><Brand /></div><p className="mb-2 mt-8 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Workspace</p><nav className="space-y-1">{nav.map(([key, label, icon]) => <button key={key as string} onClick={() => { setView(key as View); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${view === key ? "bg-[#eaf8ee] text-[#017f27]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}>{icon}{label}</button>)}</nav><div className="mt-auto rounded-2xl border border-[#01A32E]/20 bg-[#eaf8ee] p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-[#017f27]"><ShieldCheck size={18} /> Trust & safety</div><p className="mt-2 text-xs leading-5 text-[#017f27]">Licences are checked against the applicable provincial registry.</p></div><div className="mt-4 flex items-center gap-3 px-2"><div className="grid h-10 w-10 place-items-center rounded-full bg-[#002757] text-sm font-bold text-white">{role === "office" ? "LD" : role === "professional" ? "MR" : "EK"}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{role === "office" ? "Lakeside Dental" : role === "professional" ? "Maya Roberts" : "DentalShift Admin"}</p><p className="truncate text-xs text-slate-500">{role === "admin" ? "Platform administrator" : "Verified account"}</p></div></div></aside></>;
+  return <>{open && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden" onClick={() => setOpen(false)} />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="px-2"><Brand /></div><div className="mt-8 rounded-2xl bg-slate-100 p-1"><div className="grid grid-cols-3 gap-1">{(["office", "professional", "admin"] as Role[]).map((r) => <button key={r} onClick={() => { setRole(r); setOpen(false); }} className={`rounded-xl px-2 py-2 text-xs font-bold capitalize transition ${role === r ? "bg-white text-[#002757] shadow-sm" : "text-slate-500 hover:text-slate-800"}`}>{r === "professional" ? "Pro" : r}</button>)}</div></div><p className="mb-2 mt-7 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Workspace</p><nav className="space-y-1">{nav.map(([key, label, icon]) => <button key={key as string} onClick={() => { setView(key as View); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${view === key ? "bg-[#eaf8ee] text-[#017f27]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}>{icon}{label}</button>)}</nav><div className="mt-auto rounded-2xl border border-[#01A32E]/20 bg-[#eaf8ee] p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-[#017f27]"><ShieldCheck size={18} /> Trust & safety</div><p className="mt-2 text-xs leading-5 text-[#017f27]">Licences are checked against the applicable provincial registry.</p></div><div className="mt-4 flex items-center gap-3 px-2"><div className="grid h-10 w-10 place-items-center rounded-full bg-[#002757] text-sm font-bold text-white">{role === "office" ? "LD" : role === "professional" ? "MR" : "EK"}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{role === "office" ? "Lakeside Dental" : role === "professional" ? "Maya Roberts" : "DentalShift Admin"}</p><p className="truncate text-xs text-slate-500">{role === "admin" ? "Platform administrator" : "Verified account"}</p></div></div></aside></>;
 }
 
 function Header({ role, onMenu, onPost, onMessages, onAccount, onSignOut, signedIn }: { role: Role; onMenu: () => void; onPost: () => void; onMessages: () => void; onAccount: () => void; onSignOut: () => void; signedIn: boolean }) {
@@ -457,7 +457,7 @@ function NeedsReviewModal({ item, saving, close, submit }: { item: VerificationI
   return <div className="fixed inset-0 z-[95] grid place-items-center bg-[#002757]/60 p-4"><button aria-label="Close" onClick={close} className="absolute inset-0" /><section role="dialog" aria-modal="true" aria-labelledby="review-title" className="relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl"><form onSubmit={(event) => { event.preventDefault(); void submit(notes); }}><div className="border-b border-slate-200 px-6 py-5"><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-amber-700">Verification follow-up</p><h2 id="review-title" className="mt-1 text-2xl font-extrabold text-slate-900">Request information</h2><p className="mt-2 text-sm text-slate-500">Tell {item.name} what is needed. This message will be visible in their DentalShift account.</p></div><div className="p-6"><label className="field"><span>Message to applicant</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} minLength={10} maxLength={1000} required rows={5} placeholder="Example: Please confirm your Alberta licence number or upload a current licence document." /></label><p className="mt-2 text-xs text-slate-500">Be specific and do not include private internal comments.</p></div><div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-5"><button type="button" onClick={close} disabled={saving} className="secondary-btn">Cancel</button><button type="submit" disabled={saving || notes.trim().length < 10} className="primary-btn">{saving ? "Sending…" : "Send review request"}</button></div></form></section></div>;
 }
 
-function AccountModal({ close, session, profile, onSaved, activeRole = "professional", initialMode = "signin", initialRole = "office", passwordRecovery = false, adminEntry = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; activeRole?: Role; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional"; passwordRecovery?: boolean; adminEntry?: boolean; onPasswordRecoveryComplete?: () => void }) {
+function AccountModal({ close, session, profile, onSaved, activeRole = "professional", initialMode = "signin", initialRole = "office", passwordRecovery = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; activeRole?: Role; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional"; passwordRecovery?: boolean; onPasswordRecoveryComplete?: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [role, setRole] = useState<"office" | "professional">(initialRole);
   const [busy, setBusy] = useState(false);
@@ -468,7 +468,10 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   const [createdEmail, setCreatedEmail] = useState("");
   const [emailValue, setEmailValue] = useState("");
   const [passwordChanged, setPasswordChanged] = useState(false);
-  const [signInRoleChosen, setSignInRoleChosen] = useState(adminEntry || initialMode !== "signin");
+  const [signInRoleChosen, setSignInRoleChosen] = useState(initialMode !== "signin");
+  const officeFields = details?.office ? [details.office.name, details.office.logo_url, details.office.address, details.office.city, details.office.province, details.office.postal_code, details.office.phone, details.office.website, details.office.contact_name, details.office.contact_title, details.office.office_hours, details.office.operatories, details.office.parking_info, details.office.software?.length, details.office.languages?.length, details.office.description, details.office.authorization_confirmed] : [];
+  const officeCompleteness = officeFields.length ? Math.round((officeFields.filter(Boolean).length / officeFields.length) * 100) : 0;
+  const officeReady = Boolean(details?.office?.name && details.office.address && details.office.city && details.office.province && details.office.postal_code && details.office.phone && details.office.contact_name && details.office.contact_title && details.office.office_hours && details.office.authorization_confirmed);
 
   useEffect(() => {
     if (!session) return;
@@ -667,6 +670,14 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
+      office_hours: String(form.get("office_hours") || "") || null,
+      operatories: form.get("operatories") ? Number(form.get("operatories")) : null,
+      parking_info: String(form.get("parking_info") || "") || null,
+      software: String(form.get("software") || "").split(",").map((item) => item.trim()).filter(Boolean),
+      languages: String(form.get("languages") || "").split(",").map((item) => item.trim()).filter(Boolean),
+      description: String(form.get("description") || "") || null,
+      benefits: String(form.get("benefits") || "") || null,
+      authorization_confirmed: form.get("authorization_confirmed") === "on",
     };
     setBusy(true); setError(""); setNotice("");
     try {
@@ -675,6 +686,19 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       setNotice("Office account information saved.");
       onSaved();
     } catch (value) { setError(value instanceof Error ? value.message : "The office account could not be saved."); }
+    finally { setBusy(false); }
+  };
+
+  const submitOfficeVerification = async () => {
+    if (!session || !details?.office) return;
+    if (!officeReady) { setError("Save all required office details and confirm your authorization before submitting."); return; }
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const result = await submitOfficeForVerification(details.office.id, session.user.id);
+      setDetails({ ...details, office: { ...details.office, verification_status: result.verification_status, submitted_for_verification_at: result.submitted_for_verification_at } });
+      setNotice("Your office was submitted to DentalShift for verification.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "The verification request could not be submitted."); }
     finally { setBusy(false); }
   };
 
@@ -695,7 +719,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
       <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session && activeRole === "office" ? "Dental office account" : session ? "Professional account" : accountCreated ? "Account created" : adminEntry ? "Administrator sign in" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session && activeRole === "office" ? "Dental office account" : session ? "Professional account" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
         </div>
 
@@ -721,6 +745,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
               <div role="img" aria-label={`${details.office.name} logo`} className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white bg-contain bg-center bg-no-repeat text-2xl font-black text-[#002757] shadow-sm" style={details.office.logo_url ? { backgroundImage: `url(${details.office.logo_url})` } : undefined}>{details.office.logo_url ? null : details.office.name.slice(0, 2).toUpperCase()}</div>
               <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black text-[#002757]">{details.office.name}</h3><StatusPill tone={details.office.verification_status === "verified" ? "green" : "amber"}>Office {details.office.verification_status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{session.user.email}</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy ? "Please wait…" : details.office.logo_url ? "Replace office logo" : "Upload office logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy} onChange={(event) => void uploadAccountLogo(event.target.files?.[0])} /></label><p className="mt-2 text-xs text-slate-500">PNG, JPG or WebP · maximum 5 MB</p></div>
             </div>
+            <div className="rounded-2xl bg-[#002757] p-4 text-white sm:col-span-1"><p className="text-xs font-extrabold text-white/75">Office profile complete</p><strong className="mt-1 block text-2xl font-black">{officeCompleteness}%</strong><div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-[#01A32E]" style={{ width: `${officeCompleteness}%` }} /></div></div>
+            <div className="rounded-2xl bg-[#0078FE] p-4 text-white sm:col-span-1"><p className="text-xs font-extrabold text-white/75">Verification</p><strong className="mt-1 block text-lg font-black capitalize">{details.office.verification_status.replace("_", " ")}</strong><p className="mt-1 text-xs font-bold text-white/80">{officeReady ? "Ready for review" : "Complete required details"}</p></div>
             <div className="sm:col-span-2"><h3 className="font-black text-[#002757]">Dental office account</h3><p className="mt-1 text-sm text-slate-500">Information used for your clinic profile and staffing activity.</p></div>
             <label className="field sm:col-span-2"><span>Clinic name</span><input name="office_name" required defaultValue={details.office.name} /></label>
             <label className="field sm:col-span-2"><span>Street address</span><input name="address" required defaultValue={details.office.address} /></label>
@@ -731,9 +757,18 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" placeholder="https://" defaultValue={details.office.website || ""} /></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
+            <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Workplace information</h3><p className="mt-1 text-sm text-slate-500">Details professionals use when deciding whether to accept a shift.</p></div>
+            <label className="field sm:col-span-2"><span>Office hours</span><textarea name="office_hours" rows={3} placeholder="Monday–Thursday 8:00 AM–5:00 PM" defaultValue={details.office.office_hours || ""} /></label>
+            <label className="field"><span>Number of operatories</span><input name="operatories" type="number" min="1" max="100" defaultValue={details.office.operatories || ""} /></label>
+            <label className="field"><span>Practice software</span><input name="software" placeholder="Tracker, Cleardent" defaultValue={details.office.software?.join(", ") || ""} /></label>
+            <label className="field sm:col-span-2"><span>Parking and transit</span><textarea name="parking_info" rows={2} placeholder="Free staff parking behind the clinic…" defaultValue={details.office.parking_info || ""} /></label>
+            <label className="field sm:col-span-2"><span>Languages spoken</span><input name="languages" placeholder="English, French" defaultValue={details.office.languages?.join(", ") || ""} /></label>
+            <label className="field sm:col-span-2"><span>About the workplace</span><textarea name="description" rows={4} placeholder="Describe the team, culture and typical patient day." defaultValue={details.office.description || ""} /></label>
+            <label className="field sm:col-span-2"><span>Staff benefits and amenities</span><textarea name="benefits" rows={3} placeholder="Paid lunch, staff room, uniform allowance…" defaultValue={details.office.benefits || ""} /></label>
+            <label className="flex items-start gap-3 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-4 sm:col-span-2"><input name="authorization_confirmed" type="checkbox" defaultChecked={details.office.authorization_confirmed} className="mt-1 h-5 w-5 accent-[#01A32E]" /><span className="text-sm leading-6 text-slate-700"><strong className="block text-[#002757]">Office authorization</strong>I confirm that I am authorized to create and manage staffing requests for this clinic and that the information is accurate.</span></label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
-            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:flex-wrap sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button type="button" onClick={() => void submitOfficeVerification()} disabled={busy || !officeReady || details.office.verification_status === "verified"} className="secondary-btn justify-center"><ShieldCheck size={17} />{details.office.verification_status === "verified" ? "Office verified" : "Submit for verification"}</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
           </form>
         ) : session ? (
           <form onSubmit={saveProfile} className="grid gap-4 p-6 sm:grid-cols-2">
@@ -1084,7 +1119,6 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
 }
 
 export default function Home() {
-  const [showHome, setShowHome] = useState(true);
   const [role, setRole] = useState<Role>("office");
   const [view, setView] = useState<View>("overview");
   const [menu, setMenu] = useState(false);
@@ -1092,7 +1126,6 @@ export default function Home() {
   const [rebook, setRebook] = useState(false);
   const [messages, setMessages] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [adminEntry, setAdminEntry] = useState(false);
   const [accountIntent, setAccountIntent] = useState<{ mode: "signin" | "signup"; role: "office" | "professional" }>({ mode: "signin", role: "office" });
   const [passwordRecovery, setPasswordRecovery] = useState(false);
   const [session, setSession] = useState<Session | null | undefined>(undefined);
@@ -1108,7 +1141,6 @@ export default function Home() {
       if (!active) return;
       setSession(nextSession);
       if (!nextSession) {
-        window.sessionStorage.removeItem("dentalshift_active_portal");
         setProfile(null);
         setOfficeId(null);
         setOffice(null);
@@ -1123,18 +1155,10 @@ export default function Home() {
         setOfficeId(account.officeId);
         setOffice(details.office);
         const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
-        const requestedDestination = window.sessionStorage.getItem("dentalshift_home_destination");
-        const activePortal = window.sessionStorage.getItem("dentalshift_active_portal");
         window.sessionStorage.removeItem("dentalshift_signin_role");
-        const roleAllowed = (candidate: string | null) => (candidate === "office" && Boolean(details.office)) || (candidate === "professional" && Boolean(details.professional)) || (candidate === "admin" && account.profile.role === "admin");
-        const destinationAllowed = (requestedDestination === "office" && details.office) || (requestedDestination === "professional" && details.professional) || (requestedDestination === "admin" && account.profile.role === "admin");
-        const portalToOpen = destinationAllowed ? requestedDestination : roleAllowed(requestedRole) ? requestedRole : roleAllowed(activePortal) ? activePortal : null;
-        if (portalToOpen) {
-          setRole(portalToOpen as Role);
-          setShowHome(false);
-          window.sessionStorage.setItem("dentalshift_active_portal", portalToOpen);
-          window.sessionStorage.removeItem("dentalshift_home_destination");
-        } else setRole(account.profile.role);
+        if (requestedRole === "office" && details.office) setRole("office");
+        else if (requestedRole === "professional" && details.professional) setRole("professional");
+        else setRole(account.profile.role);
       } catch {
         if (active) {
           setProfile(null);
@@ -1159,14 +1183,6 @@ export default function Home() {
     };
   }, []);
 
-  const signOutToHome = async () => {
-    window.sessionStorage.removeItem("dentalshift_active_portal");
-    await supabase.auth.signOut();
-    setShowHome(true);
-    setMenu(false);
-    setView("overview");
-  };
-
   const content = useMemo(
     () => role === "office"
       ? session && profile && office
@@ -1186,36 +1202,25 @@ export default function Home() {
     return <main className="grid min-h-screen place-items-center bg-white"><div className="text-center"><div className="mx-auto w-fit"><Brand /></div><p className="mt-4 text-sm font-extrabold text-[#002757]">Loading DentalShift…</p></div></main>;
   }
 
-  if (showHome) {
+  if (!session) {
     return <main className="min-h-screen bg-white">
       <MarketingHome
-        signedIn={Boolean(session)}
-        onSignIn={() => {
-          if (session) { window.sessionStorage.setItem("dentalshift_active_portal", role); setShowHome(false); return; }
-          setAdminEntry(false); setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true);
-        }}
-        onGetStarted={(nextRole) => {
-          const canOpen = nextRole === profile?.role || (nextRole === "office" && Boolean(officeId));
-          if (session && canOpen) { window.sessionStorage.setItem("dentalshift_active_portal", nextRole); setRole(nextRole); setView("overview"); setShowHome(false); return; }
-          window.sessionStorage.setItem("dentalshift_home_destination", nextRole);
-          setAdminEntry(false); setAccountIntent({ mode: session ? "signin" : "signup", role: nextRole }); setAccountOpen(true);
-        }}
-        onAdmin={() => {
-          if (session && profile?.role === "admin") { window.sessionStorage.setItem("dentalshift_active_portal", "admin"); setRole("admin"); setView("overview"); setShowHome(false); return; }
-          if (session) { window.alert("Sign out of this account before entering the temporary admin area with an administrator account."); return; }
-          window.sessionStorage.setItem("dentalshift_home_destination", "admin");
-          setAdminEntry(true); setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true);
-        }}
+        onSignIn={() => { setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true); }}
+        onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
       />
-      {accountOpen && <AccountModal close={() => { setAccountOpen(false); setAdminEntry(false); }} session={session} profile={profile} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} adminEntry={adminEntry} onSaved={() => undefined} />}
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={null} profile={null} initialMode={accountIntent.mode} initialRole={accountIntent.role} onSaved={() => undefined} />}
     </main>;
   }
 
   return (
     <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
-      <Sidebar role={role} view={view} setView={setView} open={menu} setOpen={setMenu} />
+      <Sidebar role={role} setRole={(nextRole) => {
+        const canOpenRole = nextRole === profile?.role || (nextRole === "office" && Boolean(officeId)) || (nextRole === "admin" && profile?.role === "admin");
+        if (canOpenRole) setRole(nextRole);
+        setView("overview");
+      }} view={view} setView={setView} open={menu} setOpen={setMenu} />
       <div className="lg:pl-[270px]">
-        <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} onSignOut={() => void signOutToHome()} signedIn={Boolean(session)} />
+        <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} onSignOut={() => void supabase.auth.signOut()} signedIn={Boolean(session)} />
         {session && profile && <div className="border-b border-[#01A32E]/20 bg-[#eaf8ee] px-5 py-2 text-center text-xs font-bold text-[#017f27]">Live account connected · changes are saved securely</div>}
         {content}
       </div>
