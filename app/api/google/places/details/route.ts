@@ -12,7 +12,7 @@ function component(components: AddressComponent[], type: string, short = false) 
 }
 
 export async function POST(request: Request) {
-  const apiKey = process.env.GOOGLE_MAPS_API_KEY;
+  const apiKey = process.env.GOOGLE_MAPS_API_KEY || process.env.OOGLE_MAPS_API_KEY;
   if (!apiKey) {
     return NextResponse.json({ error: "Google address details are not configured." }, { status: 503 });
   }
