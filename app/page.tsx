@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
@@ -457,7 +457,7 @@ function NeedsReviewModal({ item, saving, close, submit }: { item: VerificationI
   return <div className="fixed inset-0 z-[95] grid place-items-center bg-[#002757]/60 p-4"><button aria-label="Close" onClick={close} className="absolute inset-0" /><section role="dialog" aria-modal="true" aria-labelledby="review-title" className="relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl"><form onSubmit={(event) => { event.preventDefault(); void submit(notes); }}><div className="border-b border-slate-200 px-6 py-5"><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-amber-700">Verification follow-up</p><h2 id="review-title" className="mt-1 text-2xl font-extrabold text-slate-900">Request information</h2><p className="mt-2 text-sm text-slate-500">Tell {item.name} what is needed. This message will be visible in their DentalShift account.</p></div><div className="p-6"><label className="field"><span>Message to applicant</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} minLength={10} maxLength={1000} required rows={5} placeholder="Example: Please confirm your Alberta licence number or upload a current licence document." /></label><p className="mt-2 text-xs text-slate-500">Be specific and do not include private internal comments.</p></div><div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-5"><button type="button" onClick={close} disabled={saving} className="secondary-btn">Cancel</button><button type="submit" disabled={saving || notes.trim().length < 10} className="primary-btn">{saving ? "Sending…" : "Send review request"}</button></div></form></section></div>;
 }
 
-function AccountModal({ close, session, profile, onSaved, initialMode = "signin", initialRole = "office", passwordRecovery = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional"; passwordRecovery?: boolean; onPasswordRecoveryComplete?: () => void }) {
+function AccountModal({ close, session, profile, onSaved, activeRole = "professional", initialMode = "signin", initialRole = "office", passwordRecovery = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; activeRole?: Role; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional"; passwordRecovery?: boolean; onPasswordRecoveryComplete?: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [role, setRole] = useState<"office" | "professional">(initialRole);
   const [busy, setBusy] = useState(false);
@@ -652,12 +652,50 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
     } finally { setBusy(false); }
   };
 
+  const saveOfficeAccount = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!details?.office) return;
+    const form = new FormData(event.currentTarget);
+    const nextOffice: OfficeDetails = {
+      ...details.office,
+      name: String(form.get("office_name") || ""),
+      address: String(form.get("address") || ""),
+      city: String(form.get("office_city") || ""),
+      province: String(form.get("office_province") || ""),
+      postal_code: String(form.get("office_postal_code") || ""),
+      phone: String(form.get("office_phone") || "") || null,
+      website: String(form.get("website") || "") || null,
+      contact_name: String(form.get("contact_name") || "") || null,
+      contact_title: String(form.get("contact_title") || "") || null,
+    };
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const saved = await updateOfficeProfile(nextOffice);
+      setDetails({ ...details, office: saved });
+      setNotice("Office account information saved.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "The office account could not be saved."); }
+    finally { setBusy(false); }
+  };
+
+  const uploadAccountLogo = async (file?: File) => {
+    if (!file || !session || !details?.office) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const logoUrl = await uploadOfficeLogo(session.user.id, details.office.id, file);
+      setDetails({ ...details, office: { ...details.office, logo_url: logoUrl } });
+      setNotice("Office logo uploaded successfully.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "The office logo could not be uploaded."); }
+    finally { setBusy(false); }
+  };
+
   return (
     <div className="fixed inset-0 z-[90] grid place-items-center bg-[#002757]/60 p-4">
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
       <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session ? "Account connected" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session && activeRole === "office" ? "Dental office account" : session ? "Professional account" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
         </div>
 
@@ -676,6 +714,26 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
             {passwordChanged
               ? <button type="button" onClick={() => { onPasswordRecoveryComplete?.(); close(); }} className="primary-btn justify-center">Continue to DentalShift</button>
               : <button type="submit" disabled={busy} className="primary-btn justify-center">{busy ? "Updating password…" : "Save new password"}</button>}
+          </form>
+        ) : session && activeRole === "office" && details?.office ? (
+          <form onSubmit={saveOfficeAccount} className="grid gap-4 p-6 sm:grid-cols-2">
+            <div className="flex flex-col gap-4 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2 sm:flex-row sm:items-center">
+              <div role="img" aria-label={`${details.office.name} logo`} className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white bg-contain bg-center bg-no-repeat text-2xl font-black text-[#002757] shadow-sm" style={details.office.logo_url ? { backgroundImage: `url(${details.office.logo_url})` } : undefined}>{details.office.logo_url ? null : details.office.name.slice(0, 2).toUpperCase()}</div>
+              <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black text-[#002757]">{details.office.name}</h3><StatusPill tone={details.office.verification_status === "verified" ? "green" : "amber"}>Office {details.office.verification_status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{session.user.email}</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy ? "Please wait…" : details.office.logo_url ? "Replace office logo" : "Upload office logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy} onChange={(event) => void uploadAccountLogo(event.target.files?.[0])} /></label><p className="mt-2 text-xs text-slate-500">PNG, JPG or WebP · maximum 5 MB</p></div>
+            </div>
+            <div className="sm:col-span-2"><h3 className="font-black text-[#002757]">Dental office account</h3><p className="mt-1 text-sm text-slate-500">Information used for your clinic profile and staffing activity.</p></div>
+            <label className="field sm:col-span-2"><span>Clinic name</span><input name="office_name" required defaultValue={details.office.name} /></label>
+            <label className="field sm:col-span-2"><span>Street address</span><input name="address" required defaultValue={details.office.address} /></label>
+            <label className="field"><span>City</span><input name="office_city" required defaultValue={details.office.city} /></label>
+            <label className="field"><span>Province</span><select name="office_province" required defaultValue={details.office.province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
+            <label className="field"><span>Postal code</span><input name="office_postal_code" required defaultValue={details.office.postal_code} /></label>
+            <label className="field"><span>Main phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone || ""} /></label>
+            <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" placeholder="https://" defaultValue={details.office.website || ""} /></label>
+            <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
+            <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
+            {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
+            {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
           </form>
         ) : session ? (
           <form onSubmit={saveProfile} className="grid gap-4 p-6 sm:grid-cols-2">
@@ -1134,7 +1192,7 @@ export default function Home() {
       {post && <ShiftModal close={() => setPost(false)} officeId={officeId} onSaved={() => setRefreshKey((value) => value + 1)} />}
       {rebook && <RebookModal close={() => setRebook(false)} />}
       {messages && <MessageCenter role={role} close={() => setMessages(false)} />}
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={() => setPasswordRecovery(false)} onSaved={() => {
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} activeRole={role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={() => setPasswordRecovery(false)} onSaved={() => {
         setRefreshKey((value) => value + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
           setProfile(details.profile);
