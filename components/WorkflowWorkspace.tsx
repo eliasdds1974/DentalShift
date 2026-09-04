@@ -18,6 +18,7 @@ import {
   submitReview,
   submitOfficeForVerification,
   updateOfficeProfile,
+  uploadOfficeLogo,
   withdrawApplication,
   type AccountDetails,
   type AccountProfile,
@@ -611,6 +612,17 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
     finally { setBusy(""); }
   };
 
+  const uploadLogo = async (file?: File) => {
+    if (!file) return;
+    setBusy("logo"); setError(""); setNotice("");
+    try {
+      const logoUrl = await uploadOfficeLogo(userId, officeDetails.id, file);
+      setOfficeDetails({ ...officeDetails, logo_url: logoUrl });
+      setNotice("Office logo uploaded successfully.");
+    } catch (value) { setError(value instanceof Error ? value.message : "The office logo could not be uploaded."); }
+    finally { setBusy(""); }
+  };
+
   if (view === "profile") return <div className="page-wrap">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div><Pill tone={officeDetails.verification_status === "verified" ? "green" : "amber"}><ShieldCheck size={13} />Office {officeDetails.verification_status.replace("_", " ")}</Pill><h1 className="page-title">Office profile & verification</h1><p className="page-subtitle">Complete your clinic profile so professionals can confidently accept your shifts.</p></div>
@@ -628,6 +640,10 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
     <form onSubmit={saveOfficeProfile} className="panel mt-5 overflow-hidden">
       <div className="border-b border-slate-200 p-5"><h2 className="section-title">Clinic information</h2><p className="text-sm text-slate-500">Required information is marked with an asterisk.</p></div>
       <div className="grid gap-5 p-5 sm:grid-cols-2">
+        <div className="flex flex-col gap-4 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2 sm:flex-row sm:items-center">
+          <div role="img" aria-label={`${officeDetails.name} logo`} className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white bg-contain bg-center bg-no-repeat text-2xl font-black text-[#002757] shadow-sm" style={officeDetails.logo_url ? { backgroundImage: `url(${officeDetails.logo_url})` } : undefined}>{officeDetails.logo_url ? null : officeDetails.name.slice(0, 2).toUpperCase()}</div>
+          <div className="flex-1"><h3 className="font-black text-[#002757]">Office logo</h3><p className="mt-1 text-sm leading-6 text-slate-600">Upload a clear PNG, JPG or WebP logo. Maximum size: 5 MB.</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy === "logo" ? "Uploading…" : officeDetails.logo_url ? "Replace logo" : "Upload logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy === "logo"} onChange={(event) => void uploadLogo(event.target.files?.[0])} /></label></div>
+        </div>
         <div className="sm:col-span-2"><h3 className="font-black text-[#002757]">Office identity</h3></div>
         <label className="field sm:col-span-2"><span>Clinic name *</span><input name="name" required defaultValue={officeDetails.name} /></label>
         <label className="field sm:col-span-2"><span>Street address *</span><input name="address" required defaultValue={officeDetails.address} /></label>
