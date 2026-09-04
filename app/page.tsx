@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, submitOfficeForVerification, updateOfficeProfile, uploadOfficeLogo, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
@@ -469,9 +469,6 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   const [emailValue, setEmailValue] = useState("");
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [signInRoleChosen, setSignInRoleChosen] = useState(initialMode !== "signin");
-  const officeFields = details?.office ? [details.office.name, details.office.logo_url, details.office.address, details.office.city, details.office.province, details.office.postal_code, details.office.phone, details.office.website, details.office.contact_name, details.office.contact_title, details.office.office_hours, details.office.operatories, details.office.parking_info, details.office.software?.length, details.office.languages?.length, details.office.description, details.office.authorization_confirmed] : [];
-  const officeCompleteness = officeFields.length ? Math.round((officeFields.filter(Boolean).length / officeFields.length) * 100) : 0;
-  const officeReady = Boolean(details?.office?.name && details.office.address && details.office.city && details.office.province && details.office.postal_code && details.office.phone && details.office.contact_name && details.office.contact_title && details.office.office_hours && details.office.authorization_confirmed);
 
   useEffect(() => {
     if (!session) return;
@@ -670,14 +667,6 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
-      office_hours: String(form.get("office_hours") || "") || null,
-      operatories: form.get("operatories") ? Number(form.get("operatories")) : null,
-      parking_info: String(form.get("parking_info") || "") || null,
-      software: String(form.get("software") || "").split(",").map((item) => item.trim()).filter(Boolean),
-      languages: String(form.get("languages") || "").split(",").map((item) => item.trim()).filter(Boolean),
-      description: String(form.get("description") || "") || null,
-      benefits: String(form.get("benefits") || "") || null,
-      authorization_confirmed: form.get("authorization_confirmed") === "on",
     };
     setBusy(true); setError(""); setNotice("");
     try {
@@ -686,20 +675,6 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       setNotice("Office account information saved.");
       onSaved();
     } catch (value) { setError(value instanceof Error ? value.message : "The office account could not be saved."); }
-    finally { setBusy(false); }
-  };
-
-  const submitOfficeVerification = async () => {
-    if (!session || !details?.office) return;
-    if (!officeReady) { setError("Save all required office details and confirm your authorization before submitting."); return; }
-    setBusy(true); setError(""); setNotice("");
-    try {
-      const result = await submitOfficeForVerification(details.office.id, session.user.id);
-      if (!result) throw new Error("The verification request did not return an office record.");
-      setDetails({ ...details, office: { ...details.office, verification_status: result.verification_status, submitted_for_verification_at: result.submitted_for_verification_at } });
-      setNotice("Your office was submitted to DentalShift for verification.");
-      onSaved();
-    } catch (value) { setError(value instanceof Error ? value.message : "The verification request could not be submitted."); }
     finally { setBusy(false); }
   };
 
@@ -746,8 +721,6 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
               <div role="img" aria-label={`${details.office.name} logo`} className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white bg-contain bg-center bg-no-repeat text-2xl font-black text-[#002757] shadow-sm" style={details.office.logo_url ? { backgroundImage: `url(${details.office.logo_url})` } : undefined}>{details.office.logo_url ? null : details.office.name.slice(0, 2).toUpperCase()}</div>
               <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black text-[#002757]">{details.office.name}</h3><StatusPill tone={details.office.verification_status === "verified" ? "green" : "amber"}>Office {details.office.verification_status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{session.user.email}</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy ? "Please wait…" : details.office.logo_url ? "Replace office logo" : "Upload office logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy} onChange={(event) => void uploadAccountLogo(event.target.files?.[0])} /></label><p className="mt-2 text-xs text-slate-500">PNG, JPG or WebP · maximum 5 MB</p></div>
             </div>
-            <div className="rounded-2xl bg-[#002757] p-4 text-white sm:col-span-1"><p className="text-xs font-extrabold text-white/75">Office profile complete</p><strong className="mt-1 block text-2xl font-black">{officeCompleteness}%</strong><div className="mt-2 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-[#01A32E]" style={{ width: `${officeCompleteness}%` }} /></div></div>
-            <div className="rounded-2xl bg-[#0078FE] p-4 text-white sm:col-span-1"><p className="text-xs font-extrabold text-white/75">Verification</p><strong className="mt-1 block text-lg font-black capitalize">{details.office.verification_status.replace("_", " ")}</strong><p className="mt-1 text-xs font-bold text-white/80">{officeReady ? "Ready for review" : "Complete required details"}</p></div>
             <div className="sm:col-span-2"><h3 className="font-black text-[#002757]">Dental office account</h3><p className="mt-1 text-sm text-slate-500">Information used for your clinic profile and staffing activity.</p></div>
             <label className="field sm:col-span-2"><span>Clinic name</span><input name="office_name" required defaultValue={details.office.name} /></label>
             <label className="field sm:col-span-2"><span>Street address</span><input name="address" required defaultValue={details.office.address} /></label>
@@ -758,18 +731,9 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" placeholder="https://" defaultValue={details.office.website || ""} /></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
-            <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Workplace information</h3><p className="mt-1 text-sm text-slate-500">Details professionals use when deciding whether to accept a shift.</p></div>
-            <label className="field sm:col-span-2"><span>Office hours</span><textarea name="office_hours" rows={3} placeholder="Monday–Thursday 8:00 AM–5:00 PM" defaultValue={details.office.office_hours || ""} /></label>
-            <label className="field"><span>Number of operatories</span><input name="operatories" type="number" min="1" max="100" defaultValue={details.office.operatories || ""} /></label>
-            <label className="field"><span>Practice software</span><input name="software" placeholder="Tracker, Cleardent" defaultValue={details.office.software?.join(", ") || ""} /></label>
-            <label className="field sm:col-span-2"><span>Parking and transit</span><textarea name="parking_info" rows={2} placeholder="Free staff parking behind the clinic…" defaultValue={details.office.parking_info || ""} /></label>
-            <label className="field sm:col-span-2"><span>Languages spoken</span><input name="languages" placeholder="English, French" defaultValue={details.office.languages?.join(", ") || ""} /></label>
-            <label className="field sm:col-span-2"><span>About the workplace</span><textarea name="description" rows={4} placeholder="Describe the team, culture and typical patient day." defaultValue={details.office.description || ""} /></label>
-            <label className="field sm:col-span-2"><span>Staff benefits and amenities</span><textarea name="benefits" rows={3} placeholder="Paid lunch, staff room, uniform allowance…" defaultValue={details.office.benefits || ""} /></label>
-            <label className="flex items-start gap-3 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-4 sm:col-span-2"><input name="authorization_confirmed" type="checkbox" defaultChecked={details.office.authorization_confirmed} className="mt-1 h-5 w-5 accent-[#01A32E]" /><span className="text-sm leading-6 text-slate-700"><strong className="block text-[#002757]">Office authorization</strong>I confirm that I am authorized to create and manage staffing requests for this clinic and that the information is accurate.</span></label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
-            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:flex-wrap sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button type="button" onClick={() => void submitOfficeVerification()} disabled={busy || !officeReady || details.office.verification_status === "verified"} className="secondary-btn justify-center"><ShieldCheck size={17} />{details.office.verification_status === "verified" ? "Office verified" : "Submit for verification"}</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
           </form>
         ) : session ? (
           <form onSubmit={saveProfile} className="grid gap-4 p-6 sm:grid-cols-2">
