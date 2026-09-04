@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import Image from "next/image";
-import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
+import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
@@ -33,6 +33,12 @@ function Brand({ compact = false }: { compact?: boolean }) {
     </div>;
   }
   return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-12 w-auto" priority />;
+}
+
+function WebsiteLink({ website, className = "" }: { website?: string | null; className?: string }) {
+  const href = normalizeWebsite(website);
+  if (!href) return null;
+  return <a href={href} target="_blank" rel="noreferrer" className={`inline-flex items-center gap-1 text-sm font-extrabold text-[#002757] underline decoration-[#01A32E]/60 underline-offset-4 hover:text-[#01A32E] ${className}`}><ExternalLink size={14} />Visit website</a>;
 }
 
 function StatusPill({ children, tone = "green" }: { children: React.ReactNode; tone?: "green" | "blue" | "amber" | "gray" }) {
@@ -235,7 +241,7 @@ function ProfessionalDashboard({ userId, refreshKey }: { userId: string | null; 
             {liveShifts.map((shift) => {
               const start = new Date(shift.starts_at);
               const end = new Date(shift.ends_at);
-              return <article key={shift.id} className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eaf8ee] text-[#01A32E]"><CalendarDays size={21} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-extrabold text-slate-900">{shift.offices?.name || "Verified dental office"}</h3><BadgeCheck size={16} className="text-[#002757]" />{shift.required_software && <StatusPill tone="blue">{shift.required_software}</StatusPill>}</div><p className="mt-1 text-sm font-bold text-slate-600">{shift.profession}</p><p className="mt-1 text-xs text-slate-500">{start.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{end.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })} · {shift.offices?.city}, {shift.offices?.province}</p></div><div className="flex items-center gap-3"><strong className="text-lg">${shift.hourly_rate}/hr</strong><button onClick={() => applyLive(shift.id)} disabled={liveApplied.includes(shift.id)} className={liveApplied.includes(shift.id) ? "secondary-btn text-[#017f27]" : "primary-btn"}>{liveApplied.includes(shift.id) ? <><Check size={16} /> Saved</> : "Apply"}</button></div></article>;
+              return <article key={shift.id} className="flex flex-col gap-4 p-5 lg:flex-row lg:items-center"><div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#eaf8ee] text-[#01A32E]"><CalendarDays size={21} /></div><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="font-extrabold text-slate-900">{shift.offices?.name || "Verified dental office"}</h3><BadgeCheck size={16} className="text-[#002757]" />{shift.required_software && <StatusPill tone="blue">{shift.required_software}</StatusPill>}</div><p className="mt-1 text-sm font-bold text-slate-600">{shift.profession}</p><p className="mt-1 text-xs text-slate-500">{start.toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {start.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{end.toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })} · {shift.offices?.city}, {shift.offices?.province}</p><WebsiteLink website={shift.offices?.website} className="mt-2" /></div><div className="flex items-center gap-3"><strong className="text-lg">${shift.hourly_rate}/hr</strong><button onClick={() => applyLive(shift.id)} disabled={liveApplied.includes(shift.id)} className={liveApplied.includes(shift.id) ? "secondary-btn text-[#017f27]" : "primary-btn"}>{liveApplied.includes(shift.id) ? <><Check size={16} /> Saved</> : "Apply"}</button></div></article>;
             })}
           </div>
         </section>
@@ -728,7 +734,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field"><span>Province</span><select name="office_province" required defaultValue={details.office.province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
             <label className="field"><span>Postal code</span><input name="office_postal_code" required defaultValue={details.office.postal_code} /></label>
             <label className="field"><span>Main phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone || ""} /></label>
-            <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" placeholder="https://" defaultValue={details.office.website || ""} /></label>
+            <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={details.office.website || ""} /></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
@@ -778,7 +784,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
                 <label className="field"><span>Office province</span><input name="office_province" required defaultValue={details.office.province} /></label>
                 <label className="field"><span>Office postal code</span><input name="office_postal_code" required defaultValue={details.office.postal_code} /></label>
                 <label className="field"><span>Office phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone ?? ""} /></label>
-                <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" defaultValue={details.office.website ?? ""} /></label>
+                <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={details.office.website ?? ""} /></label>
                 <label className="field sm:col-span-2"><span>Practice software (comma separated)</span><input name="software" defaultValue={details.office.software?.join(", ") ?? ""} /></label>
                 <label className="field sm:col-span-2"><span>About the office</span><textarea name="description" rows={3} defaultValue={details.office.description ?? ""} /></label>
               </>}
