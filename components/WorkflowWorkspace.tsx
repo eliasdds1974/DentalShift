@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BadgeCheck, CalendarDays, Check, Clock3, FileCheck2, MapPin, Search, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
+import { BadgeCheck, CalendarDays, Check, Clock3, ExternalLink, FileCheck2, MapPin, Search, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
 import {
   acceptApplication,
   addProfessionalAvailability,
@@ -30,6 +30,7 @@ import {
   type ProfessionalAvailability,
   type WorkflowApplication,
   type WorkflowBooking,
+  normalizeWebsite,
 } from "@/lib/dentalshift";
 
 function Pill({ children, tone = "green" }: { children: React.ReactNode; tone?: "green" | "blue" | "amber" | "gray" }) {
@@ -60,6 +61,12 @@ function ShiftFacts({ shift }: { shift: LiveShift }) {
 
 function ErrorNote({ text }: { text: string }) {
   return text ? <p className="mb-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{text}</p> : null;
+}
+
+function WebsiteLink({ website, className = "" }: { website?: string | null; className?: string }) {
+  const href = normalizeWebsite(website);
+  if (!href) return null;
+  return <a href={href} target="_blank" rel="noreferrer" className={`inline-flex items-center gap-1 text-sm font-extrabold text-[#002757] underline decoration-[#01A32E]/60 underline-offset-4 hover:text-[#01A32E] ${className}`}><ExternalLink size={14} />Visit website</a>;
 }
 
 function ReviewBox({ booking, userId, onDone }: { booking: WorkflowBooking; userId: string; onDone: () => void }) {
@@ -335,7 +342,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
                     <Pill tone="green"><Star size={13} className="fill-[#01A32E] text-[#01A32E]" />Preferred</Pill>
                   </div>
                   <h3 className="mt-4 text-lg font-black text-[#002757]">{favourite.offices?.name || "Dental office"}</h3>
-                  <p className="mt-1 flex items-center gap-1 text-sm font-bold text-slate-500"><MapPin size={15} />{favourite.offices?.city || "City"}, {favourite.offices?.province || "Province"}</p>
+                  <p className="mt-1 flex items-center gap-1 text-sm font-bold text-slate-500"><MapPin size={15} />{favourite.offices?.city || "City"}, {favourite.offices?.province || "Province"}</p><WebsiteLink website={favourite.offices?.website} className="mt-3" />
                   <div className="mt-4 rounded-xl bg-[#edf3fa] px-3 py-2.5 text-sm font-extrabold text-[#002757]">{matchingShifts > 0 ? <>{matchingShifts} available {matchingShifts === 1 ? "shift" : "shifts"}</> : "No open shifts right now"}</div>
                   <button type="button" disabled={busy === favourite.office_id} onClick={() => void act(favourite.office_id, () => setFavouriteOffice(userId, favourite.office_id, false))} className="mt-4 w-full rounded-xl bg-[#F21C13] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#d9160f] disabled:opacity-50">{busy === favourite.office_id ? "Removing…" : "Remove favourite"}</button>
                 </div>
@@ -448,7 +455,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2"><strong className="text-lg text-[#002757]">{booking.shifts?.offices?.name || "Dental office"}</strong><Pill tone={completed ? "green" : "blue"}>{statusLabel}</Pill></div>
                     {booking.shifts && <><p className="mt-1 text-sm font-extrabold text-slate-700">{booking.shifts.profession}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm font-bold text-slate-600"><span className="flex items-center gap-1"><Clock3 size={15} />{new Date(booking.shifts.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(booking.shifts.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><span>{"$"}{Number(booking.shifts.hourly_rate)}/hr</span></div></>}
-                    {booking.contact && <div className="mt-3 rounded-xl bg-[#edf3fa] p-3 text-sm text-[#002757]"><strong className="font-extrabold">Confirmed office contact</strong><p className="mt-1 font-semibold">{booking.contact.phone || "No phone listed"} · {booking.contact.email}</p>{booking.contact.address && <p className="mt-1 text-xs font-semibold">{booking.contact.address}, {booking.contact.city}, {booking.contact.province} {booking.contact.postal_code}</p>}</div>}
+                    {booking.contact && <div className="mt-3 rounded-xl bg-[#edf3fa] p-3 text-sm text-[#002757]"><strong className="font-extrabold">Confirmed office contact</strong><p className="mt-1 font-semibold">{booking.contact.phone || "No phone listed"} · {booking.contact.email}</p>{booking.contact.address && <p className="mt-1 text-xs font-semibold">{booking.contact.address}, {booking.contact.city}, {booking.contact.province} {booking.contact.postal_code}</p>}<WebsiteLink website={booking.contact.website} className="mt-2" /></div>}
                   </div>
                   <div className="flex shrink-0 flex-wrap gap-2">
                     {!checkedIn && <button disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_in"))} className="primary-btn">Check in</button>}
@@ -515,6 +522,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
                       <span className="flex items-center gap-1"><MapPin size={15} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span>
                       <span className="flex items-center gap-1"><Clock3 size={15} />{new Date(shift.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(shift.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span>
                       <strong className="text-[#002757]">{"$"}{Number(shift.hourly_rate)}/hr</strong>
+                      <WebsiteLink website={shift.offices?.website} />
                     </div>
                     {conflict && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-extrabold text-[#F21C13]">Schedule conflict: you already have a confirmed booking during this time.</p>}
                     {application && <p className="mt-3 rounded-xl bg-[#edf3fa] px-3 py-2 text-xs font-extrabold text-[#002757]">Application status: {application.status.replace("_", " ")}{application.proposed_rate ? <> · proposed {"$"}{Number(application.proposed_rate)}/hr</> : null}</p>}
@@ -651,7 +659,7 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
         <label className="field"><span>Province *</span><select name="province" required defaultValue={officeDetails.province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
         <label className="field"><span>Postal code *</span><input name="postal_code" required defaultValue={officeDetails.postal_code} /></label>
         <label className="field"><span>Main phone *</span><input name="phone" required type="tel" defaultValue={officeDetails.phone || ""} /></label>
-        <label className="field sm:col-span-2"><span>Website</span><input name="website" type="url" placeholder="https://" defaultValue={officeDetails.website || ""} /></label>
+        <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={officeDetails.website || ""} /></label>
 
         <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2"><h3 className="font-black text-[#002757]">Primary contact</h3><p className="mt-1 text-xs text-slate-500">Visible only to DentalShift administration unless a booking requires contact.</p></div>
         <label className="field"><span>Contact name *</span><input name="contact_name" required defaultValue={officeDetails.contact_name || ""} /></label>
