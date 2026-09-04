@@ -5,7 +5,7 @@ import type { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
