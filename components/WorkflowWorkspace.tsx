@@ -107,20 +107,20 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
 
   return <div className="page-wrap">
     <Pill tone="blue"><BadgeCheck size={13} /> Live professional workspace</Pill>
-    <h1 className="page-title">Welcome, {profile.first_name || "professional"}</h1>
-    <p className="page-subtitle">Apply, confirm, attend and build your verified DentalShift history.</p>
+    <h1 className="page-title">{view === "overview" ? "Find shifts" : view === "shifts" ? "My applications" : view === "bookings" ? "My schedule" : "Favourite offices"}</h1>
+    <p className="page-subtitle">{view === "overview" ? `Welcome, ${profile.first_name || "professional"}. Post availability and find matching shifts.` : view === "shifts" ? "Review invitations and track every application." : view === "bookings" ? "Manage confirmed shifts from arrival through completion." : "Keep your preferred dental offices organized."}</p>
     <ErrorNote text={error} />
     {loading ? <p className="mt-8 text-sm text-slate-500">Loading your live workflow…</p> : <>
-      <section className="mt-7 grid gap-4 sm:grid-cols-3">
+      {view === "overview" && <section className="mt-7 grid gap-4 sm:grid-cols-3">
         <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Open shifts</p><strong className="mt-1 block text-3xl">{data.open.length}</strong></div>
         <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Applications</p><strong className="mt-1 block text-3xl">{data.applications.filter((item) => ["applied", "invited"].includes(item.status)).length}</strong></div>
         <div className="panel p-5"><p className="text-sm font-bold text-slate-500">Confirmed bookings</p><strong className="mt-1 block text-3xl">{upcomingBookings.length}</strong></div>
-      </section>
+      </section>}
 
       {view === "overview" && <>
-      <section className="mt-7 grid gap-5 lg:grid-cols-2">
+      <section className="mt-7">
         <div className="panel overflow-hidden"><div className="border-b border-slate-200 p-5"><h2 className="section-title">My availability</h2><p className="text-sm text-slate-500">Post a work window that verified offices can see and match to their open shifts.</p></div><form onSubmit={addAvailability} className="grid gap-3 p-5 sm:grid-cols-3"><label className="field"><span>Date</span><input name="date" type="date" required min={new Date().toISOString().slice(0, 10)} /></label><label className="field"><span>Available from</span><select name="start" required defaultValue="08:00" aria-label="Available from">{availabilityTimes.map((time) => <option key={`start-${time.value}`} value={time.value}>{time.label}</option>)}</select></label><label className="field"><span>Available to</span><select name="end" required defaultValue="17:00" aria-label="Available to">{availabilityTimes.map((time) => <option key={`end-${time.value}`} value={time.value}>{time.label}</option>)}</select></label><div className="sm:col-span-3"><button type="submit" disabled={busy === "availability"} className="primary-btn">{busy === "availability" ? "Saving…" : "Post availability"}</button></div></form><div className="border-t border-slate-100 px-5 py-4">{data.availability.length === 0 ? <p className="text-sm text-slate-500">No availability windows added yet.</p> : <div className="space-y-2">{data.availability.map((slot) => <div key={slot.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#0078FE] p-3 text-base font-extrabold text-white shadow-sm"><span><strong>{new Date(slot.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })}</strong> · {new Date(slot.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(slot.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><button type="button" disabled={busy === slot.id} onClick={() => void act(slot.id, () => removeProfessionalAvailability(slot.id))} className="shrink-0 rounded-lg bg-[#F21C13] px-3 py-2 text-xs font-extrabold text-white shadow-sm transition hover:bg-[#d9160f] disabled:opacity-50">Remove</button></div>)}</div>}</div></div>
-        <div className="panel overflow-hidden"><div className="border-b border-slate-200 p-5"><h2 className="section-title">Favourite offices</h2><p className="text-sm text-slate-500">Save offices you enjoy working with so their shifts are easy to spot.</p></div><div className="p-5">{data.favourites.length === 0 ? <p className="text-sm text-slate-500">Save an office from an available shift to build your preferred list.</p> : <div className="space-y-2">{data.favourites.map((favourite) => <div key={favourite.office_id} className="flex items-center justify-between gap-3 rounded-xl bg-slate-50 p-3"><div><p className="font-extrabold text-slate-800">{favourite.offices?.name || "Dental office"}</p><p className="text-xs text-slate-500">{favourite.offices?.city}, {favourite.offices?.province}</p></div><button type="button" disabled={busy === favourite.office_id} onClick={() => void act(favourite.office_id, () => setFavouriteOffice(userId, favourite.office_id, false))} className="text-xs font-extrabold text-slate-600 underline">Remove</button></div>)}</div>}</div></div>
+        
       </section>
 
       </>}
