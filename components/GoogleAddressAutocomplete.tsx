@@ -123,7 +123,7 @@ export function GoogleAddressAutocomplete({ kind }: { kind: "office" | "professi
       <p className="flex items-center gap-2 text-sm font-black text-[#017f27]"><Check size={17} />{kind === "office" ? "Dental office selected" : "Address selected"}</p>
       {kind === "office" && <p className="mt-2 font-black text-[#002757]">{selected.name}</p>}
       <p className="mt-1 text-sm font-bold text-slate-700">{selected.formattedAddress}</p>
-      <button type="button" onClick={() => { setSelected(null); setQuery(""); sessionToken.current = crypto.randomUUID(); }} className="mt-2 text-xs font-extrabold text-[#002757] underline">Choose a different address</button>
+      <button type="button" onClick={() => { setSelected(null); setQuery(""); sessionToken.current = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()); }} className="mt-2 text-xs font-extrabold text-[#002757] underline">Choose a different address</button>
     </div>}
 
     {error && <div className="mt-3 rounded-xl bg-red-50 p-3 text-sm font-bold text-[#F21C13]">{error}<button type="button" onClick={() => setManual(true)} className="ml-2 underline">Enter manually</button></div>}
