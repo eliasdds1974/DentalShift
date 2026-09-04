@@ -458,6 +458,8 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
   const [details, setDetails] = useState<AccountDetails | null>(null);
+  const [accountCreated, setAccountCreated] = useState(false);
+  const [createdEmail, setCreatedEmail] = useState("");
 
   useEffect(() => {
     if (!session) return;
@@ -511,8 +513,10 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
         },
       });
       if (signUpError) setError(signUpError.message);
-      else if (!data.session) setNotice("Account created. Check your email to confirm your address, then sign in.");
-      else close();
+      else if (!data.session) {
+        setCreatedEmail(email);
+        setAccountCreated(true);
+      } else close();
     }
     setBusy(false);
   };
@@ -583,7 +587,7 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
       <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{session ? "Account connected" : mode === "signin" ? "Sign in" : "Create your account"}</h2></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{session ? "Account connected" : accountCreated ? "Account created" : mode === "signin" ? "Sign in" : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
         </div>
 
@@ -627,6 +631,27 @@ function AccountModal({ close, session, profile, onSaved, initialMode = "signin"
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
             <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn">Sign out</button><button type="button" onClick={close} className="secondary-btn">Close</button><button type="submit" disabled={busy || !details} className="primary-btn">{busy ? "Saving…" : "Save profile"}</button></div>
           </form>
+        ) : accountCreated ? (
+          <div className="p-8 text-center sm:p-10">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E] ring-8 ring-[#eaf8ee]/60"><Check size={34} strokeWidth={3} /></div>
+            <h3 className="mt-6 text-2xl font-extrabold tracking-tight text-[#002757]">Your DentalShift account has been created</h3>
+            <p className="mx-auto mt-3 max-w-md text-base leading-7 text-slate-600">
+              We sent a confirmation link to <strong className="font-extrabold text-slate-900">{createdEmail}</strong>.
+            </p>
+            <div className="mx-auto mt-6 max-w-md rounded-2xl border border-[#002757]/10 bg-[#f5f8fb] p-5 text-left">
+              <p className="font-extrabold text-[#002757]">Next steps</p>
+              <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600">
+                <li><strong className="text-[#002757]">1.</strong> Open the confirmation email from DentalShift.</li>
+                <li><strong className="text-[#002757]">2.</strong> Click the link to confirm your email address.</li>
+                <li><strong className="text-[#002757]">3.</strong> Return here and sign in to complete your profile.</li>
+              </ol>
+            </div>
+            <div className="mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row sm:justify-center">
+              <button type="button" onClick={() => { setAccountCreated(false); setMode("signin"); setError(""); setNotice(""); }} className="primary-btn justify-center">Go to sign in</button>
+              <button type="button" onClick={close} className="secondary-btn justify-center">Close</button>
+            </div>
+            <p className="mt-5 text-xs leading-5 text-slate-500">If you do not see the email, check your junk or spam folder.</p>
+          </div>
         ) : (
           <form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">
             <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:col-span-2">
