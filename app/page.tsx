@@ -1124,8 +1124,8 @@ export default function Home() {
         const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
         const requestedDestination = window.sessionStorage.getItem("dentalshift_home_destination");
         window.sessionStorage.removeItem("dentalshift_signin_role");
-        if (requestedRole === "office" && details.office) setRole("office");
-        else if (requestedRole === "professional" && details.professional) setRole("professional");
+        if (requestedRole === "office" && details.office) { setRole("office"); setShowHome(false); }
+        else if (requestedRole === "professional" && details.professional) { setRole("professional"); setShowHome(false); }
         else setRole(account.profile.role);
         const destinationAllowed = (requestedDestination === "office" && details.office) || (requestedDestination === "professional" && details.professional) || (requestedDestination === "admin" && account.profile.role === "admin");
         if (destinationAllowed) {
