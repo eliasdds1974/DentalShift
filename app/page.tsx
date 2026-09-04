@@ -7,6 +7,7 @@ import { supabase } from "@/lib/supabase";
 import { addVerificationInternalNote, applyForShift, cancelAdminShift, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
+import { MarketingHome } from "@/components/MarketingHome";
 import type { OfficeDetails } from "@/lib/dentalshift";
 
 type Role = "office" | "professional" | "admin";
@@ -450,9 +451,9 @@ function NeedsReviewModal({ item, saving, close, submit }: { item: VerificationI
   return <div className="fixed inset-0 z-[95] grid place-items-center bg-[#002757]/60 p-4"><button aria-label="Close" onClick={close} className="absolute inset-0" /><section role="dialog" aria-modal="true" aria-labelledby="review-title" className="relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl"><form onSubmit={(event) => { event.preventDefault(); void submit(notes); }}><div className="border-b border-slate-200 px-6 py-5"><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-amber-700">Verification follow-up</p><h2 id="review-title" className="mt-1 text-2xl font-extrabold text-slate-900">Request information</h2><p className="mt-2 text-sm text-slate-500">Tell {item.name} what is needed. This message will be visible in their DentalShift account.</p></div><div className="p-6"><label className="field"><span>Message to applicant</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} minLength={10} maxLength={1000} required rows={5} placeholder="Example: Please confirm your Alberta licence number or upload a current licence document." /></label><p className="mt-2 text-xs text-slate-500">Be specific and do not include private internal comments.</p></div><div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-5"><button type="button" onClick={close} disabled={saving} className="secondary-btn">Cancel</button><button type="submit" disabled={saving || notes.trim().length < 10} className="primary-btn">{saving ? "Sending…" : "Send review request"}</button></div></form></section></div>;
 }
 
-function AccountModal({ close, session, profile, onSaved }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void }) {
-  const [mode, setMode] = useState<"signin" | "signup">("signin");
-  const [role, setRole] = useState<"office" | "professional">("office");
+function AccountModal({ close, session, profile, onSaved, initialMode = "signin", initialRole = "office" }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; initialMode?: "signin" | "signup"; initialRole?: "office" | "professional" }) {
+  const [mode, setMode] = useState<"signin" | "signup">(initialMode);
+  const [role, setRole] = useState<"office" | "professional">(initialRole);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [error, setError] = useState("");
@@ -889,7 +890,8 @@ export default function Home() {
   const [rebook, setRebook] = useState(false);
   const [messages, setMessages] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [session, setSession] = useState<Session | null>(null);
+  const [accountIntent, setAccountIntent] = useState<{ mode: "signin" | "signup"; role: "office" | "professional" }>({ mode: "signin", role: "office" });
+  const [session, setSession] = useState<Session | null | undefined>(undefined);
   const [profile, setProfile] = useState<AccountProfile | null>(null);
   const [officeId, setOfficeId] = useState<string | null>(null);
   const [office, setOffice] = useState<OfficeDetails | null>(null);
@@ -950,6 +952,20 @@ export default function Home() {
           : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />,
     [role, session, profile, office, refreshKey, view],
   );
+
+  if (session === undefined) {
+    return <main className="grid min-h-screen place-items-center bg-white"><div className="text-center"><div className="logo-mark mx-auto" aria-hidden="true"><span className="logo-tooth">✓</span></div><p className="mt-4 text-sm font-extrabold text-[#002757]">Loading DentalShift…</p></div></main>;
+  }
+
+  if (!session) {
+    return <main className="min-h-screen bg-white">
+      <MarketingHome
+        onSignIn={() => { setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true); }}
+        onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
+      />
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={null} profile={null} initialMode={accountIntent.mode} initialRole={accountIntent.role} onSaved={() => undefined} />}
+    </main>;
+  }
 
   return (
     <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
