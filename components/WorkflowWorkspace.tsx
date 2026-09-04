@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BadgeCheck, CalendarDays, Check, Clock3, FileCheck2, MapPin, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
+import { BadgeCheck, CalendarDays, Check, Clock3, FileCheck2, MapPin, Search, ShieldCheck, Star, UserRound, UsersRound } from "lucide-react";
 import {
   acceptApplication,
   addProfessionalAvailability,
