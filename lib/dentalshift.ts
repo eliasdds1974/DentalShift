@@ -63,6 +63,7 @@ export type OfficeDetails = {
   verification_status: string;
   contact_name: string | null;
   contact_title: string | null;
+  contact_phone: string | null;
   office_hours: string | null;
   operatories: number | null;
   parking_info: string | null;
@@ -180,7 +181,7 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
       .maybeSingle(),
     supabase
       .from("offices")
-      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
       .eq("owner_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
@@ -225,7 +226,7 @@ export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id
       description: input.description,
       verification_status: "pending",
     })
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -246,6 +247,7 @@ export async function updateOfficeProfile(office: OfficeDetails) {
       description: office.description,
       contact_name: office.contact_name,
       contact_title: office.contact_title,
+      contact_phone: office.contact_phone,
       office_hours: office.office_hours,
       operatories: office.operatories,
       parking_info: office.parking_info,
@@ -256,7 +258,7 @@ export async function updateOfficeProfile(office: OfficeDetails) {
     })
     .eq("id", office.id)
     .eq("owner_id", office.owner_id)
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -346,6 +348,7 @@ export async function saveAccountDetails(input: AccountDetails) {
         description: input.office.description,
         contact_name: input.office.contact_name,
         contact_title: input.office.contact_title,
+        contact_phone: input.office.contact_phone,
         office_hours: input.office.office_hours,
         operatories: input.office.operatories,
         parking_info: input.office.parking_info,
