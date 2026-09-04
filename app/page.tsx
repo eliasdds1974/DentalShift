@@ -934,7 +934,7 @@ export default function Home() {
         : session && profile?.role === "admin"
           ? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : <AdminDashboard userId={session.user.id} />
           : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />,
-    [role, session, profile, office, refreshKey],
+    [role, session, profile, office, refreshKey, view],
   );
 
   return (
