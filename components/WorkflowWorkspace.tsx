@@ -8,13 +8,16 @@ import {
   applyForShift,
   bookingAction,
   inviteProfessional,
+  loadAccountDetails,
   loadOfficeWorkflow,
   loadProfessionalWorkflow,
   removeProfessionalAvailability,
   respondToInvitation,
+  saveAccountDetails,
   setFavouriteOffice,
   submitReview,
   withdrawApplication,
+  type AccountDetails,
   type AccountProfile,
   type AvailableProfessionalSlot,
   type FavouriteOffice,
@@ -71,7 +74,7 @@ function ReviewBox({ booking, userId, onDone }: { booking: WorkflowBooking; user
   </div>;
 }
 
-export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { userId: string; profile: AccountProfile; refreshKey: number; view: "overview" | "shifts" | "bookings" | "talent" }) {
+export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { userId: string; profile: AccountProfile; refreshKey: number; view: "overview" | "shifts" | "bookings" | "talent" | "profile" }) {
   const [data, setData] = useState<{ open: LiveShift[]; applications: WorkflowApplication[]; bookings: WorkflowBooking[]; availability: ProfessionalAvailability[]; favourites: FavouriteOffice[] }>({ open: [], applications: [], bookings: [], availability: [], favourites: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -84,6 +87,8 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
   const [expandedShift, setExpandedShift] = useState("");
   const [rateShift, setRateShift] = useState("");
   const [rateDraft, setRateDraft] = useState("");
+  const [accountDetails, setAccountDetails] = useState<AccountDetails | null>(null);
+  const [profileNotice, setProfileNotice] = useState("");
   const refresh = async () => {
     setLoading(true); setError("");
     try { setData(await loadProfessionalWorkflow(userId)); }
@@ -91,6 +96,13 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
     finally { setLoading(false); }
   };
   useEffect(() => { void refresh(); }, [userId, refreshKey]);
+  useEffect(() => {
+    if (view !== "profile") return;
+    setProfileNotice("");
+    void loadAccountDetails(userId)
+      .then(setAccountDetails)
+      .catch((value) => setError(value instanceof Error ? value.message : "Could not load your professional profile."));
+  }, [userId, refreshKey, view]);
   const act = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key); setError("");
     try { await action(); await refresh(); }
@@ -130,10 +142,70 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
     event.currentTarget.reset();
   };
 
+  const saveProfessionalProfile = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!accountDetails?.professional) return;
+    const form = new FormData(event.currentTarget);
+    const nextDetails: AccountDetails = {
+      ...accountDetails,
+      profile: {
+        ...accountDetails.profile,
+        first_name: String(form.get("first_name") || ""),
+        last_name: String(form.get("last_name") || ""),
+        phone: String(form.get("phone") || ""),
+        city: String(form.get("city") || ""),
+        province: String(form.get("province") || ""),
+        postal_code: String(form.get("postal_code") || ""),
+      },
+      professional: {
+        ...accountDetails.professional,
+        profession: String(form.get("profession") || ""),
+        licence_number: String(form.get("licence_number") || ""),
+        licence_province: String(form.get("licence_province") || ""),
+        hourly_rate: form.get("hourly_rate") ? Number(form.get("hourly_rate")) : null,
+        travel_radius_km: Number(form.get("travel_radius_km") || 25),
+        years_experience: form.get("years_experience") ? Number(form.get("years_experience")) : null,
+        bio: String(form.get("bio") || ""),
+        skills: String(form.get("skills") || "").split(",").map((skill) => skill.trim()).filter(Boolean),
+        available_for_work: form.get("available_for_work") === "on",
+      },
+    };
+    setBusy("profile");
+    setError("");
+    setProfileNotice("");
+    try {
+      await saveAccountDetails(nextDetails);
+      setAccountDetails(nextDetails);
+      setProfileNotice("Profile and work preferences saved.");
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "Your professional profile could not be saved.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const professionalDetails = accountDetails?.professional;
+  const profileFields = professionalDetails ? [
+    accountDetails?.profile.first_name,
+    accountDetails?.profile.last_name,
+    accountDetails?.profile.phone,
+    accountDetails?.profile.city,
+    accountDetails?.profile.province,
+    accountDetails?.profile.postal_code,
+    professionalDetails.profession,
+    professionalDetails.licence_number,
+    professionalDetails.licence_province,
+    professionalDetails.hourly_rate,
+    professionalDetails.years_experience,
+    professionalDetails.bio,
+    professionalDetails.skills?.length,
+  ] : [];
+  const profileCompleteness = profileFields.length ? Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100) : 0;
+
   return <div className="page-wrap">
     <Pill tone="blue"><BadgeCheck size={13} /> Live professional workspace</Pill>
-    <h1 className="page-title">{view === "overview" ? "Find shifts" : view === "shifts" ? "My applications" : view === "bookings" ? "My schedule" : "Favourite offices"}</h1>
-    <p className="page-subtitle">{view === "overview" ? `Welcome, ${profile.first_name || "professional"}. Post availability and find matching shifts.` : view === "shifts" ? "Review invitations and track every application." : view === "bookings" ? "Manage confirmed shifts from arrival through completion." : "Keep your preferred dental offices organized."}</p>
+    <h1 className="page-title">{view === "overview" ? "Find shifts" : view === "shifts" ? "My applications" : view === "bookings" ? "My schedule" : view === "talent" ? "Favourite offices" : "Profile & credentials"}</h1>
+    <p className="page-subtitle">{view === "overview" ? `Welcome, ${profile.first_name || "professional"}. Post availability and find matching shifts.` : view === "shifts" ? "Review invitations and track every application." : view === "bookings" ? "Manage confirmed shifts from arrival through completion." : view === "talent" ? "Keep your preferred dental offices organized." : "Manage the information offices use to evaluate and match with you."}</p>
     <ErrorNote text={error} />
     {loading ? <p className="mt-8 text-sm text-slate-500">Loading your live workflow…</p> : <>
       {view === "overview" && <section className="mt-7 grid gap-4 sm:grid-cols-3">
@@ -148,6 +220,79 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view }: { u
         
       </section>
 
+      </>}
+
+      {view === "profile" && <>
+      {!accountDetails || !professionalDetails ? (
+        <div className="panel mt-7 p-8 text-center text-sm font-bold text-slate-500">Loading your profile and credentials…</div>
+      ) : (
+        <>
+          <section className="mt-7 grid gap-4 sm:grid-cols-3">
+            <div className="rounded-2xl bg-[#002757] p-5 text-white shadow-sm">
+              <p className="text-sm font-extrabold text-white/85">Profile complete</p>
+              <strong className="mt-1 block text-3xl font-black">{profileCompleteness}%</strong>
+              <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/20"><div className="h-full rounded-full bg-[#01A32E]" style={{ width: `${profileCompleteness}%` }} /></div>
+            </div>
+            <div className="rounded-2xl bg-[#0078FE] p-5 text-white shadow-sm">
+              <p className="text-sm font-extrabold text-white/85">Licence status</p>
+              <strong className="mt-1 block text-xl font-black capitalize">{professionalDetails.licence_status.replace("_", " ")}</strong>
+              <p className="mt-2 text-xs font-bold text-white/80">{professionalDetails.licence_province} · {professionalDetails.licence_number}</p>
+            </div>
+            <div className="rounded-2xl bg-[#eaf8ee] p-5 text-[#002757] shadow-sm ring-1 ring-[#01A32E]/20">
+              <p className="text-sm font-extrabold text-[#017f27]">Work visibility</p>
+              <strong className="mt-1 block text-xl font-black">{professionalDetails.available_for_work ? "Visible to offices" : "Not currently visible"}</strong>
+              <p className="mt-2 text-xs font-bold text-[#017f27]">Controlled by your availability preference</p>
+            </div>
+          </section>
+
+          <form onSubmit={saveProfessionalProfile} className="panel mt-5 overflow-hidden">
+            <div className="border-b border-slate-200 p-5">
+              <h2 className="section-title">Professional profile</h2>
+              <p className="text-sm text-slate-500">Complete details improve matching and help verified offices make confident decisions.</p>
+            </div>
+
+            {profileNotice && <p className="mx-5 mt-5 rounded-xl bg-[#eaf8ee] p-3 text-sm font-extrabold text-[#017f27]"><Check size={16} className="mr-1 inline" />{profileNotice}</p>}
+
+            <div className="grid gap-5 p-5 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <h3 className="text-base font-black text-[#002757]">Contact information</h3>
+                <p className="mt-1 text-xs text-slate-500">Contact details remain protected until a booking is confirmed.</p>
+              </div>
+              <label className="field"><span>First name</span><input name="first_name" required defaultValue={accountDetails.profile.first_name || ""} /></label>
+              <label className="field"><span>Last name</span><input name="last_name" required defaultValue={accountDetails.profile.last_name || ""} /></label>
+              <label className="field"><span>Phone</span><input name="phone" type="tel" defaultValue={accountDetails.profile.phone || ""} /></label>
+              <label className="field"><span>City</span><input name="city" required defaultValue={accountDetails.profile.city || ""} /></label>
+              <label className="field"><span>Province</span><select name="province" required defaultValue={accountDetails.profile.province || professionalDetails.licence_province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
+              <label className="field"><span>Postal code</span><input name="postal_code" required defaultValue={accountDetails.profile.postal_code || ""} /></label>
+
+              <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2">
+                <h3 className="text-base font-black text-[#002757]">Licence and experience</h3>
+                <p className="mt-1 text-xs text-slate-500">Changing licence identity information may require another verification review.</p>
+              </div>
+              <label className="field"><span>Profession</span><select name="profession" required defaultValue={professionalDetails.profession}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dentist</option><option>Dental Receptionist</option></select></label>
+              <label className="field"><span>Years of experience</span><input name="years_experience" type="number" min="0" max="60" defaultValue={professionalDetails.years_experience ?? ""} /></label>
+              <label className="field"><span>Licence number</span><input name="licence_number" required defaultValue={professionalDetails.licence_number} /></label>
+              <label className="field"><span>Licence province</span><select name="licence_province" required defaultValue={professionalDetails.licence_province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
+
+              <div className="mt-2 border-t border-slate-100 pt-5 sm:col-span-2">
+                <h3 className="text-base font-black text-[#002757]">Work preferences</h3>
+              </div>
+              <label className="field"><span>Preferred hourly rate</span><div className="relative"><span className="absolute left-3 top-3 text-slate-400">{"$"}</span><input name="hourly_rate" type="number" min="0" className="pl-7!" defaultValue={professionalDetails.hourly_rate ?? ""} /></div></label>
+              <label className="field"><span>Travel radius</span><select name="travel_radius_km" defaultValue={professionalDetails.travel_radius_km}><option value="10">10 km</option><option value="25">25 km</option><option value="50">50 km</option><option value="75">75 km</option><option value="100">100 km</option><option value="250">250 km</option><option value="500">500 km</option></select></label>
+              <label className="field sm:col-span-2"><span>Skills and software</span><input name="skills" defaultValue={(professionalDetails.skills || []).join(", ")} placeholder="ClearDent, Tracker, digital radiography, sterilization" /><small>Separate skills with commas.</small></label>
+              <label className="field sm:col-span-2"><span>Professional bio</span><textarea name="bio" rows={4} defaultValue={professionalDetails.bio || ""} placeholder="Briefly describe your experience, strengths and preferred work environment." /></label>
+              <label className="flex items-start gap-3 rounded-2xl border border-[#0078FE]/20 bg-[#edf3fa] p-4 sm:col-span-2">
+                <input name="available_for_work" type="checkbox" defaultChecked={professionalDetails.available_for_work} className="mt-1 h-4 w-4 accent-[#002757]" />
+                <span className="text-sm leading-6 text-slate-600"><strong className="block text-[#002757]">Available for work</strong>Allow verified dental offices to match your profile with their open shifts.</span>
+              </label>
+            </div>
+
+            <div className="flex justify-end border-t border-slate-200 bg-slate-50 p-5">
+              <button type="submit" disabled={busy === "profile"} className="primary-btn"><FileCheck2 size={17} />{busy === "profile" ? "Saving…" : "Save profile"}</button>
+            </div>
+          </form>
+        </>
+      )}
       </>}
 
       {view === "talent" && <>
