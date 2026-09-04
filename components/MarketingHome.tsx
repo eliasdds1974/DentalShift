@@ -7,7 +7,7 @@ import Image from "next/image";
 type Audience = "office" | "professional";
 
 function MarketingBrand() {
-  return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-14 w-auto" priority />;
+  return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-14 w-auto sm:h-16 lg:h-20" priority />;
 }
 
 function CheckLine({ children }: { children: React.ReactNode }) {
@@ -25,7 +25,7 @@ export function MarketingHome({ onSignIn, onGetStarted }: { onSignIn: () => void
 
   return <div className="min-h-screen overflow-hidden bg-white text-slate-900">
     <header className="sticky top-0 z-40 border-b border-slate-200/80 bg-white/95 backdrop-blur">
-      <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-5 sm:px-8">
+      <div className="mx-auto flex h-[76px] max-w-7xl items-center justify-between px-5 sm:h-[88px] sm:px-8 lg:h-[104px]">
         <MarketingBrand />
         <nav className="hidden items-center gap-8 text-sm font-bold text-slate-600 lg:flex">
           <a href="#how-it-works" className="transition hover:text-[#002757]">How it works</a>
