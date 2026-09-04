@@ -253,19 +253,34 @@ export async function updateOfficeProfile(office: OfficeDetails) {
   return data as OfficeDetails;
 }
 
+export const OFFICE_LOGO_GUIDANCE = "Best result: a square PNG with a transparent background at 600 × 600 px. JPG or WebP are also accepted. Maximum file size: 5 MB.";
+
 export async function uploadOfficeLogo(userId: string, officeId: string, file: File) {
   const extensions: Record<string, string> = { "image/png": "png", "image/jpeg": "jpg", "image/webp": "webp" };
+  if (!file || file.size === 0) throw new Error("Choose an image file to upload.");
   const extension = extensions[file.type];
   if (!extension) throw new Error("Choose a PNG, JPG or WebP logo.");
   if (file.size > 5 * 1024 * 1024) throw new Error("The logo must be smaller than 5 MB.");
+
   const path = `${userId}/${officeId}.${extension}`;
-  const { error: uploadError } = await supabase.storage.from("office-logos").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
-  if (uploadError) throw uploadError;
+  const { error: uploadError } = await supabase.storage
+    .from("office-logos")
+    .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+  if (uploadError) throw new Error(`The logo file could not be uploaded: ${uploadError.message}`);
+
   const { data } = supabase.storage.from("office-logos").getPublicUrl(path);
   const logoUrl = `${data.publicUrl}?v=${Date.now()}`;
-  const { error: officeError } = await supabase.from("offices").update({ logo_url: logoUrl }).eq("id", officeId).eq("owner_id", userId);
-  if (officeError) throw officeError;
-  return logoUrl;
+  const { data: updatedOffice, error: officeError } = await supabase
+    .from("offices")
+    .update({ logo_url: logoUrl })
+    .eq("id", officeId)
+    .eq("owner_id", userId)
+    .select("logo_url")
+    .single();
+
+  if (officeError) throw new Error(`The logo uploaded, but it could not be saved to the clinic profile: ${officeError.message}`);
+  if (!updatedOffice?.logo_url) throw new Error("The logo uploaded, but the clinic profile did not return a saved logo.");
+  return updatedOffice.logo_url;
 }
 
 export async function submitOfficeForVerification(officeId: string, ownerId: string) {
