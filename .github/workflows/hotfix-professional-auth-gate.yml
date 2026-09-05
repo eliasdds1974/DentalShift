@@ -43,3 +43,4 @@ jobs:
           git add app/page.tsx
           git commit -m "Keep authenticated professionals in live workspace"
           git push
+# temporary migration helper; delete after source fix lands
