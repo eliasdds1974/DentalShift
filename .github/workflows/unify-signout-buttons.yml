@@ -1,0 +1,40 @@
+name: Unify sign out button styling
+on:
+  push:
+    paths:
+      - '.github/workflows/unify-signout-buttons.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update sign out buttons
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          old = 'className="inline-flex items-center gap-2 rounded-xl border-2 border-[#7c3aed] bg-[#5b21b6] px-3 py-2 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 hover:border-[#8b5cf6] hover:bg-[#6d28d9] hover:shadow-md"'
+          # Support current burgundy version too if the previous workflow has not yet switched it.
+          old2 = 'className="inline-flex items-center gap-2 rounded-xl border-2 border-[#9f1239] bg-[#881337] px-3 py-2 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 hover:border-[#be123c] hover:bg-[#9f1239] hover:shadow-md"'
+          old3 = 'className="inline-flex items-center gap-2 rounded-xl border-2 border-rose-200 bg-rose-50 px-3 py-2 text-sm font-extrabold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-md"'
+          new = 'className="inline-flex items-center gap-2 rounded-xl border-2 border-[#244f7a] bg-[#163f68] px-3 py-2 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:border-[#356a9d] hover:bg-[#24547f] hover:shadow-md"'
+          changed = False
+          for candidate in (old, old2, old3):
+              if candidate in s:
+                  s = s.replace(candidate, new)
+                  changed = True
+          # Any secondary sign-out button variants in this file get the same solid treatment.
+          s = s.replace('className="secondary-btn text-rose-700 hover:border-rose-200 hover:bg-rose-50"', new)
+          p.write_text(s)
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add app/page.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Use consistent bold sign out buttons'
+          git push
