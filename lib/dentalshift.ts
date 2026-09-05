@@ -604,7 +604,7 @@ async function addBookingContacts(bookings: WorkflowBooking[]) {
     const result = await timeout(
       supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id }),
       2500,
-      { data: null, error: null },
+      { data: null, error: null, count: null, status: 408, statusText: "Request Timeout" },
     );
     return { ...booking, contact: result.error ? null : result.data as BookingContact | null };
   }));
