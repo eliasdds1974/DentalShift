@@ -1,0 +1,35 @@
+name: Highlight professional calendar action cards
+on:
+  push:
+    paths:
+      - '.github/workflows/highlight-calendar-action-cards.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Highlight action cards
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('components/WorkflowWorkspaceV2.tsx')
+          s=p.read_text()
+          replacements={
+            'className="flex h-8 w-full items-center gap-2 rounded-lg border border-[#0078FE]/20 bg-blue-50/60 px-2.5 text-left"':'className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#0078FE]/35 bg-gradient-to-r from-blue-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#0078FE]/70 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0078FE]/25"',
+            'className="flex h-8 w-full items-center gap-2 rounded-lg border border-[#01A32E]/20 bg-[#eaf8ee]/60 px-2.5 text-left"':'className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#01A32E]/35 bg-gradient-to-r from-[#eaf8ee] to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#01A32E]/70 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#01A32E]/20"',
+            'className="flex h-8 w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 text-left"':'className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300/30"'
+          }
+          for old,new in replacements.items():
+            if old not in s: raise SystemExit(f'Expected class not found: {old}')
+            s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Highlight calendar action cards'
+          git push
