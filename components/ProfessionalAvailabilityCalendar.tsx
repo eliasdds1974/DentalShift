@@ -56,6 +56,13 @@ export function ProfessionalAvailabilityCalendar() {
     return map;
   }, [availability]);
 
+  const openAvailability = (key: string) => {
+    setSelectedDate(key);
+    setError("");
+    setNotice("");
+    setOpen(true);
+  };
+
   const load = async () => {
     const { data: authData } = await supabase.auth.getUser();
     const user = authData.user;
@@ -101,15 +108,12 @@ export function ProfessionalAvailabilityCalendar() {
         button.type = "button";
         button.dataset.postAvailabilityButton = "true";
         button.className = "primary-btn mt-3";
-        button.innerHTML = '<span style="display:inline-flex;align-items:center;gap:7px"><span aria-hidden="true">＋</span>Post availability</span>';
+        button.innerHTML = '<span style="display:inline-flex;align-items:center;gap:7px"><span aria-hidden="true">＋</span>Availability</span>';
         button.addEventListener("click", () => {
           const selectedHeading = calendar.querySelector("aside h3")?.textContent?.trim();
           const parsed = selectedHeading ? new Date(selectedHeading) : new Date();
           const key = Number.isNaN(parsed.getTime()) ? localDateKey(new Date()) : localDateKey(parsed);
-          setSelectedDate(key);
-          setError("");
-          setNotice("");
-          setOpen(true);
+          openAvailability(key);
         });
         titleBlock.appendChild(button);
       }
@@ -120,16 +124,13 @@ export function ProfessionalAvailabilityCalendar() {
         action.type = "button";
         action.dataset.selectedDateAvailability = "true";
         action.className = "secondary-btn mt-3 w-full justify-center";
-        action.textContent = "I'm available this day";
+        action.textContent = "Availability";
         action.addEventListener("click", () => {
           const heading = aside.querySelector("h3")?.textContent?.trim();
           if (!heading) return;
           const parsed = new Date(heading);
           if (Number.isNaN(parsed.getTime())) return;
-          setSelectedDate(localDateKey(parsed));
-          setError("");
-          setNotice("");
-          setOpen(true);
+          openAvailability(localDateKey(parsed));
         });
         const divider = aside.querySelector(".border-t");
         divider?.parentElement?.insertBefore(action, divider);
@@ -137,14 +138,14 @@ export function ProfessionalAvailabilityCalendar() {
 
       const dateGrid = Array.from(calendar.querySelectorAll<HTMLElement>("div")).find((div) => {
         const directButtons = Array.from(div.children).filter((child) => child instanceof HTMLButtonElement);
-        return directButtons.length === 7 || directButtons.length === 35;
+        return directButtons.length === 7 || directButtons.length === 35 || directButtons.length === 42;
       });
       if (!dateGrid) return;
 
       const buttons = Array.from(dateGrid.children).filter((child): child is HTMLButtonElement => child instanceof HTMLButtonElement);
       const periodTitle = dateGrid.parentElement?.querySelector("h3")?.textContent?.trim() || "";
       let gridStart: Date | null = null;
-      if (buttons.length === 35) {
+      if (buttons.length === 35 || buttons.length === 42) {
         const match = periodTitle.match(/^([A-Za-z]+)\s+(\d{4})$/);
         const months = ["january", "february", "march", "april", "may", "june", "july", "august", "september", "october", "november", "december"];
         if (match) {
@@ -177,6 +178,18 @@ export function ProfessionalAvailabilityCalendar() {
           button.dataset.availableDate = key;
           button.style.backgroundColor = "#eff6ff";
           button.style.boxShadow = "inset 0 0 0 2px rgba(0,120,254,.28)";
+          button.setAttribute("aria-label", `${button.getAttribute("aria-label") || button.textContent || "Date"}, availability posted. Click to manage availability.`);
+          if (!button.dataset.availabilityClickBound) {
+            button.dataset.availabilityClickBound = "true";
+            button.addEventListener("click", (event) => {
+              const current = event.currentTarget as HTMLButtonElement;
+              const availableKey = current.dataset.availableDate;
+              if (!availableKey) return;
+              event.preventDefault();
+              event.stopPropagation();
+              openAvailability(availableKey);
+            });
+          }
           if (!old) {
             const marker = document.createElement("span");
             marker.dataset.availableMarker = "true";
@@ -253,11 +266,11 @@ export function ProfessionalAvailabilityCalendar() {
   const isBooked = bookedDates.has(selectedDate);
 
   return createPortal(
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-label="Post availability">
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-label="Availability">
       <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <div className="flex items-center gap-2 text-[#0078FE]"><CalendarPlus size={20} /><span className="text-xs font-black uppercase tracking-[.12em]">Post availability</span></div>
+            <div className="flex items-center gap-2 text-[#0078FE]"><CalendarPlus size={20} /><span className="text-xs font-black uppercase tracking-[.12em]">Availability</span></div>
             <h2 className="mt-2 text-2xl font-black text-[#002757]">{displayDate(selectedDate)}</h2>
             <p className="mt-1 text-sm leading-5 text-slate-500">Tell nearby offices when you're available to pick up a shift.</p>
           </div>
