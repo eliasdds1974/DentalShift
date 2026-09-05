@@ -61,7 +61,10 @@ export function ProfessionalAvailabilityCalendar() {
   }, [availability]);
 
   const openAvailability = (key: string) => {
+    const existing = availabilityDates.get(key)?.[0];
     setSelectedDate(key);
+    setStart(existing ? timeValue(existing.starts_at) : "08:00");
+    setEnd(existing ? timeValue(existing.ends_at) : "17:00");
     setError("");
     setNotice("");
     setOpen(true);
@@ -179,22 +182,24 @@ export function ProfessionalAvailabilityCalendar() {
         const available = slots.length > 0;
         const old = button.querySelector<HTMLElement>("[data-available-marker]");
 
-        // Keep the date number tucked into the upper-left so the rest of the
-        // day cell has more vertical space for availability, invitations, and shifts.
+        // Keep the day number as close as practical to the upper-left corner.
         button.style.position = "relative";
         button.style.alignItems = "flex-start";
         button.style.justifyContent = "flex-start";
         button.style.textAlign = "left";
-        button.style.paddingTop = "7px";
-        button.style.paddingLeft = "8px";
-        button.style.paddingRight = "7px";
-        button.style.gap = "2px";
+        button.style.paddingTop = "2px";
+        button.style.paddingLeft = "3px";
+        button.style.paddingRight = "4px";
+        button.style.paddingBottom = "4px";
+        button.style.gap = "1px";
 
         if (available && !booked) {
           button.dataset.availableDate = key;
-          button.style.backgroundColor = "#eff6ff";
-          button.style.boxShadow = "inset 0 0 0 2px rgba(0,120,254,.28)";
-          button.setAttribute("aria-label", `${button.getAttribute("aria-label") || button.textContent || "Date"}, availability posted. Click to manage availability.`);
+          if (!button.dataset.baseAvailabilityLabel) {
+            button.dataset.baseAvailabilityLabel = button.getAttribute("aria-label") || button.textContent || "Date";
+          }
+          button.setAttribute("aria-label", `${button.dataset.baseAvailabilityLabel}, availability posted. Click to manage availability.`);
+
           if (!button.dataset.availabilityClickBound) {
             button.dataset.availabilityClickBound = "true";
             button.addEventListener("click", (event) => {
@@ -207,26 +212,30 @@ export function ProfessionalAvailabilityCalendar() {
             });
           }
 
-          const ranges = slots
-            .slice()
-            .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
-            .map((slot) => `${calendarTime(slot.starts_at)}–${calendarTime(slot.ends_at)}`);
-          const markerText = ranges.length > 1 ? `AVAILABLE · ${ranges[0]} +${ranges.length - 1}` : `AVAILABLE · ${ranges[0]}`;
+          const primarySlot = slots.slice().sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())[0];
+          const markerText = `AVAILABLE · ${calendarTime(primarySlot.starts_at)}–${calendarTime(primarySlot.ends_at)}`;
 
           if (!old) {
             const marker = document.createElement("span");
             marker.dataset.availableMarker = "true";
             marker.textContent = markerText;
-            marker.style.cssText = "display:block;width:100%;margin-top:4px;border-radius:8px;background:#0078FE;color:white;padding:3px 5px;font-size:9px;font-weight:900;letter-spacing:.02em;line-height:1.25;white-space:normal;overflow-wrap:anywhere;text-align:left;";
+            marker.style.cssText = "position:absolute;left:5px;right:5px;bottom:5px;height:calc(50% - 7px);max-height:calc(50% - 7px);display:flex;align-items:center;justify-content:flex-start;width:auto;margin:0;border-radius:8px;background:#0078FE;color:white;padding:5px 6px;font-size:9px;font-weight:900;letter-spacing:.02em;line-height:1.25;white-space:normal;overflow:hidden;box-sizing:border-box;text-align:left;";
             button.appendChild(marker);
-          } else if (old.textContent !== markerText) {
+          } else {
             old.textContent = markerText;
+            old.style.position = "absolute";
+            old.style.left = "5px";
+            old.style.right = "5px";
+            old.style.bottom = "5px";
+            old.style.height = "calc(50% - 7px)";
+            old.style.maxHeight = "calc(50% - 7px)";
+            old.style.width = "auto";
+            old.style.margin = "0";
           }
         } else if (button.dataset.availableDate) {
           delete button.dataset.availableDate;
-          if (!booked) {
-            button.style.backgroundColor = "";
-            button.style.boxShadow = "";
+          if (button.dataset.baseAvailabilityLabel) {
+            button.setAttribute("aria-label", button.dataset.baseAvailabilityLabel);
           }
           old?.remove();
         }
@@ -248,6 +257,7 @@ export function ProfessionalAvailabilityCalendar() {
       setError("You already have a confirmed booking on this date.");
       return;
     }
+
     const startsAt = new Date(`${selectedDate}T${start}:00`);
     const endsAt = new Date(`${selectedDate}T${end}:00`);
     if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime()) || endsAt <= startsAt) {
@@ -255,19 +265,61 @@ export function ProfessionalAvailabilityCalendar() {
       return;
     }
 
+    const existing = availabilityDates.get(selectedDate) || [];
     setBusy(true);
-    const { error: insertError } = await supabase.from("availability").insert({
-      professional_id: userId,
-      starts_at: startsAt.toISOString(),
-      ends_at: endsAt.toISOString(),
-      available: true,
-    });
-    setBusy(false);
-    if (insertError) {
-      setError(insertError.message || "Availability could not be saved.");
+
+    if (existing.length > 0) {
+      const primary = existing[0];
+      const { data: updated, error: updateError } = await supabase
+        .from("availability")
+        .update({ starts_at: startsAt.toISOString(), ends_at: endsAt.toISOString(), available: true })
+        .eq("id", primary.id)
+        .select("id, starts_at, ends_at, available")
+        .single();
+
+      if (!updateError && existing.length > 1) {
+        await supabase.from("availability").update({ available: false }).in("id", existing.slice(1).map((slot) => slot.id));
+      }
+
+      setBusy(false);
+      if (updateError || !updated) {
+        setError(updateError?.message || "Availability could not be updated.");
+        return;
+      }
+
+      const updatedRow = updated as AvailabilityRow;
+      setAvailability((current) => [
+        ...current.filter((slot) => localDateKey(slot.starts_at) !== selectedDate),
+        updatedRow,
+      ]);
+      setNotice("Availability updated.");
+      await load();
       return;
     }
-    setNotice("Availability posted. Offices can now see that you are looking for work during this time.");
+
+    const { data: inserted, error: insertError } = await supabase
+      .from("availability")
+      .insert({
+        professional_id: userId,
+        starts_at: startsAt.toISOString(),
+        ends_at: endsAt.toISOString(),
+        available: true,
+      })
+      .select("id, starts_at, ends_at, available")
+      .single();
+
+    setBusy(false);
+    if (insertError || !inserted) {
+      setError(insertError?.message || "Availability could not be saved.");
+      return;
+    }
+
+    const insertedRow = inserted as AvailabilityRow;
+    setAvailability((current) => [
+      ...current.filter((slot) => localDateKey(slot.starts_at) !== selectedDate),
+      insertedRow,
+    ]);
+    setNotice("Availability posted. It is now shown on your calendar.");
     await load();
   };
 
@@ -282,6 +334,7 @@ export function ProfessionalAvailabilityCalendar() {
       setError(updateError.message || "Availability could not be removed.");
       return;
     }
+    setAvailability((current) => current.filter((slot) => localDateKey(slot.starts_at) !== selectedDate));
     setNotice("Availability removed for this date.");
     await load();
   };
@@ -302,10 +355,11 @@ export function ProfessionalAvailabilityCalendar() {
           <button type="button" onClick={() => setOpen(false)} className="secondary-btn px-3" aria-label="Close"><X size={18} /></button>
         </div>
 
-        {isBooked ? <div className="mt-5 rounded-2xl border border-[#01A32E]/30 bg-[#eaf8ee] p-4 text-sm font-extrabold text-[#017f27]"><Check size={17} className="mr-2 inline" />BOOKED — you already have a confirmed shift on this date, so new availability cannot be posted.</div> : <>
-          {existing.length > 0 && <div className="mt-5 rounded-2xl border border-[#0078FE]/20 bg-blue-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-[#0064d8]">Currently available</p>{existing.map((slot) => <p key={slot.id} className="mt-1 flex items-center gap-2 text-sm font-extrabold text-[#002757]"><Clock3 size={15} />{timeValue(slot.starts_at)} – {timeValue(slot.ends_at)}</p>)}</div>}
-
+        {isBooked ? (
+          <div className="mt-5 rounded-2xl border border-[#01A32E]/30 bg-[#eaf8ee] p-4 text-sm font-extrabold text-[#017f27]"><Check size={17} className="mr-2 inline" />BOOKED — you already have a confirmed shift on this date, so availability cannot be posted.</div>
+        ) : (
           <form onSubmit={saveAvailability} className="mt-5">
+            {existing.length > 0 && <div className="mb-4 rounded-2xl border border-[#0078FE]/20 bg-blue-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-[#0064d8]">Current availability</p><p className="mt-1 flex items-center gap-2 text-sm font-extrabold text-[#002757]"><Clock3 size={15} />{timeValue(existing[0].starts_at)} – {timeValue(existing[0].ends_at)}</p></div>}
             <div className="grid gap-3 sm:grid-cols-2">
               <label className="field"><span>Available from</span><input type="time" value={start} onChange={(event) => setStart(event.target.value)} required /></label>
               <label className="field"><span>Available until</span><input type="time" value={end} onChange={(event) => setEnd(event.target.value)} required /></label>
@@ -315,10 +369,10 @@ export function ProfessionalAvailabilityCalendar() {
             {notice && <p className="mt-3 rounded-xl bg-[#eaf8ee] px-3 py-2 text-sm font-bold text-[#017f27]">{notice}</p>}
             <div className="mt-5 flex flex-wrap justify-between gap-2">
               <div>{existing.length > 0 && <button type="button" disabled={busy} onClick={() => void removeDateAvailability()} className="secondary-btn">Remove availability</button>}</div>
-              <div className="flex gap-2"><button type="button" onClick={() => setOpen(false)} className="secondary-btn">Close</button><button type="submit" disabled={busy} className="primary-btn">{busy ? "Saving…" : existing.length ? "Add another time" : "Post availability"}</button></div>
+              <div className="flex gap-2"><button type="button" onClick={() => setOpen(false)} className="secondary-btn">Close</button><button type="submit" disabled={busy} className="primary-btn">{busy ? "Saving…" : existing.length ? "Save changes" : "Post availability"}</button></div>
             </div>
           </form>
-        </>}
+        )}
       </div>
     </div>,
     document.body,
