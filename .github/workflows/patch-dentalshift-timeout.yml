@@ -1,0 +1,41 @@
+name: Patch DentalShift timeout typing
+
+on:
+  push:
+    paths:
+      - ".github/workflows/patch-dentalshift-timeout.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Patch lib/dentalshift.ts
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('lib/dentalshift.ts')
+          text = path.read_text()
+          old = '      { data: null, error: null },\n'
+          new = '      { data: null, error: null, count: null, status: 408, statusText: "Request Timeout" },\n'
+          if old not in text:
+              raise SystemExit('Expected timeout fallback was not found; refusing to modify the file.')
+          path.write_text(text.replace(old, new, 1))
+          PY
+
+      - name: Commit fix and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/patch-dentalshift-timeout.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/dentalshift.ts .github/workflows/patch-dentalshift-timeout.yml
+          git commit -m "Fix booking contact timeout response typing"
+          git push origin main
