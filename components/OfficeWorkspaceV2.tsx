@@ -1,0 +1,213 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, UsersRound } from "lucide-react";
+import {
+  acceptApplication,
+  inviteProfessional,
+  loadOfficeWorkflow,
+  type AvailableProfessionalSlot,
+  type OfficeDetails,
+  type OfficeShift,
+  type WorkflowBooking,
+} from "@/lib/dentalshift";
+import { OfficeWorkspace as LegacyOfficeWorkspace } from "./WorkflowWorkspace";
+
+type OfficeView = "overview" | "shifts" | "bookings" | "talent" | "profile";
+type CalendarView = "month" | "week";
+type RoleCode = "RDH" | "CDA" | "DA" | "ST";
+
+type DirectoryPerson = {
+  user_id: string;
+  profession: string;
+  licence_province: string;
+  rating: number;
+  completed_shifts: number;
+  reliability_score: number;
+};
+
+type OfficeWorkflow = {
+  shifts: OfficeShift[];
+  bookings: WorkflowBooking[];
+  directory: DirectoryPerson[];
+  availability: AvailableProfessionalSlot[];
+};
+
+const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {
+  RDH: { label: "RDH", solid: "bg-[#0078FE]", soft: "bg-blue-50", text: "text-[#0064d8]" },
+  CDA: { label: "CDA", solid: "bg-[#F21C13]", soft: "bg-red-50", text: "text-[#d9160f]" },
+  DA: { label: "DA", solid: "bg-amber-400", soft: "bg-amber-50", text: "text-amber-700" },
+  ST: { label: "ST", solid: "bg-[#04A62F]", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },
+};
+
+function roleCode(profession?: string | null): RoleCode {
+  const value = (profession || "").toLowerCase();
+  if (value.includes("hygien")) return "RDH";
+  if (value.includes("admin")) return "DA";
+  if (value.includes("steril")) return "ST";
+  return "CDA";
+}
+
+function localDateKey(value: Date | string) {
+  const date = typeof value === "string" ? new Date(value) : value;
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function weekStart(value: Date) {
+  const date = new Date(value.getFullYear(), value.getMonth(), value.getDate());
+  date.setDate(date.getDate() - date.getDay());
+  return date;
+}
+
+function shortTime(value: string) {
+  return new Date(value).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+}
+
+function longDate(value: string) {
+  return new Date(`${value}T12:00:00`).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" });
+}
+
+function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number }) {
+  const [data, setData] = useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [] });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState("");
+  const [calendarView, setCalendarView] = useState<CalendarView>("month");
+  const [calendarCursor, setCalendarCursor] = useState(() => new Date());
+  const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
+
+  const refresh = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      setData(await loadOfficeWorkflow(office.id) as OfficeWorkflow);
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "DentalShift could not load your office calendar.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { void refresh(); }, [office.id, refreshKey]);
+
+  const openShifts = useMemo(() => data.shifts.filter((shift) => shift.status === "open"), [data.shifts]);
+  const upcomingBookings = useMemo(() => data.bookings
+    .filter((booking) => booking.shifts && !booking.cancelled_at && new Date(booking.shifts.ends_at).getTime() >= Date.now())
+    .sort((a, b) => new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime()), [data.bookings]);
+  const applicantCount = useMemo(() => data.shifts.flatMap((shift) => shift.applications || []).filter((application) => application.status === "applied").length, [data.shifts]);
+
+  const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
+  const gridStart = calendarView === "week" ? weekStart(calendarCursor) : weekStart(monthStart);
+  const calendarDays = Array.from({ length: calendarView === "week" ? 7 : 35 }, (_, index) => {
+    const date = new Date(gridStart);
+    date.setDate(gridStart.getDate() + index);
+    return date;
+  });
+
+  const selectedShifts = data.shifts
+    .filter((shift) => localDateKey(shift.starts_at) === selectedDate)
+    .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
+  const selectedBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
+
+  const act = async (key: string, action: () => Promise<unknown>) => {
+    setBusy(key);
+    setError("");
+    try {
+      await action();
+      await refresh();
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "The action could not be completed.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const moveCalendar = (direction: -1 | 1) => {
+    const next = new Date(calendarCursor);
+    if (calendarView === "month") next.setMonth(next.getMonth() + direction, 1);
+    else next.setDate(next.getDate() + direction * 7);
+    setCalendarCursor(next);
+    setSelectedDate(localDateKey(next));
+  };
+
+  return <div className="page-wrap">
+    <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+      <div>
+        <h1 className="page-title">Office schedule</h1>
+        <p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>
+      </div>
+      <button onClick={onPost} className="primary-btn"><Plus size={18} />Post a shift</button>
+    </div>
+
+    {error && <p className="mt-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+    {loading && <p className="mt-4 text-xs font-bold text-slate-500">Updating your live office calendar…</p>}
+
+    <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+      <div className="grid gap-3 border-b border-slate-200 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_170px]">
+        <div className="contents">
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+            <h2 className="text-xl font-black tracking-tight text-[#032757] sm:text-2xl">Office calendar</h2>
+            <p className="mt-1 text-xs font-bold text-[#032757]">Manage every shift from posting through confirmation.</p>
+          </div>
+          <div className="grid w-full gap-1 sm:w-[170px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:shrink-0">
+            <button type="button" onClick={onPost} className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#0078FE]/35 bg-gradient-to-r from-blue-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#0078FE]/70 hover:shadow-md"><CalendarDays size={15} className="text-[#0078FE]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Open shifts</span><strong className="block text-sm leading-none text-[#032757]">{openShifts.length}</strong></span></button>
+            <button type="button" className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md"><UsersRound size={15} className="text-amber-700" /><span><span className="block text-[10px] font-extrabold text-slate-500">Applicants</span><strong className="block text-sm leading-none text-[#032757]">{applicantCount}</strong></span></button>
+            <button type="button" className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#04A62F]/35 bg-gradient-to-r from-[#eaf8ee] to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#04A62F]/70 hover:shadow-md"><Check size={15} className="text-[#04A62F]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Booked</span><strong className="block text-sm leading-none text-[#032757]">{upcomingBookings.length}</strong></span></button>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2 lg:col-start-1 lg:row-start-2 lg:self-end">
+          <button type="button" aria-label="Previous period" onClick={() => moveCalendar(-1)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-[#032757] hover:bg-slate-50"><ChevronLeft size={17} /></button>
+          <button type="button" onClick={() => { const now = new Date(); setCalendarCursor(now); setSelectedDate(localDateKey(now)); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-[#032757]">Today</button>
+          <button type="button" aria-label="Next period" onClick={() => moveCalendar(1)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-[#032757] hover:bg-slate-50"><ChevronRight size={17} /></button>
+          <div className="ml-1 flex rounded-xl bg-slate-100 p-1">
+            {(["month", "week"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-1.5 text-xs font-black capitalize ${calendarView === mode ? "bg-white text-[#032757] shadow-sm" : "text-slate-500"}`}>{mode}</button>)}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <div className="p-3 sm:p-4">
+          <h3 className="mb-3 text-xl font-black text-[#0f172a]">{calendarCursor.toLocaleDateString("en-CA", calendarView === "month" ? { month: "long", year: "numeric" } : { month: "long", day: "numeric", year: "numeric" })}</h3>
+          <div className="grid grid-cols-7">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-slate-500">{day}</div>)}</div>
+          <div className="grid grid-cols-7 gap-px overflow-hidden rounded-2xl border border-slate-200 bg-slate-200">{calendarDays.map((day) => {
+            const key = localDateKey(day);
+            const selected = key === selectedDate;
+            const today = key === localDateKey(new Date());
+            const inMonth = day.getMonth() === calendarCursor.getMonth();
+            const dayShifts = data.shifts.filter((shift) => localDateKey(shift.starts_at) === key);
+            const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
+            return <button type="button" key={key} onClick={() => { setSelectedDate(key); setCalendarCursor(day); }} className={`min-h-24 bg-white p-1.5 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "relative z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
+              <span className={`inline-grid h-7 w-7 place-items-center rounded-full text-sm font-black ${today ? "bg-[#032757] text-white" : ""}`}>{day.getDate()}</span>
+              <div className="mt-2 space-y-1">{dayShifts.slice(0, 3).map((shift) => { const role = roleStyles[roleCode(shift.profession)]; const applications = (shift.applications || []).filter((item) => item.status === "applied").length; return <div key={shift.id} className={`truncate rounded-lg px-1.5 py-1 text-[10px] font-black ${role.soft} ${role.text}`}><span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${role.solid}`} />{role.label} · {applications} appl.</div>; })}{dayBookings.length > 0 && <div className="rounded-lg bg-[#eaf8ee] px-1.5 py-1 text-[10px] font-black text-[#017f27]">{dayBookings.length} booked</div>}</div>
+            </button>;
+          })}</div>
+        </div>
+
+        <aside className="border-t border-slate-200 bg-white p-4 xl:border-l xl:border-t-0 sm:p-5">
+          <p className="text-xs font-black uppercase tracking-[.12em] text-[#0078FE]">Selected date</p>
+          <h3 className="mt-1 text-xl font-black text-[#0f172a]">{longDate(selectedDate)}</h3>
+          <div className="mt-4 space-y-4">
+            {selectedShifts.length === 0 && selectedBookings.length === 0 && <div className="rounded-2xl bg-slate-50 p-6 text-center"><CalendarDays size={24} className="mx-auto text-slate-400" /><p className="mt-3 text-sm font-extrabold text-[#032757]">No office activity</p><button onClick={onPost} className="primary-btn mt-4"><Plus size={16} />Post a shift</button></div>}
+            {selectedShifts.map((shift) => {
+              const role = roleStyles[roleCode(shift.profession)];
+              const applicants = (shift.applications || []).filter((application) => application.status === "applied");
+              const availableMatches = Array.from(new Map(data.availability.filter((slot) => slot.professional_profiles?.profession === shift.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at)).map((slot) => [slot.professional_id, slot])).values());
+              return <article key={shift.id} className="rounded-2xl border border-slate-200 p-4 shadow-sm">
+                <div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${role.solid}`} /><strong className="text-[#032757]">{shift.profession}</strong></div><p className="mt-1 text-xs font-bold text-slate-500">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-600">{shift.status}</span></div>
+                <div className="mt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Applicants ({applicants.length})</p>{applicants.length === 0 ? <p className="mt-2 text-xs text-slate-500">No applications yet.</p> : <div className="mt-2 space-y-2">{applicants.map((application) => <div key={application.id} className="rounded-xl bg-slate-50 p-3"><p className="text-xs font-bold text-slate-600">Verified {application.professional_profiles?.profession || "professional"} · {application.professional_profiles?.licence_province || ""}</p><button disabled={busy === application.id} onClick={() => void act(application.id, () => acceptApplication(application.id))} className="primary-btn mt-2 w-full justify-center"><Check size={15} />{busy === application.id ? "Confirming…" : "Confirm professional"}</button></div>)}</div>}</div>
+                {shift.status === "open" && availableMatches.length > 0 && <div className="mt-4 border-t border-slate-100 pt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Available matches</p><div className="mt-2 space-y-2">{availableMatches.slice(0, 3).map((slot) => <button key={slot.id} disabled={busy === slot.professional_id || shift.applications?.some((item) => item.professional_id === slot.professional_id)} onClick={() => void act(slot.professional_id, () => inviteProfessional(shift.id, slot.professional_id, Number(shift.hourly_rate)))} className="w-full rounded-xl border border-[#04A62F]/25 bg-[#eaf8ee] p-3 text-left disabled:opacity-50"><UsersRound size={15} className="text-[#04A62F]" /><strong className="mt-1 block text-xs text-[#032757]">Available {slot.professional_profiles?.profession || "professional"}</strong><span className="mt-1 block text-[11px] text-slate-500">{slot.professional_profiles?.licence_province} · {slot.professional_profiles?.rating || 0}★</span></button>)}</div></div>}
+              </article>;
+            })}
+            {selectedBookings.map((booking) => <article key={booking.id} className="rounded-2xl border border-[#04A62F]/25 bg-[#eaf8ee] p-4"><div className="flex items-center gap-2"><FileCheck2 size={17} className="text-[#04A62F]" /><strong className="text-[#032757]">Confirmed booking</strong></div><p className="mt-2 text-sm font-bold text-slate-700">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{booking.shifts.profession} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}</article>)}
+          </div>
+        </aside>
+      </div>
+    </section>
+  </div>;
+}
+
+export function OfficeWorkspace(props: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number; view: OfficeView }) {
+  if (props.view !== "overview") return <LegacyOfficeWorkspace {...props} />;
+  return <OfficeCalendar userId={props.userId} office={props.office} onPost={props.onPost} refreshKey={props.refreshKey} />;
+}
