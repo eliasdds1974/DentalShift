@@ -1,0 +1,26 @@
+name: Fix calendar header JSX v2
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-calendar-header-jsx-v2.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix JSX structure
+        run: |
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnBhdGggPSBQYXRoKCJjb21wb25lbnRzL1dvcmtmbG93V29ya3NwYWNlVjIudHN4IikKdGV4dCA9IHBhdGgucmVhZF90ZXh0KCkKb2xkID0gJyAgICAgICAgICA8L2Rpdj5cbiAgICAgICAgPC9kaXY+XG4gICAgICA8L2Rpdj5cblxuICAgICAge2NhbGVuZGFyVmlldyA9PT0gImxpc3QiID8nCm5ldyA9ICcgICAgICAgICAgPC9kaXY+XG4gICAgICAgIDwvZGl2PlxuXG4gICAgICB7Y2FsZW5kYXJWaWV3ID09PSAibGlzdCIgPycKaWYgb2xkIG5vdCBpbiB0ZXh0OgogICAgcmFpc2UgU3lzdGVtRXhpdCgiRXhwZWN0ZWQgY2FsZW5kYXIgaGVhZGVyIGNsb3Npbmcgc3RydWN0dXJlIG5vdCBmb3VuZCIpCnBhdGgud3JpdGVfdGV4dCh0ZXh0LnJlcGxhY2Uob2xkLCBuZXcsIDEpKQo=' | base64 --decode > /tmp/fix.py
+          python /tmp/fix.py
+      - name: Commit source fix
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Fix calendar header JSX structure'
+          git push
