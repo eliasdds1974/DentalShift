@@ -1,0 +1,23 @@
+name: Authenticated professional gate migration
+on:
+  push:
+    paths:
+      - '.github/workflows/one-time-authenticated-professional-gate.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch professional gate
+        run: |
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCnA9UGF0aCgnYXBwL3BhZ2UudHN4JykKcz1wLnJlYWRfdGV4dCgpCm9sZD0nICAgICAgOiByb2xlID09PSAicHJvZmVzc2lvbmFsIlxuICAgICAgICA/IHNlc3Npb24gJiYgcHJvZmlsZVxuICAgICAgICAgID8gPFByb2Zlc3Npb25hbFdvcmtzcGFjZSB1c2VySWQ9e3Nlc3Npb24udXNlci5pZH0gcHJvZmlsZT17cHJvZmlsZX0gcmVmcmVzaEtleT17cmVmcmVzaEtleX0gdmlldz17dmlld30gb25OYXZpZ2F0ZT17KG5leHRWaWV3KSA9PiBuYXZpZ2F0ZSgicHJvZmVzc2lvbmFsIiwgbmV4dFZpZXcpfSAvPlxuICAgICAgICAgIDogPFByb2Zlc3Npb25hbERhc2hib2FyZCB1c2VySWQ9e251bGx9IHJlZnJlc2hLZXk9e3JlZnJlc2hLZXl9IC8+XG4gICAgICAgIDogc2Vzc2lvbiAmJiBwcm9maWxlPy5yb2xlID09PSAiYWRtaW4iJwpuZXc9JyAgICAgIDogcm9sZSA9PT0gInByb2Zlc3Npb25hbCJcbiAgICAgICAgPyBzZXNzaW9uXG4gICAgICAgICAgPyBwcm9maWxlXG4gICAgICAgICAgICA/IDxQcm9mZXNzaW9uYWxXb3Jrc3BhY2UgdXNlcklkPXtzZXNzaW9uLnVzZXIuaWR9IHByb2ZpbGU9e3Byb2ZpbGV9IHJlZnJlc2hLZXk9e3JlZnJlc2hLZXl9IHZpZXc9e3ZpZXd9IG9uTmF2aWdhdGU9eyhuZXh0VmlldykgPT4gbmF2aWdhdGUoInByb2Zlc3Npb25hbCIsIG5leHRWaWV3KX0gLz5cbiAgICAgICAgICAgIDogPGRpdiBjbGFzc05hbWU9InBhZ2Utd3JhcCI+PGRpdiBjbGFzc05hbWU9InBhbmVsIG14LWF1dG8gbWF4LXcteGwgcC04IHRleHQtY2VudGVyIj48aDEgY2xhc3NOYW1lPSJ0ZXh0LXhsIGZvbnQtYmxhY2sgdGV4dC1bIzAwMjc1N10iPkxvYWRpbmcgeW91ciBwcm9mZXNzaW9uYWwgd29ya3NwYWNlPC9oMT48cCBjbGFzc05hbWU9Im10LTIgdGV4dC1zbSBsZWFkaW5nLTYgdGV4dC1zbGF0ZS01MDAiPkRlbnRhbFNoaWZ0IGlzIHJlY29ubmVjdGluZyB5b3VyIGFjY291bnQuIFlvdXIgY2FsZW5kYXIgYW5kIHdvcmtzcGFjZSB3aWxsIGFwcGVhciBoZXJlIGFzIHNvb24gYXMgeW91ciBwcm9mZXNzaW9uYWwgcHJvZmlsZSBpcyBhdmFpbGFibGUuPC9wPjxidXR0b24gdHlwZT0iYnV0dG9uIiBvbkNsaWNrPXsoKSA9PiB3aW5kb3cubG9jYXRpb24ucmVsb2FkKCl9IGNsYXNzTmFtZT0ic2Vjb25kYXJ5LWJ0biBteC1hdXRvIG10LTUganVzdGlmeS1jZW50ZXIiPlJldHJ5PC9idXR0b24+PC9kaXY+PC9kaXY+XG4gICAgICAgICAgOiA8UHJvZmVzc2lvbmFsRGFzaGJvYXJkIHVzZXJJZD17bnVsbH0gcmVmcmVzaEtleT17cmVmcmVzaEtleX0gLz5cbiAgICAgICAgOiBzZXNzaW9uICYmIHByb2ZpbGU/LnJvbGUgPT09ICJhZG1pbiInCmlmIG9sZCBub3QgaW4gczogcmFpc2UgU3lzdGVtRXhpdCgncHJvZmVzc2lvbmFsIGZhbGxiYWNrIHRhcmdldCBub3QgZm91bmQnKQpwLndyaXRlX3RleHQocy5yZXBsYWNlKG9sZCxuZXcsMSkpCg==' | base64 --decode > /tmp/patch.py
+          python /tmp/patch.py
+      - name: Commit source change
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/page.tsx
+          git commit -m "Keep authenticated professionals in live workspace"
+          git push
