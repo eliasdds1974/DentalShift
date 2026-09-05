@@ -24,5 +24,20 @@ button:disabled { cursor:default; opacity:.8; }
 .logo-mark { position:relative; display:grid; height:40px; width:40px; place-items:center; border-radius:50%; background:conic-gradient(#ed4747 0 25%,#f2c84b 0 50%,#28a95b 0 75%,#3679d4 0); }
 .logo-mark::before { content:""; position:absolute; inset:5px; border-radius:50%; background:#002757; }
 .logo-tooth { position:relative; z-index:1; display:grid; height:22px; width:18px; place-items:center; border-radius:50% 50% 42% 42%/40% 40% 60% 60%; background:#fff; color:#01A32E; font-size:13px; font-weight:900; }
-@media (min-width:640px) { .page-wrap { padding:2.25rem 1.75rem 5rem; } }
+
+/* Professional account matching preferences */
+label.field:has(input[name="travel_radius_km"]) > span { font-size:0; }
+label.field:has(input[name="travel_radius_km"]) > span::after { content:"Distance willing to travel (km)"; font-size:.82rem; }
+label.field:has(input[name="travel_radius_km"])::after { content:"Only shifts within this distance will be shown."; color:#7a8b9d; font-size:.72rem; line-height:1.35; }
+label.field:has(input[name="hourly_rate"])::after { content:"Only shifts offering this rate or higher will be shown."; color:#7a8b9d; font-size:.72rem; line-height:1.35; }
+fieldset:has(input[name="software"]) { padding:.75rem!important; }
+fieldset:has(input[name="software"]) legend { font-size:.78rem!important; }
+fieldset:has(input[name="software"]) > p { margin-bottom:.45rem!important; }
+fieldset:has(input[name="software"]) > div { gap:.35rem!important; }
+fieldset:has(input[name="software"]) label { gap:.35rem!important; border-radius:.6rem!important; padding:.38rem .5rem!important; font-size:.72rem!important; line-height:1.1!important; }
+fieldset:has(input[name="software"]) input[name="software"] { width:.85rem!important; height:.85rem!important; }
+@media (min-width:640px) {
+  .page-wrap { padding:2.25rem 1.75rem 5rem; }
+  fieldset:has(input[name="software"]) > div { grid-template-columns:repeat(4,minmax(0,1fr))!important; }
+}
 @media (prefers-reduced-motion:reduce) { *,*::before,*::after { scroll-behavior:auto!important; transition:none!important; } }
