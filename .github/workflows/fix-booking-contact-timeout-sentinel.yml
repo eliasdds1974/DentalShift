@@ -1,0 +1,60 @@
+name: Fix booking contact timeout sentinel typing
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-booking-contact-timeout-sentinel.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace typed fallback with timeout sentinel
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('lib/dentalshift.ts')
+          s = p.read_text()
+          old = '''function timeout<T>(promise: PromiseLike<T>, milliseconds: number, fallback: T): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), milliseconds)),
+  ]);
+}
+
+async function addBookingContacts(bookings: WorkflowBooking[]) {
+  return Promise.all(bookings.map(async (booking) => {
+    const result = await timeout(
+      supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id }),
+      2500,
+      { data: null, error: null, count: null, status: 408, statusText: "Request Timeout", success: false },
+    );
+    return { ...booking, contact: result.error ? null : result.data as BookingContact | null };
+  }));
+}
+'''
+          new = '''async function addBookingContacts(bookings: WorkflowBooking[]) {
+  return Promise.all(bookings.map(async (booking) => {
+    const result = await Promise.race([
+      supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id }),
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+    ]);
+    return { ...booking, contact: !result || result.error ? null : result.data as BookingContact | null };
+  }));
+}
+'''
+          if old not in s:
+              raise SystemExit('Target block not found; refusing to modify file')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add lib/dentalshift.ts
+          git commit -m "Use timeout sentinel for booking contact RPC"
+          git push
