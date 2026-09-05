@@ -565,7 +565,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
     setError("");
     setNotice("");
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") || "");
+    const email = String(form.get("email") || "").trim().toLowerCase();
     const password = String(form.get("password") || "");
 
     if (mode === "signin") {
@@ -574,7 +574,9 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
       if (signInError) {
         window.sessionStorage.removeItem("dentalshift_signin_role");
-        setError(signInError.message);
+        setError(signInError.message.toLowerCase().includes("invalid login credentials")
+          ? "Incorrect email or password. Use the same DentalShift password for either your Dental Office or Dental Professional workspace. Select Forgot password if you need to reset it."
+          : signInError.message);
       } else {
         close();
       }
@@ -607,8 +609,22 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
           emailRedirectTo: `${window.location.origin}/`,
         },
       });
-      if (signUpError) setError(signUpError.message);
-      else if (!data.session) {
+      if (signUpError) {
+        const message = signUpError.message.toLowerCase();
+        if (message.includes("already registered") || message.includes("already exists")) {
+          setMode("signin");
+          setSignInRoleChosen(true);
+          setEmailValue(email);
+          setError("This email already has a DentalShift login. Sign in with the existing password; the same login can access both Dental Office and Dental Professional workspaces.");
+        } else {
+          setError(signUpError.message);
+        }
+      } else if (!data.session && data.user?.identities?.length === 0) {
+        setMode("signin");
+        setSignInRoleChosen(true);
+        setEmailValue(email);
+        setError("This email already has a DentalShift login. Sign in with the existing password; the same login can access both Dental Office and Dental Professional workspaces.");
+      } else if (!data.session) {
         setCreatedEmail(email);
         setAccountCreated(true);
       } else close();
