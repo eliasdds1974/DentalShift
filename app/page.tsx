@@ -568,6 +568,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       return;
     }
     setBusy(true);
+    window.localStorage.setItem("dentalshift_password_recovery_role", role);
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailValue.trim(), {
       redirectTo: `${window.location.origin}/`,
     });
@@ -757,7 +758,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">{notice}</p>}
             {passwordChanged
-              ? <button type="button" onClick={() => { onPasswordRecoveryComplete?.(); close(); }} className="primary-btn justify-center">Continue to DentalShift</button>
+              ? <button type="button" onClick={() => { onPasswordRecoveryComplete?.(); close(); }} className="primary-btn justify-center">Continue to {activeRole === "professional" ? "Professional dashboard" : "Office dashboard"}</button>
               : <button type="submit" disabled={busy} className="primary-btn justify-center">{busy ? "Updating password…" : "Save new password"}</button>}
           </form>
         ) : resetEmailSent ? (
@@ -1175,6 +1176,15 @@ export default function Home() {
     router.push(portalRoutes[nextRole][nextView]);
   }, [router]);
 
+  const completePasswordRecovery = useCallback(() => {
+    const savedRecoveryRole = window.localStorage.getItem("dentalshift_password_recovery_role");
+    const nextRole = savedRecoveryRole === "professional" || savedRecoveryRole === "office" ? savedRecoveryRole : role;
+    window.localStorage.removeItem("dentalshift_password_recovery_role");
+    setPasswordRecovery(false);
+    setAccountOpen(false);
+    navigate(nextRole, "overview");
+  }, [navigate, role]);
+
   useEffect(() => {
     const next = portalState(pathname);
     if (!next) return;
@@ -1236,6 +1246,8 @@ export default function Home() {
     supabase.auth.getSession().then(({ data }) => syncAccount(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       if (event === "PASSWORD_RECOVERY") {
+        const savedRecoveryRole = window.localStorage.getItem("dentalshift_password_recovery_role");
+        if (savedRecoveryRole === "professional" || savedRecoveryRole === "office") setRole(savedRecoveryRole);
         setPasswordRecovery(true);
         setAccountOpen(true);
       }
@@ -1283,7 +1295,7 @@ export default function Home() {
         onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
         onWorkspace={() => navigate(role, "overview")}
       />
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={() => setPasswordRecovery(false)} onSaved={() => {
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
         setRefreshKey((key) => key + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
           setProfile(details.profile); setOfficeId(details.office?.id ?? null); setOffice(details.office);
@@ -1308,7 +1320,7 @@ export default function Home() {
       {post && <ShiftModal close={() => setPost(false)} officeId={officeId} onSaved={() => setRefreshKey((value) => value + 1)} />}
       {rebook && <RebookModal close={() => setRebook(false)} />}
       {messages && <MessageCenter role={role} close={() => setMessages(false)} />}
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} activeRole={role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={() => setPasswordRecovery(false)} onSaved={() => {
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} activeRole={role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
         setRefreshKey((value) => value + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
           setProfile(details.profile);
