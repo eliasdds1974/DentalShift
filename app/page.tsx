@@ -4,11 +4,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Session } from "@supabase/supabase-js";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
+import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, FileText, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadProfessionalWorkflow, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setFavouriteOffice, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type FavouriteOffice, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addGoogleFavouriteOffice, addVerificationInternalNote, applyForShift, cancelAdminShift, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadProfessionalWorkflow, loadVerificationCase, loadVerificationQueue, openProfessionalResume, removeFavouriteOffice, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, uploadProfessionalResume, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type FavouriteOffice, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
-import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
+import { GoogleAddressAutocomplete, GoogleOfficeFavouriteSearch, type GoogleOfficeSelection } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
 import type { OfficeDetails } from "@/lib/dentalshift";
 
@@ -41,6 +41,8 @@ const openShifts = [
   { id: 2, office: "Orchard Park Dental", date: "Mon, Sept 7", time: "9:00 AM–5:00 PM", role: "Registered Dental Hygienist", rate: 58, distance: "5.7 km", featured: false },
   { id: 3, office: "Mission Creek Dental", date: "Wed, Sept 9", time: "8:30 AM–4:30 PM", role: "Registered Dental Hygienist", rate: 55, distance: "11 km", featured: false },
 ];
+
+const dentalSoftwareOptions = ["Tracker", "ClearDent", "Dentrix", "Open Dental", "ABELDent", "Power Practice", "Curve Dental", "Maxident", "Gold Dental", "Progident", "RecallMax", "Carestream"];
 
 function Brand({ compact = false }: { compact?: boolean }) {
   if (compact) {
@@ -514,16 +516,47 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       .finally(() => setFavouritesLoading(false));
   }, [session, activeRole]);
 
-  const removeFavouriteOffice = async (officeId: string) => {
+  const removeSavedOffice = async (favouriteId: string) => {
     if (!session) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      await setFavouriteOffice(session.user.id, officeId, false);
-      setFavouriteOffices((current) => current.filter((favourite) => favourite.office_id !== officeId));
+      await removeFavouriteOffice(session.user.id, favouriteId);
+      setFavouriteOffices((current) => current.filter((favourite) => favourite.id !== favouriteId));
       setNotice("Favourite office removed.");
       onSaved();
     } catch (value) { setError(value instanceof Error ? value.message : "Could not remove this favourite office."); }
     finally { setBusy(false); }
+  };
+
+  const addFavouriteFromGoogle = async (office: GoogleOfficeSelection) => {
+    if (!session) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await addGoogleFavouriteOffice(session.user.id, office);
+      const workflow = await loadProfessionalWorkflow(session.user.id);
+      setFavouriteOffices(workflow.favourites);
+      setNotice(`${office.name} was added to your favourite offices.`);
+      onSaved();
+    } finally { setBusy(false); }
+  };
+
+  const uploadResume = async (file?: File) => {
+    if (!file || !session || !details?.professional) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      const resumePath = await uploadProfessionalResume(session.user.id, file);
+      setDetails({ ...details, professional: { ...details.professional, resume_path: resumePath } });
+      setNotice("Your résumé/CV was uploaded securely.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "Your résumé/CV could not be uploaded."); }
+    finally { setBusy(false); }
+  };
+
+  const viewResume = async () => {
+    if (!details?.professional?.resume_path) return;
+    setError("");
+    try { window.open(await openProfessionalResume(details.professional.resume_path), "_blank", "noopener,noreferrer"); }
+    catch (value) { setError(value instanceof Error ? value.message : "Your résumé/CV could not be opened."); }
   };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -660,40 +693,15 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
         hourly_rate: form.get("hourly_rate") ? Number(form.get("hourly_rate")) : null,
         travel_radius_km: Number(form.get("travel_radius_km") || 25),
         years_experience: form.get("years_experience") ? Number(form.get("years_experience")) : null,
-        bio: String(form.get("bio") || "") || null,
-        skills: String(form.get("skills") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        bio: details.professional.bio,
+        skills: form.getAll("software").map(String),
         available_for_work: form.get("available_for_work") === "on",
       } : null,
-      office: details.office ? {
-        ...details.office,
-        name: String(form.get("office_name") || ""),
-        address: String(form.get("address") || ""),
-        city: String(form.get("office_city") || ""),
-        province: String(form.get("office_province") || ""),
-        postal_code: String(form.get("office_postal_code") || ""),
-        phone: String(form.get("office_phone") || "") || null,
-        website: String(form.get("website") || "") || null,
-        software: String(form.get("software") || "").split(",").map((value) => value.trim()).filter(Boolean),
-        description: String(form.get("description") || "") || null,
-      } : null,
+      office: null,
       verificationRequest: details.verificationRequest,
     };
     try {
       await saveAccountDetails(next);
-      if (!details.office && String(form.get("new_office_name") || "").trim()) {
-        await createOfficeWorkspace({
-          owner_id: session!.user.id,
-          name: String(form.get("new_office_name") || "").trim(),
-          address: String(form.get("new_office_address") || "").trim(),
-          city: String(form.get("new_office_city") || "").trim(),
-          province: String(form.get("new_office_province") || "").trim(),
-          postal_code: String(form.get("new_office_postal_code") || "").trim(),
-          phone: String(form.get("new_office_phone") || "").trim() || null,
-          website: null,
-          software: [],
-          description: null,
-        });
-      }
       if (!details.professional && String(form.get("new_profession") || "").trim()) {
         await createProfessionalWorkspace({
           user_id: session!.user.id,
@@ -762,7 +770,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   return (
     <div className="fixed inset-0 z-[90] grid place-items-center bg-[#002757]/60 p-4">
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
-      <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
+      <section role="dialog" aria-modal="true" aria-labelledby="account-title" className={`relative z-10 max-h-[94vh] w-full overflow-auto rounded-3xl bg-white shadow-2xl ${session && activeRole === "professional" ? "max-w-3xl" : "max-w-xl"}`}>
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
           <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : resetEmailSent ? "Check your email" : session && activeRole === "office" ? "Dental office account" : session ? "Professional account" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
@@ -821,10 +829,11 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
           </form>
         ) : session ? (
-          <form onSubmit={saveProfile} className="grid gap-4 p-6 sm:grid-cols-2">
-            <div className="rounded-2xl bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex flex-wrap items-center justify-between gap-2"><StatusPill><Check size={13} /> Email confirmed</StatusPill>{details?.professional && <StatusPill tone={details.professional.licence_status === "verified" ? "green" : "amber"}>Licence: {details.professional.licence_status.replace("_", " ")}</StatusPill>}{details?.office && <StatusPill tone={details.office.verification_status === "verified" ? "green" : "amber"}>Office: {details.office.verification_status.replace("_", " ")}</StatusPill>}</div><p className="mt-3 text-lg font-extrabold text-slate-900">{profile?.first_name || session.user.email}</p><p className="mt-1 text-sm text-slate-600">{session.user.email}</p></div>
+          <form onSubmit={saveProfile} className="grid gap-4 bg-[#f8fafc] p-5 sm:grid-cols-2 sm:p-6">
+            <div className="rounded-2xl bg-gradient-to-br from-[#002757] to-[#0078FE] p-5 text-white shadow-sm sm:col-span-2"><div className="flex flex-wrap items-center justify-between gap-2"><StatusPill><Check size={13} /> Email confirmed</StatusPill>{details?.professional && <StatusPill tone={details.professional.licence_status === "verified" ? "green" : "amber"}>Licence: {details.professional.licence_status.replace("_", " ")}</StatusPill>}</div><p className="mt-4 text-xl font-black">{profile?.first_name || session.user.email}</p><p className="mt-1 text-sm text-white/75">{session.user.email}</p><p className="mt-3 text-xs font-bold text-white/70">Keep your information current so verified offices can confidently book you.</p></div>
             {!details ? <p className="py-8 text-center text-sm text-slate-500 sm:col-span-2">Loading your account details…</p> : <>
               {details.verificationRequest && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-amber-900"><FileCheck2 size={18} /> Action needed to verify your account</div><p className="mt-2 text-sm leading-6 text-amber-900">{details.verificationRequest.notes}</p><p className="mt-3 text-xs font-semibold text-amber-800">Update the relevant details below, then save your profile.</p></div>}
+              <div className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2"><h3 className="font-extrabold text-[#002757]">Contact information</h3><p className="mt-1 text-xs text-slate-500">Used for your DentalShift account and confirmed bookings.</p></div>
               <label className="field"><span>First name</span><input name="first_name" required defaultValue={details.profile.first_name ?? ""} /></label>
               <label className="field"><span>Last name</span><input name="last_name" required defaultValue={details.profile.last_name ?? ""} /></label>
               <label className="field"><span>Phone</span><input name="phone" type="tel" defaultValue={details.profile.phone ?? ""} /></label>
@@ -832,48 +841,24 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
               <label className="field"><span>Province</span><input name="province" required defaultValue={details.profile.province ?? ""} /></label>
               <label className="field"><span>Postal code</span><input name="postal_code" defaultValue={details.profile.postal_code ?? ""} /></label>
               {details.professional && <>
-                <div className="border-t border-slate-200 pt-5 sm:col-span-2"><h3 className="font-extrabold text-slate-900">Professional profile</h3><p className="mt-1 text-sm text-slate-500">Licence identity changes automatically trigger a fresh review.</p></div>
+                <div className="mt-2 rounded-2xl border border-[#0078FE]/15 bg-white p-4 sm:col-span-2"><h3 className="font-extrabold text-[#002757]">Professional qualifications</h3><p className="mt-1 text-xs text-slate-500">Licence identity changes automatically trigger a fresh review.</p></div>
                 <label className="field"><span>Profession</span><select name="profession" defaultValue={details.professional.profession}><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
                 <label className="field"><span>Licence number</span><input name="licence_number" required defaultValue={details.professional.licence_number} /></label>
                 <label className="field"><span>Licence province</span><input name="licence_province" required defaultValue={details.professional.licence_province} /></label>
-                <label className="field"><span>Preferred hourly rate</span><input name="hourly_rate" min="0" step="1" type="number" defaultValue={details.professional.hourly_rate ?? ""} /></label>
+                <label className="field"><span>Minimum hourly rate desired</span><input name="hourly_rate" min="0" step="1" type="number" defaultValue={details.professional.hourly_rate ?? ""} placeholder="e.g. 55" /></label>
                 <label className="field"><span>Travel radius (km)</span><input name="travel_radius_km" min="1" max="500" type="number" defaultValue={details.professional.travel_radius_km} /></label>
                 <label className="field"><span>Years of experience</span><input name="years_experience" min="0" type="number" defaultValue={details.professional.years_experience ?? ""} /></label>
-                <label className="field sm:col-span-2"><span>Skills (comma separated)</span><input name="skills" defaultValue={details.professional.skills?.join(", ") ?? ""} placeholder="Tracker, Cleardent, orthodontics" /></label>
-                <label className="field sm:col-span-2"><span>Professional bio</span><textarea name="bio" rows={3} defaultValue={details.professional.bio ?? ""} /></label>
+                <fieldset className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2"><legend className="px-1 text-sm font-extrabold text-[#002757]">Dental software experience</legend><p className="mb-3 text-xs text-slate-500">Select every system you are comfortable using.</p><div className="grid gap-2 sm:grid-cols-3">{dentalSoftwareOptions.map((software) => <label key={software} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700 hover:border-[#0078FE]/40 hover:bg-[#edf3fa]"><input name="software" type="checkbox" value={software} defaultChecked={details.professional?.skills?.includes(software)} className="h-4 w-4 accent-[#0078FE]" />{software}</label>)}</div></fieldset>
+                <div className="rounded-2xl border border-dashed border-[#0078FE]/40 bg-[#edf3fa] p-5 sm:col-span-2"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-[#0078FE] shadow-sm"><FileText size={23} /></span><div className="min-w-0 flex-1"><h3 className="font-extrabold text-[#002757]">Professional résumé/CV</h3><p className="mt-1 text-xs leading-5 text-slate-500">Upload a PDF, DOC or DOCX file. Maximum size 5 MB. Your document is stored privately.</p>{details.professional.resume_path && <p className="mt-2 text-xs font-extrabold text-[#017f27]"><Check size={14} className="mr-1 inline" />Résumé/CV on file</p>}</div><div className="flex flex-wrap gap-2"><label className="primary-btn cursor-pointer justify-center"><Upload size={16} />{busy ? "Please wait…" : details.professional.resume_path ? "Replace CV" : "Upload CV"}<input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={busy} onChange={(event) => void uploadResume(event.target.files?.[0])} /></label>{details.professional.resume_path && <button type="button" onClick={() => void viewResume()} className="secondary-btn">View CV</button>}</div></div></div>
                 <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2"><input name="available_for_work" type="checkbox" defaultChecked={details.professional.available_for_work} className="h-4 w-4 accent-[#01A32E]" /><span className="text-sm font-bold text-slate-700">Available for new shifts</span></label>
-                <div className="border-t border-slate-200 pt-5 sm:col-span-2"><div className="flex items-center gap-2"><Heart size={18} className="fill-[#01A32E] text-[#01A32E]" /><h3 className="font-extrabold text-slate-900">Favourite offices</h3></div><p className="mt-1 text-sm text-slate-500">Offices you saved while browsing available shifts.</p></div>
-                <div className="sm:col-span-2">{favouritesLoading ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Loading favourite offices…</p> : favouriteOffices.length === 0 ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">You have not saved any favourite offices yet.</p> : <div className="space-y-2">{favouriteOffices.map((favourite) => <div key={favourite.office_id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 p-4 sm:flex-row sm:items-center"><div><p className="font-extrabold text-[#002757]">{favourite.offices?.name || "Dental office"}</p><p className="mt-1 text-xs font-bold text-slate-500">{[favourite.offices?.city, favourite.offices?.province].filter(Boolean).join(", ") || "Location not listed"}</p>{favourite.offices?.website && <WebsiteLink website={favourite.offices.website} className="mt-2" />}</div><button type="button" disabled={busy} onClick={() => void removeFavouriteOffice(favourite.office_id)} className="secondary-btn justify-center">Remove</button></div>)}</div>}</div>
+                <div className="mt-2 rounded-2xl border border-[#01A32E]/20 bg-white p-4 sm:col-span-2"><div className="flex items-center gap-2"><Heart size={18} className="fill-[#01A32E] text-[#01A32E]" /><h3 className="font-extrabold text-[#002757]">Favourite offices</h3></div><p className="mt-1 text-xs text-slate-500">Search Google by office name, then select an office to add it.</p><div className="mt-4"><GoogleOfficeFavouriteSearch onAdd={addFavouriteFromGoogle} disabled={busy} /></div></div>
+                <div className="sm:col-span-2">{favouritesLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading favourite offices…</p> : favouriteOffices.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">You have not saved any favourite offices yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{favouriteOffices.map((favourite) => { const office = favourite.offices; const name = office?.name || favourite.name || "Dental office"; const city = office?.city || favourite.city; const province = office?.province || favourite.province; const website = office?.website || favourite.website; return <div key={favourite.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="font-extrabold text-[#002757]">{name}</p><p className="mt-1 text-xs font-bold text-slate-500">{[city, province].filter(Boolean).join(", ") || favourite.formatted_address || "Location not listed"}</p>{website && <WebsiteLink website={website} className="mt-2" />}</div><button type="button" disabled={busy} onClick={() => void removeSavedOffice(favourite.id)} className="secondary-btn w-fit justify-center">Remove</button></div>; })}</div>}</div>
               </>}
               {!details.professional && details.office && <>
                 <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Keep this email and password, then complete a separate professional verification profile.</p></div>
                 <label className="field sm:col-span-2"><span>Profession</span><select name="new_profession" required defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
                 <label className="field"><span>Licence or registration number</span><input name="new_licence_number" required /></label>
                 <label className="field"><span>Licence province</span><select name="new_licence_province" required defaultValue={details.profile.province || details.office.province || "AB"}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
-              </>}
-              {!details.office && details.professional && <>
-                <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2">
-                  <div className="flex items-center gap-2 font-extrabold text-[#002757]"><Building2 size={19} /> Add a Dental Office workspace</div>
-                  <p className="mt-2 text-sm leading-6 text-slate-600">Use this same email and password for both sides of DentalShift. Enter the office details below and save your profile.</p>
-                </div>
-                <label className="field sm:col-span-2"><span>Dental office name</span><input name="new_office_name" required /></label>
-                <label className="field sm:col-span-2"><span>Street address</span><input name="new_office_address" required /></label>
-                <label className="field"><span>City</span><input name="new_office_city" required /></label>
-                <label className="field"><span>Province</span><select name="new_office_province" required defaultValue="AB"><option>AB</option><option>BC</option><option>SK</option><option>MB</option><option>ON</option><option>QC</option><option>NB</option><option>NS</option><option>PE</option><option>NL</option><option>NT</option><option>NU</option><option>YT</option></select></label>
-                <label className="field"><span>Postal code</span><input name="new_office_postal_code" required /></label>
-                <label className="field"><span>Office phone</span><input name="new_office_phone" type="tel" /></label>
-              </>}
-              {details.office && <>
-                <div className="border-t border-slate-200 pt-5 sm:col-span-2"><h3 className="font-extrabold text-slate-900">Office profile</h3><p className="mt-1 text-sm text-slate-500">Keep the public practice information current for professionals.</p></div>
-                <label className="field sm:col-span-2"><span>Office name</span><input name="office_name" required defaultValue={details.office.name} /></label>
-                <label className="field sm:col-span-2"><span>Street address</span><input name="address" required defaultValue={details.office.address} /></label>
-                <label className="field"><span>Office city</span><input name="office_city" required defaultValue={details.office.city} /></label>
-                <label className="field"><span>Office province</span><input name="office_province" required defaultValue={details.office.province} /></label>
-                <label className="field"><span>Office postal code</span><input name="office_postal_code" required defaultValue={details.office.postal_code} /></label>
-                <label className="field"><span>Office phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone ?? ""} /></label>
-                <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={details.office.website ?? ""} /></label>
-                <label className="field sm:col-span-2"><span>Practice software (comma separated)</span><input name="software" defaultValue={details.office.software?.join(", ") ?? ""} /></label>
-                <label className="field sm:col-span-2"><span>About the office</span><textarea name="description" rows={3} defaultValue={details.office.description ?? ""} /></label>
               </>}
             </>}
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
