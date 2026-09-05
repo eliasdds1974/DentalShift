@@ -1,0 +1,27 @@
+name: Apply availability UX source patch
+
+on:
+  push:
+    paths:
+      - .github/workflows/availability-v2-apply-direct.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch V2 availability card
+        run: |
+          echo 'ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCgpwYXRoID0gUGF0aCgiY29tcG9uZW50cy9Xb3JrZmxvd1dvcmtzcGFjZVYyLnRzeCIpCnRleHQgPSBwYXRoLnJlYWRfdGV4dCgpCgpyZXBsYWNlbWVudHMgPSB7CiAgICAnY2xhc3NOYW1lPSJtdC0zIHJvdW5kZWQtMnhsIGJvcmRlciBib3JkZXItc2xhdGUtMjAwIGJnLXNsYXRlLTUwIHAtMyInOgogICAgJ2NsYXNzTmFtZT0ibXQtMyByb3VuZGVkLTJ4bCBib3JkZXItMiBib3JkZXItWyMwMDc4RkVdIGJnLWJsdWUtNTAgcC00IHNoYWRvdy1tZCByaW5nLTQgcmluZy1bIzAwNzhGRV0vMTAiJywKICAgICc8cCBjbGFzc05hbWU9InRleHQteHMgZm9udC1ib2xkIHRleHQtc2xhdGUtNTAwIj5Qb3N0IGF2YWlsYWJpbGl0eSBmb3IgdGhpcyBkYXRlPC9wPic6CiAgICAnPGRpdiBjbGFzc05hbWU9ImZsZXggaXRlbXMtc3RhcnQganVzdGlmeS1iZXR3ZWVuIGdhcC0zIj48ZGl2PjxwIGNsYXNzTmFtZT0idGV4dC14cyBmb250LWJsYWNrIHVwcGVyY2FzZSB0cmFja2luZy1bLjFlbV0gdGV4dC1bIzAwNjRkOF0iPkF2YWlsYWJpbGl0eSBuZWVkZWQ8L3A+PHAgY2xhc3NOYW1lPSJtdC0xIHRleHQtc20gZm9udC1leHRyYWJvbGQgdGV4dC1bIzAwMjc1N10iPlNldCB5b3VyIGhvdXJzIGZvciB0aGlzIGRhdGU8L3A+PHAgY2xhc3NOYW1lPSJtdC0xIHRleHQteHMgbGVhZGluZy01IHRleHQtc2xhdGUtNjAwIj5DaG9vc2UgYSBzdGFydCBhbmQgZW5kIHRpbWUgc28gbmVhcmJ5IG9mZmljZXMgY2FuIG1hdGNoIHlvdSB3aXRoIHNoaWZ0cy48L3A+PC9kaXY+PHNwYW4gY2xhc3NOYW1lPSJtdC0wLjUgaC0zIHctMyBzaHJpbmstMCByb3VuZGVkLWZ1bGwgYmctWyMwMDc4RkVdIHJpbmctNCByaW5nLVsjMDA3OEZFXS8xNSIgLz48L2Rpdj4nLAogICAgJ25hbWU9InN0YXJ0IiB0eXBlPSJ0aW1lIiBkZWZhdWx0VmFsdWU9IjA4OjAwIic6CiAgICAnbmFtZT0ic3RhcnQiIHR5cGU9InRpbWUiIHN0ZXA9ezkwMH0gZGVmYXVsdFZhbHVlPSIwODowMCInLAogICAgJ25hbWU9ImVuZCIgdHlwZT0idGltZSIgZGVmYXVsdFZhbHVlPSIxNjozMCInOgogICAnbmFtZT0iZW5kIiB0eXBlPSJ0aW1lIiBzdGVwPXs5MDB9IGRlZmF1bHRWYWx1ZT0iMTY6MzAiJywKfQpmb3Igb2xkLCBuZXcgaW4gcmVwbGFjZW1lbnRzLml0ZW1zKCk6CiAgICBpZiBvbGQgbm90IGluIHRleHQ6CiAgICAgICAgcmFpc2UgU3lzdGVtRXhpdChmIkNvdWxkIG5vdCBmaW5kIGV4cGVjdGVkIFYyIHBhdHRlcm46IHtvbGR9IikKICAgIHRleHQgPSB0ZXh0LnJlcGxhY2Uob2xkLCBuZXcpCgpwYXRoLndyaXRlX3RleHQodGV4dCkK' | base64 --decode > /tmp/patch-v2.py
+          python /tmp/patch-v2.py
+      - name: Commit source change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Highlight availability entry on selected date"
+          git push
