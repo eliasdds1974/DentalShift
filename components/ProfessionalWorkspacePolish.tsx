@@ -21,31 +21,6 @@ export function ProfessionalWorkspacePolish() {
       const calendar = document.getElementById("available-shifts-calendar");
       if (!calendar) return;
 
-      // Clicking a calendar day opens Availability. Direct clicks on an
-      // invitation marker (or any explicit office/shift control) keep their
-      // own action instead.
-      const dateGrid = Array.from(calendar.querySelectorAll<HTMLElement>("div")).find((div) => {
-        const directButtons = Array.from(div.children).filter((child) => child instanceof HTMLButtonElement);
-        return directButtons.length === 7 || directButtons.length === 35 || directButtons.length === 42;
-      });
-      if (dateGrid) {
-        const dayButtons = Array.from(dateGrid.children).filter((child): child is HTMLButtonElement => child instanceof HTMLButtonElement);
-        dayButtons.forEach((button) => {
-          if (button.dataset.openAvailabilityBound) return;
-          button.dataset.openAvailabilityBound = "true";
-          button.addEventListener("click", (event) => {
-            const target = event.target as Element | null;
-            if (target?.closest('[data-invited-marker], a, [data-office-shift], [data-shift-card]')) return;
-            if (button.dataset.availableDate) return;
-            window.setTimeout(() => {
-              const action = calendar.querySelector<HTMLButtonElement>("[data-selected-date-availability]");
-              action?.click();
-            }, 0);
-          });
-        });
-      }
-
-      // Make the professional header logo a little larger and easier to read.
       const logo = document.querySelector<HTMLImageElement>('header img[alt="DentalShift"]');
       if (logo) {
         logo.style.height = "58px";
@@ -54,7 +29,6 @@ export function ProfessionalWorkspacePolish() {
         if (wrapper) wrapper.style.width = "190px";
       }
 
-      // Keep only Confirmed bookings in the upper-right status area.
       const metricStrip = calendar.querySelector<HTMLElement>("[data-calendar-metric-strip]");
       if (metricStrip) {
         const buttons = Array.from(metricStrip.querySelectorAll<HTMLButtonElement>(":scope > button"));
@@ -65,7 +39,6 @@ export function ProfessionalWorkspacePolish() {
         metricStrip.className = "grid w-full grid-cols-1 gap-2 xl:w-auto xl:min-w-[210px]";
       }
 
-      // In the selected-date card, show only the profession registered to this account.
       if (code && profession) {
         const aside = calendar.querySelector<HTMLElement>("aside");
         if (aside) {
@@ -89,6 +62,24 @@ export function ProfessionalWorkspacePolish() {
                 }
               }
             });
+          }
+        }
+      }
+
+      // One availability window per day. Once availability exists, remove the
+      // duplicate-time form and leave only the current hours plus Remove/Close.
+      const availabilityDialog = document.querySelector<HTMLElement>('[role="dialog"][aria-label="Availability"]');
+      if (availabilityDialog) {
+        const currentlyAvailable = Array.from(availabilityDialog.querySelectorAll<HTMLElement>("p")).find((node) => node.textContent?.trim() === "Currently available");
+        if (currentlyAvailable) {
+          const form = availabilityDialog.querySelector<HTMLFormElement>("form");
+          if (form) {
+            const fieldGrid = form.firstElementChild as HTMLElement | null;
+            if (fieldGrid) fieldGrid.style.display = "none";
+            const helper = Array.from(form.querySelectorAll<HTMLElement>("p")).find((node) => node.textContent?.includes("Your availability helps DentalShift"));
+            if (helper) helper.style.display = "none";
+            const submit = Array.from(form.querySelectorAll<HTMLButtonElement>('button[type="submit"]'))[0];
+            if (submit) submit.style.display = "none";
           }
         }
       }
