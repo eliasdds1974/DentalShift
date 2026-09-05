@@ -21,6 +21,30 @@ export function ProfessionalWorkspacePolish() {
       const calendar = document.getElementById("available-shifts-calendar");
       if (!calendar) return;
 
+      // Clicking a calendar day opens Availability. Direct clicks on an
+      // invitation marker (or any explicit office/shift control) keep their
+      // own action instead.
+      const dateGrid = Array.from(calendar.querySelectorAll<HTMLElement>("div")).find((div) => {
+        const directButtons = Array.from(div.children).filter((child) => child instanceof HTMLButtonElement);
+        return directButtons.length === 7 || directButtons.length === 35 || directButtons.length === 42;
+      });
+      if (dateGrid) {
+        const dayButtons = Array.from(dateGrid.children).filter((child): child is HTMLButtonElement => child instanceof HTMLButtonElement);
+        dayButtons.forEach((button) => {
+          if (button.dataset.openAvailabilityBound) return;
+          button.dataset.openAvailabilityBound = "true";
+          button.addEventListener("click", (event) => {
+            const target = event.target as Element | null;
+            if (target?.closest('[data-invited-marker], a, [data-office-shift], [data-shift-card]')) return;
+            if (button.dataset.availableDate) return;
+            window.setTimeout(() => {
+              const action = calendar.querySelector<HTMLButtonElement>("[data-selected-date-availability]");
+              action?.click();
+            }, 0);
+          });
+        });
+      }
+
       // Make the professional header logo a little larger and easier to read.
       const logo = document.querySelector<HTMLImageElement>('header img[alt="DentalShift"]');
       if (logo) {
