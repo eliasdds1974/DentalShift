@@ -489,6 +489,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   const [accountCreated, setAccountCreated] = useState(false);
   const [createdEmail, setCreatedEmail] = useState("");
   const [emailValue, setEmailValue] = useState("");
+  const [resetEmailSent, setResetEmailSent] = useState(false);
+  const [resetEmailAddress, setResetEmailAddress] = useState("");
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [signInRoleChosen, setSignInRoleChosen] = useState(initialMode !== "signin");
 
@@ -570,7 +572,10 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       redirectTo: `${window.location.origin}/`,
     });
     if (resetError) setError(resetError.message);
-    else setNotice("Password-reset email sent. Check your inbox and junk folder, then open the secure link.");
+    else {
+      setResetEmailAddress(emailValue.trim());
+      setResetEmailSent(true);
+    }
     setBusy(false);
   };
 
@@ -735,7 +740,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
       <section role="dialog" aria-modal="true" aria-labelledby="account-title" className="relative z-10 max-h-[94vh] w-full max-w-xl overflow-auto rounded-3xl bg-white shadow-2xl">
         <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
-          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : session && activeRole === "office" ? "Dental office account" : session ? "Professional account" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
+          <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : resetEmailSent ? "Check your email" : session && activeRole === "office" ? "Dental office account" : session ? "Professional account" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}` : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
         </div>
 
@@ -755,6 +760,15 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
               ? <button type="button" onClick={() => { onPasswordRecoveryComplete?.(); close(); }} className="primary-btn justify-center">Continue to DentalShift</button>
               : <button type="submit" disabled={busy} className="primary-btn justify-center">{busy ? "Updating password…" : "Save new password"}</button>}
           </form>
+        ) : resetEmailSent ? (
+          <div className="p-8 text-center sm:p-10">
+            <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E] ring-8 ring-[#eaf8ee]/60"><Check size={34} strokeWidth={3} /></div>
+            <h3 className="mt-6 text-2xl font-extrabold tracking-tight text-[#002757]">Password-reset email sent</h3>
+            <p className="mx-auto mt-3 max-w-md text-base leading-7 text-slate-600">We sent a secure password-reset link to <strong className="font-extrabold text-slate-900">{resetEmailAddress}</strong>.</p>
+            <div className="mx-auto mt-6 max-w-md rounded-2xl border border-[#002757]/10 bg-[#f5f8fb] p-5 text-left"><p className="font-extrabold text-[#002757]">What to do next</p><ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600"><li><strong className="text-[#002757]">1.</strong> Check your inbox and junk folder.</li><li><strong className="text-[#002757]">2.</strong> Open the email from DentalShift.</li><li><strong className="text-[#002757]">3.</strong> Select the secure link and create a new password.</li></ol></div>
+            <div className="mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row sm:justify-center"><button type="button" onClick={() => { setResetEmailSent(false); setError(""); setNotice(""); }} className="primary-btn justify-center">Back to sign in</button><button type="button" onClick={close} className="secondary-btn justify-center">Close</button></div>
+            <p className="mt-5 text-xs leading-5 text-slate-500">For security, the message is the same whether or not the address is registered.</p>
+          </div>
         ) : session && activeRole === "office" && details?.office ? (
           <form onSubmit={saveOfficeAccount} className="grid gap-4 p-6 sm:grid-cols-2">
             <div className="flex flex-col gap-4 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2 sm:flex-row sm:items-center">
