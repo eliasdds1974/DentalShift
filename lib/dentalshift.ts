@@ -159,7 +159,7 @@ export async function loadAccount(userId: string) {
   return { profile: profile as AccountProfile, officeId };
 }
 
-export async function loadAccountDetails(userId: string): Promise<AccountDetails> {
+async function loadAccountDetailsOnce(userId: string): Promise<AccountDetails> {
   const { profile } = await loadAccount(userId);
   let professional: ProfessionalDetails | null = null;
   let office: OfficeDetails | null = null;
@@ -200,6 +200,24 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
   }
 
   return { profile, professional, office, verificationRequest };
+}
+
+export async function loadAccountDetails(userId: string): Promise<AccountDetails> {
+  let lastError: unknown;
+  const delays = [0, 250, 500, 1000];
+
+  for (const delay of delays) {
+    if (delay) await new Promise<void>((resolve) => setTimeout(resolve, delay));
+    try {
+      return await loadAccountDetailsOnce(userId);
+    } catch (error) {
+      lastError = error;
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("DentalShift could not load your account after several attempts.");
 }
 
 export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id" | "name" | "address" | "city" | "province" | "postal_code" | "phone" | "website" | "software" | "description">) {
