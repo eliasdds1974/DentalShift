@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
@@ -665,6 +665,14 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
           description: null,
         });
       }
+      if (!details.professional && String(form.get("new_profession") || "").trim()) {
+        await createProfessionalWorkspace({
+          user_id: session!.user.id,
+          profession: String(form.get("new_profession") || "").trim(),
+          licence_number: String(form.get("new_licence_number") || "").trim(),
+          licence_province: String(form.get("new_licence_province") || "").trim(),
+        });
+      }
       const refreshed = await loadAccountDetails(session!.user.id);
       setDetails(refreshed);
       setNotice("Profile saved. Identity changes may return verification to review.");
@@ -694,8 +702,17 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
     setBusy(true); setError(""); setNotice("");
     try {
       const saved = await updateOfficeProfile(nextOffice);
-      setDetails({ ...details, office: saved });
-      setNotice("Office account information saved.");
+      if (!details.professional && String(form.get("new_profession") || "").trim()) {
+        await createProfessionalWorkspace({
+          user_id: session!.user.id,
+          profession: String(form.get("new_profession") || "").trim(),
+          licence_number: String(form.get("new_licence_number") || "").trim(),
+          licence_province: String(form.get("new_licence_province") || "").trim(),
+        });
+      }
+      const refreshed = await loadAccountDetails(session!.user.id);
+      setDetails({ ...refreshed, office: saved });
+      setNotice(details.professional ? "Office account information saved." : "Office account saved. Your Dental Professional workspace is now available with the same email and password.");
       onSaved();
     } catch (value) { setError(value instanceof Error ? value.message : "The office account could not be saved."); }
     finally { setBusy(false); }
@@ -755,6 +772,12 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
             <label className="field sm:col-span-2"><span>Primary contact direct phone</span><input name="contact_phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="e.g. 780-555-0123" defaultValue={details.office.contact_phone || ""} /></label>
+            {!details.professional && <>
+              <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Use this same email and password for both sides of DentalShift. Professional verification will be handled separately.</p></div>
+              <label className="field sm:col-span-2"><span>Profession</span><select name="new_profession" required defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
+              <label className="field"><span>Licence or registration number</span><input name="new_licence_number" required /></label>
+              <label className="field"><span>Licence province</span><select name="new_licence_province" required defaultValue={details.office.province || "AB"}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
+            </>}
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
             <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
@@ -781,6 +804,12 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
                 <label className="field sm:col-span-2"><span>Skills (comma separated)</span><input name="skills" defaultValue={details.professional.skills?.join(", ") ?? ""} placeholder="Tracker, Cleardent, orthodontics" /></label>
                 <label className="field sm:col-span-2"><span>Professional bio</span><textarea name="bio" rows={3} defaultValue={details.professional.bio ?? ""} /></label>
                 <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2"><input name="available_for_work" type="checkbox" defaultChecked={details.professional.available_for_work} className="h-4 w-4 accent-[#01A32E]" /><span className="text-sm font-bold text-slate-700">Available for new shifts</span></label>
+              </>}
+              {!details.professional && details.office && <>
+                <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Keep this email and password, then complete a separate professional verification profile.</p></div>
+                <label className="field sm:col-span-2"><span>Profession</span><select name="new_profession" required defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
+                <label className="field"><span>Licence or registration number</span><input name="new_licence_number" required /></label>
+                <label className="field"><span>Licence province</span><select name="new_licence_province" required defaultValue={details.profile.province || details.office.province || "AB"}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
               </>}
               {!details.office && details.professional && <>
                 <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2">
@@ -1169,6 +1198,12 @@ export default function Home() {
           (candidate === "professional" && Boolean(details.professional)) ||
           (candidate === "admin" && account.profile.role === "admin");
 
+        if ((requestedRole === "office" || requestedRole === "professional") && !canUseRole(requestedRole)) {
+          setRole(requestedRole);
+          setAccountOpen(true);
+          return;
+        }
+
         const nextRole = [requestedRole, routeRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;
         setRole(nextRole);
         window.localStorage.setItem("dentalshift_portal_role", nextRole);
@@ -1234,7 +1269,14 @@ export default function Home() {
         onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
         onWorkspace={() => navigate(role, "overview")}
       />
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} initialMode={accountIntent.mode} initialRole={accountIntent.role} onSaved={() => setRefreshKey((key) => key + 1)} />}
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} onSaved={() => {
+        setRefreshKey((key) => key + 1);
+        if (session) void loadAccountDetails(session.user.id).then((details) => {
+          setProfile(details.profile); setOfficeId(details.office?.id ?? null); setOffice(details.office);
+          const workspaceReady = (role === "office" && Boolean(details.office)) || (role === "professional" && Boolean(details.professional));
+          if (workspaceReady) { setAccountOpen(false); navigate(role, "overview"); }
+        });
+      }} />}
     </main>;
   }
 
