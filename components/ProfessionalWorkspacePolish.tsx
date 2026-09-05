@@ -66,6 +66,39 @@ export function ProfessionalWorkspacePolish() {
         }
       }
 
+      // Keep availability confined to the bottom half of each day cell so the
+      // upper half stays open for office shifts, invitations, and other messages.
+      const availabilityMarkers = Array.from(calendar.querySelectorAll<HTMLElement>("[data-available-marker]"));
+      availabilityMarkers.forEach((marker) => {
+        const dayButton = marker.closest("button") as HTMLButtonElement | null;
+        if (!dayButton) return;
+
+        dayButton.style.position = "relative";
+        dayButton.style.paddingBottom = "6px";
+
+        // Availability should not tint the whole day square. Other higher-priority
+        // states such as invitations/bookings may still style the cell itself.
+        if (!dayButton.dataset.invitedDate && !dayButton.dataset.bookedDate) {
+          dayButton.style.backgroundColor = "";
+          dayButton.style.boxShadow = "";
+        }
+
+        marker.style.position = "absolute";
+        marker.style.left = "6px";
+        marker.style.right = "6px";
+        marker.style.bottom = "6px";
+        marker.style.width = "auto";
+        marker.style.height = "calc(50% - 9px)";
+        marker.style.maxHeight = "calc(50% - 9px)";
+        marker.style.marginTop = "0";
+        marker.style.display = "flex";
+        marker.style.alignItems = "center";
+        marker.style.justifyContent = "flex-start";
+        marker.style.padding = "5px 6px";
+        marker.style.overflow = "hidden";
+        marker.style.boxSizing = "border-box";
+      });
+
       // One availability window per day. Once availability exists, remove the
       // duplicate-time form and leave only the current hours plus Remove/Close.
       const availabilityDialog = document.querySelector<HTMLElement>('[role="dialog"][aria-label="Availability"]');
