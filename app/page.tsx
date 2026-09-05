@@ -1172,8 +1172,9 @@ export default function Home() {
         const nextRole = [requestedRole, routeRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;
         setRole(nextRole);
         window.localStorage.setItem("dentalshift_portal_role", nextRole);
-
-
+        if (requestedRole && canUseRole(requestedRole) && window.location.pathname === "/") {
+          router.replace(portalRoutes[nextRole].overview);
+        }
       } catch {
         if (active) {
           setProfile(null);
