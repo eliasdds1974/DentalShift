@@ -34,7 +34,7 @@ export function MarketingHome({ onSignIn, onGetStarted, onAdmin = onSignIn, onWo
         </nav>
         <div className="hidden items-center gap-3 sm:flex">
           <button onClick={onAdmin} className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs font-extrabold text-amber-800 hover:bg-amber-100">Temporary admin</button>
-          <button onClick={signedIn ? onWorkspace : onSignIn} className="rounded-xl px-4 py-2.5 text-sm font-extrabold text-[#002757] hover:bg-[#edf3fa]">{signedIn ? "Open workspace" : "Sign in"}</button>
+          <button onClick={onSignIn} className="rounded-xl px-4 py-2.5 text-sm font-extrabold text-[#002757] hover:bg-[#edf3fa]">Sign in</button>
           <button onClick={() => start("office")} className="inline-flex items-center gap-2 rounded-xl bg-[#002757] px-5 py-3 text-sm font-extrabold text-white shadow-sm transition hover:bg-[#003d80]">Get started <ArrowRight size={16} /></button>
         </div>
         <button onClick={() => setMenuOpen(!menuOpen)} aria-label="Open navigation" className="rounded-xl border border-slate-200 p-2.5 text-[#002757] sm:hidden">{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
@@ -44,7 +44,7 @@ export function MarketingHome({ onSignIn, onGetStarted, onAdmin = onSignIn, onWo
           <a onClick={() => setMenuOpen(false)} href="#how-it-works" className="rounded-xl px-3 py-3 font-bold text-slate-700">How it works</a>
           <a onClick={() => setMenuOpen(false)} href="#why-dentalshift" className="rounded-xl px-3 py-3 font-bold text-slate-700">Why DentalShift</a>
           <button onClick={onAdmin} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-left font-extrabold text-amber-800">Temporary admin</button>
-          <button onClick={signedIn ? onWorkspace : onSignIn} className="rounded-xl border border-[#002757]/15 px-4 py-3 text-left font-extrabold text-[#002757]">{signedIn ? "Open workspace" : "Sign in"}</button>
+          <button onClick={onSignIn} className="rounded-xl border border-[#002757]/15 px-4 py-3 text-left font-extrabold text-[#002757]">Sign in</button>
           <button onClick={() => start("office")} className="rounded-xl bg-[#002757] px-4 py-3 font-extrabold text-white">Get started</button>
         </div>
       </div>}

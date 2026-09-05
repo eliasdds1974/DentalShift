@@ -1222,7 +1222,15 @@ export default function Home() {
     return <main className="min-h-screen bg-white">
       <MarketingHome
         signedIn={Boolean(session)}
-        onSignIn={() => { setAccountIntent({ mode: "signin", role: "office" }); setAccountOpen(true); }}
+        onSignIn={() => { void (async () => {
+          if (session) {
+            const { error: signOutError } = await supabase.auth.signOut();
+            if (signOutError) { window.alert(signOutError.message); return; }
+            setSession(null); setProfile(null); setOfficeId(null); setOffice(null); setRole("office");
+          }
+          setAccountIntent({ mode: "signin", role: "office" });
+          setAccountOpen(true);
+        })(); }}
         onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
         onWorkspace={() => navigate(role, "overview")}
       />
