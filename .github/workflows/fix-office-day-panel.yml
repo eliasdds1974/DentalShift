@@ -1,0 +1,42 @@
+name: Fix office calendar day panel
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-office-day-panel.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix day panel and remove duplicate post button
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('components/OfficeWorkspaceV2.tsx')
+          s = p.read_text()
+          old = '''      </div>\n      <button onClick={onPost} className="primary-btn"><Plus size={18} />Post a shift</button>\n    </div>'''
+          new = '''      </div>\n    </div>'''
+          if old not in s:
+              raise SystemExit('Page post button block not found')
+          s = s.replace(old, new, 1)
+          old = 'className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_340px]"'
+          new = 'className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_340px]"'
+          if old not in s:
+              raise SystemExit('Calendar/right-panel grid not found')
+          s = s.replace(old, new, 1)
+          old = 'className="border-t border-slate-200 bg-white p-4 xl:border-l xl:border-t-0 sm:p-5"'
+          new = 'className="border-t border-slate-200 bg-white p-4 lg:border-l lg:border-t-0 sm:p-5"'
+          if old not in s:
+              raise SystemExit('Right panel aside not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m 'Keep office shift form beside calendar and remove duplicate button'
+          git push
