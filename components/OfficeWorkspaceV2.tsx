@@ -167,7 +167,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   return <div className="page-wrap">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <h1 className="page-title">Office schedule</h1>
+        <h1 className="page-title">{office.name} schedule</h1>
         <p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>
       </div>
       <button onClick={onPost} className="primary-btn"><Plus size={18} />Post a shift</button>
