@@ -33,7 +33,7 @@ jobs:
           PY
       - name: Verify build
         run: |
-          npm ci
+          npm install
           npm run build
       - name: Commit source
         run: |
