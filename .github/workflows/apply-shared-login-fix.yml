@@ -1,0 +1,19 @@
+name: Apply shared login fix
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-shared-login-fix.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 scripts/fix_shared_login.py
+      - run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/page.tsx
+          git diff --cached --quiet || git commit -m 'Fix shared login behavior for multi-workspace accounts'
+          git push
