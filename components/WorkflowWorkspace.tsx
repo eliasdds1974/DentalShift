@@ -132,10 +132,27 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
   const [accountDetails, setAccountDetails] = useState<AccountDetails | null>(null);
   const [profileNotice, setProfileNotice] = useState("");
   const refresh = async () => {
-    setLoading(true); setError("");
-    try { setData(await loadProfessionalWorkflow(userId)); }
-    catch (value) { setError(value instanceof Error ? value.message : "Could not load your shifts."); }
-    finally { setLoading(false); }
+    setLoading(true);
+    setError("");
+    const watchdog = window.setTimeout(() => {
+      setLoading(false);
+      setError((current) => current || "Live shift data is taking longer than expected. You can keep using DentalShift while it reconnects.");
+    }, 8000);
+    try {
+      const nextData = await Promise.race([
+        loadProfessionalWorkflow(userId),
+        new Promise<never>((_, reject) => window.setTimeout(
+          () => reject(new Error("DentalShift could not finish loading your workflow. Please refresh and try again.")),
+          9000,
+        )),
+      ]);
+      setData(nextData);
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "Could not load your shifts.");
+    } finally {
+      window.clearTimeout(watchdog);
+      setLoading(false);
+    }
   };
   useEffect(() => { void refresh(); }, [userId, refreshKey]);
   useEffect(() => {
