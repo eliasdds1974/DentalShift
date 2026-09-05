@@ -35,6 +35,10 @@ function timeValue(date: string) {
   return new Date(date).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
+function calendarTime(date: string) {
+  return new Date(date).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
+}
+
 export function ProfessionalAvailabilityCalendar() {
   const [userId, setUserId] = useState("");
   const [availability, setAvailability] = useState<AvailabilityRow[]>([]);
@@ -171,8 +175,20 @@ export function ProfessionalAvailabilityCalendar() {
         day.setDate(gridStart!.getDate() + index);
         const key = localDateKey(day);
         const booked = bookedDates.has(key) || Boolean(button.dataset.bookedDate);
-        const available = availabilityDates.has(key);
+        const slots = availabilityDates.get(key) || [];
+        const available = slots.length > 0;
         const old = button.querySelector<HTMLElement>("[data-available-marker]");
+
+        // Keep the date number tucked into the upper-left so the rest of the
+        // day cell has more vertical space for availability, invitations, and shifts.
+        button.style.position = "relative";
+        button.style.alignItems = "flex-start";
+        button.style.justifyContent = "flex-start";
+        button.style.textAlign = "left";
+        button.style.paddingTop = "7px";
+        button.style.paddingLeft = "8px";
+        button.style.paddingRight = "7px";
+        button.style.gap = "2px";
 
         if (available && !booked) {
           button.dataset.availableDate = key;
@@ -190,12 +206,21 @@ export function ProfessionalAvailabilityCalendar() {
               openAvailability(availableKey);
             });
           }
+
+          const ranges = slots
+            .slice()
+            .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime())
+            .map((slot) => `${calendarTime(slot.starts_at)}–${calendarTime(slot.ends_at)}`);
+          const markerText = ranges.length > 1 ? `AVAILABLE · ${ranges[0]} +${ranges.length - 1}` : `AVAILABLE · ${ranges[0]}`;
+
           if (!old) {
             const marker = document.createElement("span");
             marker.dataset.availableMarker = "true";
-            marker.textContent = "AVAILABLE";
-            marker.style.cssText = "display:inline-flex;margin-top:6px;border-radius:9999px;background:#0078FE;color:white;padding:2px 6px;font-size:9px;font-weight:900;letter-spacing:.06em;line-height:1.4;";
+            marker.textContent = markerText;
+            marker.style.cssText = "display:block;width:100%;margin-top:4px;border-radius:8px;background:#0078FE;color:white;padding:3px 5px;font-size:9px;font-weight:900;letter-spacing:.02em;line-height:1.25;white-space:normal;overflow-wrap:anywhere;text-align:left;";
             button.appendChild(marker);
+          } else if (old.textContent !== markerText) {
+            old.textContent = markerText;
           }
         } else if (button.dataset.availableDate) {
           delete button.dataset.availableDate;
