@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, UsersRound } from "lucide-react";
 import {
   acceptApplication,
+  createShiftSeries,
   inviteProfessional,
   loadOfficeWorkflow,
   type AvailableProfessionalSlot,
@@ -122,6 +123,39 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     }
   };
 
+  const postSelectedShift = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    const profession = String(form.get("profession") || "Registered Dental Hygienist");
+    const startTime = String(form.get("start_time") || "08:00");
+    const endTime = String(form.get("end_time") || "17:00");
+    const hourlyRate = Number(form.get("hourly_rate") || 0);
+    const software = String(form.get("software") || "Any software");
+    const notes = String(form.get("notes") || "").trim();
+    const autoInvite = form.get("auto_invite") === "on";
+
+    if (!startTime || !endTime || endTime <= startTime) {
+      setError("Choose an end time after the start time.");
+      return;
+    }
+    if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) {
+      setError("Enter a valid hourly rate.");
+      return;
+    }
+
+    await act(`post-${selectedDate}`, () => createShiftSeries({
+      officeId: office.id,
+      profession,
+      dates: [selectedDate],
+      startTime,
+      endTime,
+      hourlyRate,
+      software,
+      notes,
+      autoInvite,
+    }));
+  };
+
   const moveCalendar = (direction: -1 | 1) => {
     const next = new Date(calendarCursor);
     if (calendarView === "month") next.setMonth(next.getMonth() + direction, 1);
@@ -191,7 +225,19 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
           <p className="text-xs font-black uppercase tracking-[.12em] text-[#0078FE]">Selected date</p>
           <h3 className="mt-1 text-xl font-black text-[#0f172a]">{longDate(selectedDate)}</h3>
           <div className="mt-4 space-y-4">
-            {selectedShifts.length === 0 && selectedBookings.length === 0 && <div className="rounded-2xl bg-slate-50 p-6 text-center"><CalendarDays size={24} className="mx-auto text-slate-400" /><p className="mt-3 text-sm font-extrabold text-[#032757]">No office activity</p><button onClick={onPost} className="primary-btn mt-4"><Plus size={16} />Post a shift</button></div>}
+            <form onSubmit={postSelectedShift} className="rounded-2xl border border-[#0078FE]/25 bg-blue-50/40 p-4">
+              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
+              <div className="mt-4 space-y-3">
+                <label className="block text-xs font-black text-slate-600">Professional needed<select name="profession" defaultValue="Registered Dental Hygienist" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Assistant</option><option>Sterilization Technician</option></select></label>
+                <div className="grid grid-cols-2 gap-2"><label className="text-xs font-black text-slate-600">Start<input name="start_time" type="time" defaultValue="08:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label><label className="text-xs font-black text-slate-600">End<input name="end_time" type="time" defaultValue="17:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label></div>
+                <label className="block text-xs font-black text-slate-600">Hourly rate<input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label>
+                <label className="block text-xs font-black text-slate-600">Software<select name="software" defaultValue="Any software" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
+                <label className="block text-xs font-black text-slate-600">Notes<textarea name="notes" rows={2} placeholder="Optional shift details" className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#0078FE]" /></label>
+                <label className="flex items-start gap-2 rounded-xl bg-white p-3 text-xs font-bold text-slate-600"><input name="auto_invite" type="checkbox" className="mt-0.5 h-4 w-4" /><span>Automatically invite matching available professionals.</span></label>
+                <button type="submit" disabled={busy === `post-${selectedDate}`} className="primary-btn w-full justify-center"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
+              </div>
+            </form>
+            {selectedShifts.length === 0 && selectedBookings.length === 0 && <p className="rounded-xl bg-slate-50 p-3 text-center text-xs font-bold text-slate-500">No other office activity on this date.</p>}
             {selectedShifts.map((shift) => {
               const role = roleStyles[roleCode(shift.profession)];
               const applicants = (shift.applications || []).filter((application) => application.status === "applied");
