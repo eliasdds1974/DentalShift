@@ -182,7 +182,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
   const monthStart = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth(), 1);
   const monthGridStart = weekStart(monthStart);
   const weekGridStart = weekStart(calendarCursor);
-  const calendarDays = Array.from({ length: calendarView === "week" ? 7 : 42 }, (_, index) => {
+  const calendarDays = Array.from({ length: calendarView === "week" ? 7 : 35 }, (_, index) => {
     const start = calendarView === "week" ? weekGridStart : monthGridStart;
     const date = new Date(start);
     date.setDate(start.getDate() + index);
