@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Clock3, MapPin, X } from "lucide-react";
+import { CalendarDays, CheckCircle2, Clock3, MapPin, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type Invitation = {
@@ -38,6 +38,7 @@ function dateTime(value: string) {
 export function ProfessionalInvitationCalendar() {
   const [invitations, setInvitations] = useState<Invitation[]>([]);
   const [selected, setSelected] = useState<Invitation | null>(null);
+  const [reviewed, setReviewed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -134,6 +135,7 @@ export function ProfessionalInvitationCalendar() {
               event.preventDefault();
               event.stopPropagation();
               setError("");
+              setReviewed(false);
               setSelected(dayInvites[0]);
             };
             marker.addEventListener("click", openOffer);
@@ -163,7 +165,7 @@ export function ProfessionalInvitationCalendar() {
   }, [byDate]);
 
   const respond = async (accept: boolean) => {
-    if (!selected) return;
+    if (!selected || !reviewed) return;
     setBusy(true);
     setError("");
     const { error: responseError } = await supabase.rpc("respond_to_invitation", {
@@ -178,6 +180,7 @@ export function ProfessionalInvitationCalendar() {
     }
 
     setSelected(null);
+    setReviewed(false);
     await load();
     window.location.reload();
   };
@@ -186,33 +189,48 @@ export function ProfessionalInvitationCalendar() {
   const shift = selected.shifts;
 
   return createPortal(
-    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-label="Shift invitation">
+    <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/50 p-4" role="dialog" aria-modal="true" aria-label="Review shift invitation">
       <div className="w-full max-w-xl rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
         <div className="flex items-start justify-between gap-4">
           <div>
             <span className="inline-flex rounded-full bg-red-50 px-3 py-1 text-xs font-black uppercase tracking-[.1em] text-[#d9160f]">You have been invited</span>
-            <h2 className="mt-3 text-2xl font-black text-[#002757]">{shift.offices?.name || "Dental office"}</h2>
-            <p className="mt-1 text-sm font-extrabold text-slate-700">{shift.profession}</p>
+            <h2 className="mt-3 text-2xl font-black text-[#002757]">Review this shift offer</h2>
+            <p className="mt-1 text-sm text-slate-500">Review all shift details before deciding whether to accept or decline.</p>
           </div>
-          <button type="button" onClick={() => setSelected(null)} className="secondary-btn px-3" aria-label="Close"><X size={18} /></button>
+          <button type="button" onClick={() => { setSelected(null); setReviewed(false); }} className="secondary-btn px-3" aria-label="Close"><X size={18} /></button>
         </div>
 
-        <div className="mt-5 grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-700 sm:grid-cols-2">
-          <p className="flex items-start gap-2"><CalendarDays size={17} className="mt-0.5 text-[#0078FE]" />{dateTime(shift.starts_at)}</p>
-          <p className="flex items-start gap-2"><Clock3 size={17} className="mt-0.5 text-[#0078FE]" />Until {new Date(shift.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</p>
-          <p className="flex items-start gap-2"><MapPin size={17} className="mt-0.5 text-[#0078FE]" />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</p>
-          <p className="text-[#002757]">${Number(selected.proposed_rate ?? shift.hourly_rate)}/hr</p>
-        </div>
+        <div className="mt-5 rounded-2xl border border-slate-200 p-4">
+          <h3 className="text-xl font-black text-[#002757]">{shift.offices?.name || "Dental office"}</h3>
+          <p className="mt-1 text-sm font-extrabold text-slate-700">{shift.profession}</p>
 
-        {shift.required_software && <div className="mt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-400">Practice software</p><p className="mt-1 text-sm font-extrabold text-[#002757]">{shift.required_software}</p></div>}
-        {shift.notes && <div className="mt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-400">Shift notes</p><p className="mt-1 text-sm leading-6 text-slate-600">{shift.notes}</p></div>}
+          <div className="mt-4 grid gap-3 rounded-2xl bg-slate-50 p-4 text-sm font-bold text-slate-700 sm:grid-cols-2">
+            <p className="flex items-start gap-2"><CalendarDays size={17} className="mt-0.5 text-[#0078FE]" />{dateTime(shift.starts_at)}</p>
+            <p className="flex items-start gap-2"><Clock3 size={17} className="mt-0.5 text-[#0078FE]" />Until {new Date(shift.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</p>
+            <p className="flex items-start gap-2"><MapPin size={17} className="mt-0.5 text-[#0078FE]" />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</p>
+            <p className="text-[#002757]">${Number(selected.proposed_rate ?? shift.hourly_rate)}/hr</p>
+          </div>
+
+          {shift.required_software && <div className="mt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-400">Practice software</p><p className="mt-1 text-sm font-extrabold text-[#002757]">{shift.required_software}</p></div>}
+          <div className="mt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-400">Shift notes</p><p className="mt-1 text-sm leading-6 text-slate-600">{shift.notes || "No additional notes provided."}</p></div>
+        </div>
 
         {error && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
 
-        <div className="mt-6 flex flex-wrap justify-end gap-2">
-          <button type="button" disabled={busy} onClick={() => void respond(false)} className="secondary-btn">Decline</button>
-          <button type="button" disabled={busy} onClick={() => void respond(true)} className="primary-btn">{busy ? "Booking…" : "Book this shift"}</button>
-        </div>
+        {!reviewed ? (
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-xs leading-5 text-slate-500">Nothing is booked yet. Your decision is only recorded after you continue and explicitly accept or decline.</p>
+            <button type="button" onClick={() => setReviewed(true)} className="primary-btn shrink-0">I’ve reviewed the offer</button>
+          </div>
+        ) : (
+          <div className="mt-6 rounded-2xl border border-[#0078FE]/20 bg-blue-50 p-4">
+            <div className="flex items-start gap-2 text-[#002757]"><CheckCircle2 size={18} className="mt-0.5 text-[#0078FE]" /><div><p className="font-extrabold">Ready for your decision</p><p className="mt-1 text-xs leading-5 text-slate-600">Accepting will book the shift and add it to your Confirmed Schedule. Declining will remove this invitation.</p></div></div>
+            <div className="mt-4 flex flex-wrap justify-end gap-2">
+              <button type="button" disabled={busy} onClick={() => void respond(false)} className="secondary-btn">Decline invitation</button>
+              <button type="button" disabled={busy} onClick={() => void respond(true)} className="primary-btn">{busy ? "Booking…" : "Accept & book shift"}</button>
+            </div>
+          </div>
+        )}
       </div>
     </div>,
     document.body,
