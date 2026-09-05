@@ -1,0 +1,41 @@
+name: Render professional dashboard immediately
+
+on:
+  push:
+    paths:
+      - '.github/workflows/render-professional-dashboard-immediately.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove blocking professional loading gate
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/WorkflowWorkspace.tsx')
+          s = p.read_text()
+          old_open = '{loading ? <p className="mt-8 text-sm text-slate-500">Loading your live workflow…</p> : <>'
+          new_open = '{loading && <p className="mt-4 text-xs font-bold text-slate-500">Updating live shift data…</p>}\n    <>'
+          old_close = '\n\n\n    </>}\n  </div>;\n}\n\ntype DirectoryPerson'
+          new_close = '\n\n\n    </>\n  </div>;\n}\n\ntype DirectoryPerson'
+          if old_open not in s:
+              raise SystemExit('Professional loading gate opening not found')
+          if old_close not in s:
+              raise SystemExit('Professional loading gate closing not found')
+          s = s.replace(old_open, new_open, 1)
+          s = s.replace(old_close, new_close, 1)
+          p.write_text(s)
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add components/WorkflowWorkspace.tsx
+          git commit -m "Render professional dashboard while live data loads"
+          git push
