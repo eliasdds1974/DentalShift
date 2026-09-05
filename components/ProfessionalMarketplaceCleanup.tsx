@@ -55,8 +55,7 @@ export function ProfessionalMarketplaceCleanup() {
       // Make the calendar title and the three cards share one aligned row.
       topRow.className = "flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between";
 
-      // Keep period navigation compact on its own row, then place the
-      // Month / Week / List switch directly underneath the role filters.
+      // Keep period navigation compact on its own row.
       const controlGroup = Array.from(topRow.children).find((child) => {
         if (!(child instanceof HTMLElement) || child === metricStrip) return false;
         return Boolean(child.querySelector('button[aria-label="Previous period"]'));
@@ -67,20 +66,26 @@ export function ProfessionalMarketplaceCleanup() {
         if (controlGroup.parentElement === topRow) header.insertBefore(controlGroup, rolesRow);
       }
 
+      // A professional account represents one role only. The database now
+      // returns shifts for that registered profession, so role selectors are
+      // unnecessary. Keep only the Month / Week / List view switch here.
       const modeSwitcher = Array.from(header.querySelectorAll<HTMLElement>("div")).find((div) => {
         const text = Array.from(div.querySelectorAll(":scope > button")).map((button) => button.textContent?.trim().toLowerCase());
         return text.includes("month") && text.includes("week") && text.includes("list");
       });
 
       if (modeSwitcher && modeSwitcher.parentElement !== rolesRow) {
-        modeSwitcher.className = "mt-3 grid w-fit grid-cols-3 rounded-xl bg-slate-100 p-1";
         rolesRow.appendChild(modeSwitcher);
       }
 
-      rolesRow.className = "mt-3 flex flex-wrap items-center gap-2";
+      Array.from(rolesRow.children).forEach((child) => {
+        if (child !== modeSwitcher && child instanceof HTMLElement) child.style.display = "none";
+      });
+
+      rolesRow.className = "mt-3 flex items-center";
       if (modeSwitcher) {
-        // Force the view switch onto its own line underneath All roles.
-        modeSwitcher.style.flexBasis = "100%";
+        modeSwitcher.className = "grid w-fit grid-cols-3 rounded-xl bg-slate-100 p-1";
+        modeSwitcher.style.flexBasis = "auto";
       }
 
       calendar.classList.remove("mt-7");
