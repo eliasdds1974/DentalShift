@@ -1,0 +1,36 @@
+name: Darken professional header actions
+on:
+  push:
+    paths:
+      - '.github/workflows/darken-header-actions.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply darker solid header buttons
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/page.tsx')
+          s=p.read_text()
+          old1='className="inline-flex items-center gap-2 rounded-xl border-2 border-[#0078FE]/30 bg-blue-50 px-3 py-2 text-sm font-extrabold text-[#002757] shadow-sm transition hover:-translate-y-0.5 hover:border-[#0078FE]/60 hover:bg-blue-100 hover:shadow-md"'
+          new1='className="inline-flex items-center gap-2 rounded-xl border border-[#002757] bg-[#002757] px-3 py-2 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#001b3d] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#002757]/30"'
+          old2='className="inline-flex items-center gap-2 rounded-xl border-2 border-[#01A32E]/25 bg-[#eaf8ee] px-3 py-2 text-sm font-extrabold text-[#017f27] shadow-sm transition hover:-translate-y-0.5 hover:border-[#01A32E]/55 hover:bg-[#def4e5] hover:shadow-md"'
+          new2='className="inline-flex items-center gap-2 rounded-xl border border-[#017f27] bg-[#017f27] px-3 py-2 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#00681f] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#017f27]/25"'
+          old3='className="inline-flex items-center gap-2 rounded-xl border-2 border-rose-200 bg-rose-50 px-3 py-2 text-sm font-extrabold text-rose-700 shadow-sm transition hover:-translate-y-0.5 hover:border-rose-300 hover:bg-rose-100 hover:shadow-md"'
+          new3='className="inline-flex items-center gap-2 rounded-xl border border-[#8f1d2c] bg-[#8f1d2c] px-3 py-2 text-sm font-extrabold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#741723] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#8f1d2c]/25"'
+          for old,new in [(old1,new1),(old2,new2),(old3,new3)]:
+              if old not in s: raise SystemExit('Expected header button class not found')
+              s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Commit change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/page.tsx
+          git commit -m 'Use darker solid header action buttons'
+          git push
