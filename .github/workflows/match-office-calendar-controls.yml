@@ -10,36 +10,26 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Align office calendar header with professional portal
+      - name: Add professional-style list selector to office calendar
         run: |
           python3 - <<'PY'
           from pathlib import Path
           p = Path('components/OfficeWorkspaceV2.tsx')
           s = p.read_text()
-          replacements = {
-            'sm:p-4 lg:grid-cols-[minmax(0,1fr)_170px]': 'sm:p-4 md:grid-cols-[minmax(0,1fr)_170px]',
-            'lg:col-start-1 lg:row-start-1': 'md:col-start-1 md:row-start-1',
-            'lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:shrink-0': 'md:col-start-2 md:row-span-2 md:row-start-1 md:shrink-0',
-            'lg:col-start-1 lg:row-start-2 lg:self-end': 'md:col-start-1 md:row-start-2 md:self-end',
-            'className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-[#032757] hover:bg-slate-50"><ChevronLeft size={17} />': 'className="secondary-btn px-3"><ChevronLeft size={19} />',
-            'className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-[#032757]">Today': 'className="secondary-btn">Today',
-            'className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-[#032757] hover:bg-slate-50"><ChevronRight size={17} />': 'className="secondary-btn px-3"><ChevronRight size={19} />',
-            '<div className="ml-1 flex rounded-xl bg-slate-100 p-1">': '<div className="ml-1 grid grid-cols-2 rounded-xl bg-slate-100 p-1">',
-            'className={`rounded-lg px-3 py-1.5 text-xs font-black capitalize ${calendarView === mode ? "bg-white text-[#032757] shadow-sm" : "text-slate-500"}`}': 'className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}',
-            'hover:border-[#0078FE]/70 hover:shadow-md"><CalendarDays': 'hover:border-[#0078FE]/70 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0078FE]/25"><CalendarDays',
-            'hover:border-amber-500 hover:shadow-md"><UsersRound': 'hover:border-amber-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300/30"><UsersRound',
-            'border-[#04A62F]/35': 'border-[#01A32E]/35',
-            'hover:border-[#04A62F]/70': 'hover:border-[#01A32E]/70',
-            '<Check size={15} className="text-[#04A62F]" />': '<Check size={15} className="text-[#017f27]" />',
-            'hover:shadow-md"><Check size={15}': 'hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#01A32E]/20"><Check size={15}',
-            'text-[#032757]">{openShifts.length}': 'text-[#002757]">{openShifts.length}',
-            'text-[#032757]">{applicantCount}': 'text-[#002757]">{applicantCount}',
-            'text-[#032757]">{upcomingBookings.length}': 'text-[#002757]">{upcomingBookings.length}',
-          }
-          for old, new in replacements.items():
-            if old not in s:
-              raise SystemExit(f'missing expected text: {old}')
-            s = s.replace(old, new, 1)
+          s = s.replace('type CalendarView = "month" | "week";', 'type CalendarView = "month" | "week" | "list";', 1)
+          s = s.replace('<div className="ml-1 grid grid-cols-2 rounded-xl bg-slate-100 p-1">\n            {(["month", "week"] as CalendarView[]).map', '<div className="ml-1 grid grid-cols-3 rounded-xl bg-slate-100 p-1">\n            {(["month", "week", "list"] as CalendarView[]).map', 1)
+          start = '      <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_340px]">'
+          replacement = '''      {calendarView === "list" ? <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-2">
+        <section><h3 className="text-lg font-black text-[#002757]">Open shifts & applicants</h3><div className="mt-3 space-y-3">{openShifts.length ? openShifts.slice().sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()).map((shift) => <button type="button" key={shift.id} onClick={() => { setSelectedDate(localDateKey(shift.starts_at)); setCalendarCursor(new Date(shift.starts_at)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{shift.profession}</strong><span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-800">{(shift.applications || []).filter((item) => item.status === "applied").length} applicants</span></div><p className="mt-1 text-xs text-slate-500">{new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p></button>) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No open shifts right now.</p>}</div></section>
+        <section><h3 className="text-lg font-black text-[#002757]">Confirmed bookings</h3><div className="mt-3 space-y-3">{upcomingBookings.length ? upcomingBookings.map((booking) => <button type="button" key={booking.id} onClick={() => { if (!booking.shifts) return; setSelectedDate(localDateKey(booking.shifts.starts_at)); setCalendarCursor(new Date(booking.shifts.starts_at)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{booking.shifts?.profession || "Booked shift"}</strong><span className="rounded-full bg-[#eaf8ee] px-2 py-1 text-[10px] font-black text-[#017f27]">Booked</span></div>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{new Date(booking.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}</button>) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No upcoming bookings right now.</p>}</div></section>
+      </div> : <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_340px]">'''
+          if start not in s:
+              raise SystemExit('calendar grid start not found')
+          s = s.replace(start, replacement, 1)
+          end = '        </aside>\n      </div>\n    </section>'
+          if end not in s:
+              raise SystemExit('calendar grid end not found')
+          s = s.replace(end, '        </aside>\n      </div>}\n    </section>', 1)
           p.write_text(s)
           PY
       - name: Commit source change
@@ -47,5 +37,5 @@ jobs:
           git config user.name 'DentalShift Automation'
           git config user.email 'actions@users.noreply.github.com'
           git add components/OfficeWorkspaceV2.tsx
-          git commit -m 'Align office calendar header with professional portal'
+          git commit -m 'Match office calendar selector to professional portal'
           git push
