@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ProfessionalLocationField } from "@/components/ProfessionalLocationField";
 
 export const metadata: Metadata = {
   title: "DentalShift | Dental staffing made simple",
@@ -20,7 +21,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}</body>
+      <body className="antialiased">{children}<ProfessionalLocationField /></body>
     </html>
   );
 }
