@@ -23,6 +23,9 @@
       }
     ],
     "paths": {
+      "@/components/WorkflowWorkspace": [
+        "./components/WorkflowWorkspaceV2.tsx"
+      ],
       "@/*": [
         "./*"
       ]
