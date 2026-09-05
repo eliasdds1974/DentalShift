@@ -592,10 +592,21 @@ export type BookingContact = {
   address?: string; city?: string; province?: string; postal_code?: string; website?: string | null;
 };
 
+function timeout<T>(promise: PromiseLike<T>, milliseconds: number, fallback: T): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), milliseconds)),
+  ]);
+}
+
 async function addBookingContacts(bookings: WorkflowBooking[]) {
   return Promise.all(bookings.map(async (booking) => {
-    const { data, error } = await supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id });
-    return { ...booking, contact: error ? null : data as BookingContact };
+    const result = await timeout(
+      supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id }),
+      2500,
+      { data: null, error: null },
+    );
+    return { ...booking, contact: result.error ? null : result.data as BookingContact | null };
   }));
 }
 
@@ -639,12 +650,17 @@ export async function removeFavouriteOffice(userId: string, favouriteId: string)
 }
 
 export async function loadProfessionalWorkflow(userId: string) {
-  const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult] = await Promise.all([
+  const workflowPromise = Promise.all([
     loadOpenShifts(),
     supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website))").eq("professional_id", userId).order("created_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
     supabase.from("availability").select("id,starts_at,ends_at,available").eq("professional_id", userId).order("starts_at", { ascending: true }),
     supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,city,province,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
+  ]);
+
+  const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult] = await Promise.race([
+    workflowPromise,
+    new Promise<never>((_, reject) => setTimeout(() => reject(new Error("DentalShift could not finish loading your workflow. Please refresh and try again.")), 10000)),
   ]);
   if (applicationsResult.error) throw applicationsResult.error;
   if (bookingsResult.error) throw bookingsResult.error;
