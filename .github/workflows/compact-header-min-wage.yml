@@ -1,0 +1,45 @@
+name: Compact calendar header and minimum wage
+
+on:
+  push:
+    paths:
+      - '.github/workflows/compact-header-min-wage.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply compact header and wage filtering
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('components/WorkflowWorkspaceV2.tsx')
+          text = path.read_text()
+
+          old = '  const signedRoleStyle = roleStyles[signedRole];\n  const professionShifts = workflow.open.filter((shift) => roleCode(shift.profession) === signedRole);'
+          new = '  const signedRoleStyle = roleStyles[signedRole];\n  const minimumHourlyRate = Number(details?.professional?.hourly_rate || 0);\n  const professionShifts = workflow.open.filter((shift) => roleCode(shift.profession) === signedRole && (!minimumHourlyRate || Number(shift.hourly_rate) >= minimumHourlyRate));'
+          if old not in text:
+              raise SystemExit('Profession shift filter block not found')
+          text = text.replace(old, new, 1)
+
+          text = text.replace('className="grid gap-4 border-b border-slate-200 p-4 sm:p-5 lg:grid-cols-[minmax(0,1fr)_170px]"', 'className="grid gap-3 border-b border-slate-200 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_170px]"', 1)
+          text = text.replace('className="min-w-0 lg:col-span-2"><h2 className="text-2xl font-black tracking-tight text-[#002757]">Professional calendar</h2><p className="mt-1 text-sm text-slate-500">Availability fills the bottom half of each day. Bookings and office requests appear in the upper corner.</p></div>', 'className="min-w-0 lg:col-start-1 lg:row-start-1"><h2 className="text-xl font-black tracking-tight text-[#002757] sm:text-2xl">Professional calendar</h2><p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Availability, bookings and office requests in one calendar.</p><p className="mt-1 text-xs font-bold text-[#002757]">{minimumHourlyRate ? `Your minimum: $${minimumHourlyRate.toFixed(2)}/hr · Only shifts at or above your minimum are shown.` : "Set your minimum hourly rate in Account to filter shifts by pay."}</p></div>', 1)
+          text = text.replace('className="grid w-full gap-1.5 sm:w-[170px] lg:col-start-2 lg:row-start-2 lg:shrink-0"', 'className="grid w-full gap-1 sm:w-[170px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:shrink-0"', 1)
+          text = text.replace('className="flex h-9 w-full items-center gap-2 rounded-lg border border-[#0078FE]/20', 'className="flex h-8 w-full items-center gap-2 rounded-lg border border-[#0078FE]/20', 1)
+          text = text.replace('className="flex h-9 w-full items-center gap-2 rounded-lg border border-[#01A32E]/20', 'className="flex h-8 w-full items-center gap-2 rounded-lg border border-[#01A32E]/20', 1)
+          text = text.replace('className="flex h-9 w-full items-center gap-2 rounded-lg border border-amber-200', 'className="flex h-8 w-full items-center gap-2 rounded-lg border border-amber-200', 1)
+          text = text.replace('className="flex flex-wrap items-center gap-2 lg:col-start-1 lg:row-start-2 lg:self-start"', 'className="flex flex-wrap items-center gap-2 lg:col-start-1 lg:row-start-2 lg:self-end"', 1)
+
+          path.write_text(text)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Compact calendar header and filter by minimum wage'
+          git push
