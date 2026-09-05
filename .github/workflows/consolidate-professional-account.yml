@@ -1,0 +1,71 @@
+name: Consolidate professional account workspace
+
+on:
+  push:
+    paths:
+      - '.github/workflows/consolidate-professional-account.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Consolidate professional account UI
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/page.tsx')
+          s = p.read_text()
+
+          old_brand = 'return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-12 w-auto" priority />;'
+          new_brand = 'return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-14 w-auto sm:h-16" priority />;'
+          if old_brand not in s:
+              raise SystemExit('Brand target not found')
+          s = s.replace(old_brand, new_brand, 1)
+
+          old_header = 'return <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex items-center gap-3">{role !== "professional" && <button className="rounded-xl border border-slate-200 p-2 lg:hidden" onClick={onMenu}><Menu size={21} /></button>}<div className={role === "professional" ? "w-[145px] shrink-0 sm:w-[170px]" : "lg:hidden"}>{role === "professional" ? <Brand /> : <Brand compact />}</div>{role !== "professional" && <div className="hidden text-sm text-slate-500 sm:block">{role === "office" ? "Office portal" : "Administration"}</div>}</div>'
+          new_header = 'return <header className="sticky top-0 z-30 flex h-[82px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex items-center gap-3">{role !== "professional" && <button className="rounded-xl border border-slate-200 p-2 lg:hidden" onClick={onMenu}><Menu size={21} /></button>}<div className={role === "professional" ? "w-[175px] shrink-0 sm:w-[215px]" : "lg:hidden"}>{role === "professional" ? <Brand /> : <Brand compact />}</div>{role !== "professional" && <div className="hidden text-sm text-slate-500 sm:block">{role === "office" ? "Office portal" : "Administration"}</div>}</div>'
+          if old_header not in s:
+              raise SystemExit('Header target not found')
+          s = s.replace(old_header, new_header, 1)
+
+          old_nav = '''  const navigate = useCallback((nextRole: Role, nextView: View) => {
+    window.localStorage.setItem("dentalshift_portal_role", nextRole);
+    setRole(nextRole);
+    setView(nextView);
+    router.push(portalRoutes[nextRole][nextView]);
+  }, [router]);'''
+          new_nav = '''  const navigate = useCallback((nextRole: Role, nextView: View) => {
+    window.localStorage.setItem("dentalshift_portal_role", nextRole);
+    setRole(nextRole);
+    setView(nextView);
+    router.push(portalRoutes[nextRole][nextView]);
+  }, [router]);
+
+  useEffect(() => {
+    if (role !== "professional" || !session || (view !== "profile" && view !== "talent")) return;
+    setAccountOpen(true);
+    navigate("professional", "overview");
+  }, [role, view, session, navigate]);'''
+          if old_nav not in s:
+              raise SystemExit('Navigate target not found')
+          s = s.replace(old_nav, new_nav, 1)
+
+          old_sidebar = '? [["overview", "Find shifts", <Search key="e" size={19} />], ["shifts", "My applications", <FileCheck2 key="f" size={19} />], ["bookings", "My schedule", <CalendarDays key="g" size={19} />], ["talent", "Favourite offices", <Heart key="h" size={19} />], ["profile", "Profile & credentials", <UserRound key="p" size={19} />]]'
+          new_sidebar = '? [["overview", "Find shifts", <Search key="e" size={19} />], ["shifts", "My applications", <FileCheck2 key="f" size={19} />], ["bookings", "My schedule", <CalendarDays key="g" size={19} />]]'
+          if old_sidebar in s:
+              s = s.replace(old_sidebar, new_sidebar, 1)
+
+          p.write_text(s)
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/page.tsx
+          git commit -m "Consolidate professional profile and favourites into Account"
+          git push
