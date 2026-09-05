@@ -1,4 +1,4 @@
-name: Tighten professional workspace header
+name: Apply shared login flow fix
 
 on:
   push:
@@ -13,21 +13,43 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Remove redundant professional headings
+      - name: Patch shared login behavior
         run: |
           python - <<'PY'
           from pathlib import Path
-          p = Path('components/WorkflowWorkspaceV2.tsx')
+          p = Path('app/page.tsx')
           s = p.read_text()
-          s = s.replace('import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin, ShieldCheck } from "lucide-react";', 'import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin } from "lucide-react";')
-          s = s.replace('        <div className="flex flex-wrap items-center gap-2"><Chip tone="blue"><ShieldCheck size={13} />Live professional workspace</Chip><Chip tone="gray"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} />{signedRoleStyle.label} · {profession}</Chip></div>\n', '')
-          s = s.replace('<h2 className="text-xl font-black tracking-tight text-[#002757] sm:text-2xl">Professional calendar</h2><p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Availability, bookings and office requests in one calendar.</p><p className="mt-1 text-xs font-bold text-[#002757]">', '<h2 className="text-xl font-black tracking-tight text-[#002757] sm:text-2xl">Professional calendar</h2><p className="mt-1 text-xs font-bold text-[#002757]">', 1)
-          p.write_text(s)
+          s = s.replace('    const email = String(form.get("email") || "");', '    const email = String(form.get("email") || "").trim().toLowerCase();', 1)
+          s = s.replace('        setError(signInError.message);', '        setError(signInError.message.toLowerCase().includes("invalid login credentials") ? "Incorrect email or password. This DentalShift login uses the same password for your Professional and Dental Office workspaces. Select Forgot password if you need to reset it." : signInError.message);', 1)
+          old = '''      if (signUpError) setError(signUpError.message);
+      else if (!data.session) {
+        setCreatedEmail(email);
+        setAccountCreated(true);
+      } else close();'''
+          new = '''      if (signUpError) {
+        if (signUpError.message.toLowerCase().includes("already registered") || signUpError.message.toLowerCase().includes("already exists")) {
+          setMode("signin");
+          setSignInRoleChosen(true);
+          setEmailValue(email);
+          setError("This email already has a DentalShift login. Sign in with the existing password; that login can open both Professional and Dental Office workspaces.");
+        } else setError(signUpError.message);
+      } else if (!data.session && data.user?.identities?.length === 0) {
+        setMode("signin");
+        setSignInRoleChosen(true);
+        setEmailValue(email);
+        setError("This email already has a DentalShift login. Sign in with the existing password; that login can open both Professional and Dental Office workspaces.");
+      } else if (!data.session) {
+        setCreatedEmail(email);
+        setAccountCreated(true);
+      } else close();'''
+          if old not in s:
+              raise SystemExit('signup result block not found')
+          p.write_text(s.replace(old, new, 1))
           PY
       - name: Commit source change
         run: |
           git config user.name 'DentalShift Automation'
           git config user.email 'actions@users.noreply.github.com'
-          git add components/WorkflowWorkspaceV2.tsx
-          git commit -m 'Remove redundant professional workspace headings'
+          git add app/page.tsx
+          git commit -m 'Fix shared login flow for multi-workspace accounts'
           git push
