@@ -3,6 +3,7 @@ import "./globals.css";
 import { ProfessionalLocationField } from "@/components/ProfessionalLocationField";
 import { ProfessionalMarketplaceCleanup } from "@/components/ProfessionalMarketplaceCleanup";
 import { ProfessionalAvailabilityCalendar } from "@/components/ProfessionalAvailabilityCalendar";
+import { ProfessionalInvitationCalendar } from "@/components/ProfessionalInvitationCalendar";
 
 export const metadata: Metadata = {
   title: "DentalShift | Dental staffing made simple",
@@ -23,7 +24,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}<ProfessionalLocationField /><ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /></body>
+      <body className="antialiased">{children}<ProfessionalLocationField /><ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /></body>
     </html>
   );
 }
