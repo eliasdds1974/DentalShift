@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addVerificationInternalNote, applyForShift, cancelAdminShift, createOfficeWorkspace, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadProfessionalWorkflow, loadVerificationCase, loadVerificationQueue, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setFavouriteOffice, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type FavouriteOffice, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
@@ -76,7 +76,7 @@ function Sidebar({ role, setRole, view, setView, open, setOpen }: { role: Role; 
 }
 
 function Header({ role, onMenu, onPost, onMessages, onAccount, onSignOut, signedIn }: { role: Role; onMenu: () => void; onPost: () => void; onMessages: () => void; onAccount: () => void; onSignOut: () => void; signedIn: boolean }) {
-  return <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex items-center gap-3"><button className="rounded-xl border border-slate-200 p-2 lg:hidden" onClick={onMenu}><Menu size={21} /></button><div className="lg:hidden"><Brand compact /></div><div className="hidden text-sm text-slate-500 sm:block">{role === "office" ? "Office portal" : role === "professional" ? "Professional portal" : "Administration"}</div></div><div className="flex items-center gap-2 sm:gap-3"><button onClick={onAccount} className="secondary-btn"><span className={"h-2 w-2 rounded-full " + (signedIn ? "bg-[#01A32E]" : "bg-slate-300")} /><span className="hidden sm:inline">{signedIn ? "Account" : "Sign in"}</span></button><button onClick={onMessages} className="secondary-btn"><MessageCircle size={17} /><span className="hidden sm:inline">Messages</span></button>{signedIn && <button onClick={onSignOut} className="secondary-btn text-rose-700 hover:border-rose-200 hover:bg-rose-50"><LogOut size={17} /><span>Sign out</span></button>}{role === "office" && <button onClick={onPost} className="primary-btn"><Plus size={18} /> <span className="hidden sm:inline">Post a shift</span></button>}</div></header>;
+  return <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex items-center gap-3">{role !== "professional" && <button className="rounded-xl border border-slate-200 p-2 lg:hidden" onClick={onMenu}><Menu size={21} /></button>}<div className={role === "professional" ? "" : "lg:hidden"}><Brand compact /></div><div className="hidden text-sm text-slate-500 sm:block">{role === "office" ? "Office portal" : role === "professional" ? "Professional portal" : "Administration"}</div></div><div className="flex items-center gap-2 sm:gap-3"><button onClick={onAccount} className="secondary-btn"><span className={"h-2 w-2 rounded-full " + (signedIn ? "bg-[#01A32E]" : "bg-slate-300")} /><span className="hidden sm:inline">{signedIn ? "Account" : "Sign in"}</span></button><button onClick={onMessages} className="secondary-btn"><MessageCircle size={17} /><span className="hidden sm:inline">Messages</span></button>{signedIn && <button onClick={onSignOut} className="secondary-btn text-rose-700 hover:border-rose-200 hover:bg-rose-50"><LogOut size={17} /><span>Sign out</span></button>}{role === "office" && <button onClick={onPost} className="primary-btn"><Plus size={18} /> <span className="hidden sm:inline">Post a shift</span></button>}</div></header>;
 }
 
 function OfficeDashboard({ onPost, onRebook }: { onPost: () => void; onRebook: () => void }) {
@@ -493,6 +493,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   const [resetEmailAddress, setResetEmailAddress] = useState("");
   const [passwordChanged, setPasswordChanged] = useState(false);
   const [signInRoleChosen, setSignInRoleChosen] = useState(initialMode !== "signin");
+  const [favouriteOffices, setFavouriteOffices] = useState<FavouriteOffice[]>([]);
+  const [favouritesLoading, setFavouritesLoading] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -502,6 +504,27 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load your profile."))
       .finally(() => setBusy(false));
   }, [session]);
+
+  useEffect(() => {
+    if (!session || activeRole !== "professional") return;
+    setFavouritesLoading(true);
+    loadProfessionalWorkflow(session.user.id)
+      .then((workflow) => setFavouriteOffices(workflow.favourites))
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load your favourite offices."))
+      .finally(() => setFavouritesLoading(false));
+  }, [session, activeRole]);
+
+  const removeFavouriteOffice = async (officeId: string) => {
+    if (!session) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await setFavouriteOffice(session.user.id, officeId, false);
+      setFavouriteOffices((current) => current.filter((favourite) => favourite.office_id !== officeId));
+      setNotice("Favourite office removed.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "Could not remove this favourite office."); }
+    finally { setBusy(false); }
+  };
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -819,6 +842,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
                 <label className="field sm:col-span-2"><span>Skills (comma separated)</span><input name="skills" defaultValue={details.professional.skills?.join(", ") ?? ""} placeholder="Tracker, Cleardent, orthodontics" /></label>
                 <label className="field sm:col-span-2"><span>Professional bio</span><textarea name="bio" rows={3} defaultValue={details.professional.bio ?? ""} /></label>
                 <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2"><input name="available_for_work" type="checkbox" defaultChecked={details.professional.available_for_work} className="h-4 w-4 accent-[#01A32E]" /><span className="text-sm font-bold text-slate-700">Available for new shifts</span></label>
+                <div className="border-t border-slate-200 pt-5 sm:col-span-2"><div className="flex items-center gap-2"><Heart size={18} className="fill-[#01A32E] text-[#01A32E]" /><h3 className="font-extrabold text-slate-900">Favourite offices</h3></div><p className="mt-1 text-sm text-slate-500">Offices you saved while browsing available shifts.</p></div>
+                <div className="sm:col-span-2">{favouritesLoading ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Loading favourite offices…</p> : favouriteOffices.length === 0 ? <p className="rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">You have not saved any favourite offices yet.</p> : <div className="space-y-2">{favouriteOffices.map((favourite) => <div key={favourite.office_id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 p-4 sm:flex-row sm:items-center"><div><p className="font-extrabold text-[#002757]">{favourite.offices?.name || "Dental office"}</p><p className="mt-1 text-xs font-bold text-slate-500">{[favourite.offices?.city, favourite.offices?.province].filter(Boolean).join(", ") || "Location not listed"}</p>{favourite.offices?.website && <WebsiteLink website={favourite.offices.website} className="mt-2" />}</div><button type="button" disabled={busy} onClick={() => void removeFavouriteOffice(favourite.office_id)} className="secondary-btn justify-center">Remove</button></div>)}</div>}</div>
               </>}
               {!details.professional && details.office && <>
                 <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Keep this email and password, then complete a separate professional verification profile.</p></div>
@@ -1308,11 +1333,11 @@ export default function Home() {
 
   return (
     <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
-      <Sidebar role={role} setRole={(nextRole) => {
+      {role !== "professional" && <Sidebar role={role} setRole={(nextRole) => {
         const canOpenRole = nextRole === profile?.role || (nextRole === "office" && Boolean(officeId)) || (nextRole === "admin" && profile?.role === "admin");
         if (canOpenRole) navigate(nextRole, "overview");
-      }} view={view} setView={(nextView) => navigate(role, nextView)} open={menu} setOpen={setMenu} />
-      <div className="lg:pl-[270px]">
+      }} view={view} setView={(nextView) => navigate(role, nextView)} open={menu} setOpen={setMenu} />}
+      <div className={role === "professional" ? "" : "lg:pl-[270px]"}>
         <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} onSignOut={() => void supabase.auth.signOut()} signedIn={Boolean(session)} />
         {session && profile && <div className="border-b border-[#01A32E]/20 bg-[#eaf8ee] px-5 py-2 text-center text-xs font-bold text-[#017f27]">Live account connected · changes are saved securely</div>}
         {content}
