@@ -26,7 +26,7 @@ export async function POST(request: Request) {
   const response = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(id)}`, {
     headers: {
       "X-Goog-Api-Key": apiKey,
-      "X-Goog-FieldMask": "id,displayName,formattedAddress,addressComponents,location,types",
+      "X-Goog-FieldMask": "id,displayName,formattedAddress,addressComponents,location,types,websiteUri",
       "X-Goog-Maps-Session-Token": String(sessionToken || ""),
     },
     cache: "no-store",
@@ -45,6 +45,7 @@ export async function POST(request: Request) {
     addressComponents?: AddressComponent[];
     location?: { latitude?: number; longitude?: number };
     types?: string[];
+    websiteUri?: string;
   };
   const components = place.addressComponents || [];
   const streetNumber = component(components, "street_number");
@@ -65,5 +66,6 @@ export async function POST(request: Request) {
     latitude: place.location?.latitude ?? null,
     longitude: place.location?.longitude ?? null,
     types: place.types || [],
+    website: place.websiteUri || "",
   });
 }
