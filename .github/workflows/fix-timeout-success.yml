@@ -1,0 +1,35 @@
+name: Fix timeout response success typing
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-timeout-success.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch timeout fallback
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('lib/dentalshift.ts')
+          s = p.read_text()
+          old = '{ data: null, error: null, count: null, status: 408, statusText: "Request Timeout" },'
+          new = '{ data: null, error: null, count: null, status: 408, statusText: "Request Timeout", success: false },'
+          if old not in s:
+              raise SystemExit('target text not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add lib/dentalshift.ts
+          git commit -m 'Add success field to timeout fallback'
+          git push
