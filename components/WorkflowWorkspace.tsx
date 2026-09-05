@@ -312,7 +312,8 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
     <h1 className="page-title">{view === "overview" ? "Find shifts" : view === "shifts" ? "My applications" : view === "bookings" ? "My schedule" : view === "talent" ? "Favourite offices" : "Profile & credentials"}</h1>
     <p className="page-subtitle">{view === "overview" ? `Welcome, ${profile.first_name || "professional"}. Post availability and find matching shifts.` : view === "shifts" ? "Review invitations and track every application." : view === "bookings" ? "Manage confirmed shifts from arrival through completion." : view === "talent" ? "Keep your preferred dental offices organized." : "Manage the information offices use to evaluate and match with you."}</p>
     <ErrorNote text={error} />
-    {loading ? <p className="mt-8 text-sm text-slate-500">Loading your live workflow…</p> : <>
+    {loading && <p className="mt-4 text-xs font-bold text-slate-500">Updating live shift data…</p>}
+    <>
       {view === "overview" && <section aria-label="Shift activity summary" className="mt-7 grid gap-3 sm:grid-cols-3">
         <button type="button" onClick={() => document.getElementById("available-shifts-calendar")?.scrollIntoView({ behavior: "smooth", block: "start" })} className="panel group flex items-center gap-3 p-4 text-left transition hover:-translate-y-0.5 hover:border-[#0078FE]/40 hover:shadow-md">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-blue-50 text-[#0078FE]"><Search size={19} /></span><span className="min-w-0 flex-1"><span className="block text-xs font-extrabold text-slate-500">Available shifts</span><strong className="block text-2xl leading-tight text-[#002757]">{data.open.length}</strong></span><ChevronRight size={18} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#0078FE]" />
@@ -388,7 +389,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
       </section>}
 
 
-    </>}
+    </>
   </div>;
 }
 
