@@ -1,0 +1,42 @@
+name: Remove live account status bar
+on:
+  push:
+    paths:
+      - '.github/workflows/remove-live-account-status-bar.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove redundant account status bar
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          phrase = 'Live account connected'
+          changed = []
+          for p in list(Path('.').rglob('*.tsx')) + list(Path('.').rglob('*.ts')):
+              if any(part in {'node_modules','.next'} for part in p.parts):
+                  continue
+              s = p.read_text()
+              if phrase not in s:
+                  continue
+              lines = s.splitlines(True)
+              new_lines = [line for line in lines if phrase not in line]
+              new = ''.join(new_lines)
+              if new == s:
+                  raise SystemExit(f'Found phrase but could not remove line in {p}')
+              p.write_text(new)
+              changed.append(str(p))
+          if not changed:
+              raise SystemExit('Status bar text not found')
+          print('Updated:', ', '.join(changed))
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add -A
+          git commit -m 'Remove redundant live account status bar'
+          git push
