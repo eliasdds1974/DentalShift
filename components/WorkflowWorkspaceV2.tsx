@@ -18,11 +18,9 @@ import {
   type WorkflowBooking,
 } from "@/lib/dentalshift";
 import {
-  OfficeWorkspace,
   ProfessionalWorkspace as LegacyProfessionalWorkspace,
 } from "./WorkflowWorkspace";
-
-export { OfficeWorkspace };
+export { OfficeWorkspace } from "./OfficeWorkspaceV2";
 
 type ProfessionalView = "overview" | "shifts" | "bookings" | "talent" | "profile";
 type CalendarView = "month" | "week" | "list";
