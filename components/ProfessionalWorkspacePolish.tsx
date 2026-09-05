@@ -57,7 +57,7 @@ export function ProfessionalWorkspacePolish() {
                 button.className = "rounded-xl p-3 text-left transition bg-blue-50 text-[#002757]";
                 const label = button.querySelector("span");
                 if (label) {
-                  label.textContent = profession;
+                  if (label.textContent?.trim() !== profession) label.textContent = profession;
                   label.className = "mt-1 block text-xs font-black";
                 }
               }
