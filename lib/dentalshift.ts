@@ -592,21 +592,13 @@ export type BookingContact = {
   address?: string; city?: string; province?: string; postal_code?: string; website?: string | null;
 };
 
-function timeout<T>(promise: PromiseLike<T>, milliseconds: number, fallback: T): Promise<T> {
-  return Promise.race([
-    Promise.resolve(promise),
-    new Promise<T>((resolve) => setTimeout(() => resolve(fallback), milliseconds)),
-  ]);
-}
-
 async function addBookingContacts(bookings: WorkflowBooking[]) {
   return Promise.all(bookings.map(async (booking) => {
-    const result = await timeout(
+    const result = await Promise.race([
       supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id }),
-      2500,
-      { data: null, error: null, count: null, status: 408, statusText: "Request Timeout", success: false },
-    );
-    return { ...booking, contact: result.error ? null : result.data as BookingContact | null };
+      new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
+    ]);
+    return { ...booking, contact: !result || result.error ? null : result.data as BookingContact | null };
   }));
 }
 
