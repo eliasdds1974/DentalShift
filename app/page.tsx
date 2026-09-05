@@ -1283,7 +1283,7 @@ export default function Home() {
         onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
         onWorkspace={() => navigate(role, "overview")}
       />
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} onSaved={() => {
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={() => setPasswordRecovery(false)} onSaved={() => {
         setRefreshKey((key) => key + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
           setProfile(details.profile); setOfficeId(details.office?.id ?? null); setOffice(details.office);
