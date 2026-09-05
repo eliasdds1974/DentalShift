@@ -223,6 +223,24 @@ export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id
   return data as OfficeDetails;
 }
 
+export async function createProfessionalWorkspace(input: Pick<ProfessionalDetails, "user_id" | "profession" | "licence_number" | "licence_province">) {
+  const { data, error } = await supabase
+    .from("professional_profiles")
+    .insert({
+      user_id: input.user_id,
+      profession: input.profession,
+      licence_number: input.licence_number,
+      licence_province: input.licence_province,
+      licence_status: "pending",
+      travel_radius_km: 25,
+      available_for_work: false,
+    })
+    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,available_for_work")
+    .single();
+  if (error) throw error;
+  return data as ProfessionalDetails;
+}
+
 export async function updateOfficeProfile(office: OfficeDetails) {
   const { data, error } = await supabase
     .from("offices")
