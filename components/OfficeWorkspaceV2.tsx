@@ -143,25 +143,25 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     {loading && <p className="mt-4 text-xs font-bold text-slate-500">Updating your live office calendar…</p>}
 
     <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="grid gap-3 border-b border-slate-200 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_170px]">
+      <div className="grid gap-3 border-b border-slate-200 p-3 sm:p-4 md:grid-cols-[minmax(0,1fr)_170px]">
         <div className="contents">
-          <div className="min-w-0 lg:col-start-1 lg:row-start-1">
+          <div className="min-w-0 md:col-start-1 md:row-start-1">
             <h2 className="text-xl font-black tracking-tight text-[#032757] sm:text-2xl">Office calendar</h2>
             <p className="mt-1 text-xs font-bold text-[#032757]">Manage every shift from posting through confirmation.</p>
           </div>
-          <div className="grid w-full gap-1 sm:w-[170px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:shrink-0">
-            <button type="button" onClick={onPost} className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#0078FE]/35 bg-gradient-to-r from-blue-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#0078FE]/70 hover:shadow-md"><CalendarDays size={15} className="text-[#0078FE]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Open shifts</span><strong className="block text-sm leading-none text-[#032757]">{openShifts.length}</strong></span></button>
-            <button type="button" className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md"><UsersRound size={15} className="text-amber-700" /><span><span className="block text-[10px] font-extrabold text-slate-500">Applicants</span><strong className="block text-sm leading-none text-[#032757]">{applicantCount}</strong></span></button>
-            <button type="button" className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#04A62F]/35 bg-gradient-to-r from-[#eaf8ee] to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#04A62F]/70 hover:shadow-md"><Check size={15} className="text-[#04A62F]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Booked</span><strong className="block text-sm leading-none text-[#032757]">{upcomingBookings.length}</strong></span></button>
+          <div className="grid w-full gap-1 sm:w-[170px] md:col-start-2 md:row-span-2 md:row-start-1 md:shrink-0">
+            <button type="button" onClick={onPost} className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#0078FE]/35 bg-gradient-to-r from-blue-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#0078FE]/70 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0078FE]/25"><CalendarDays size={15} className="text-[#0078FE]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Open shifts</span><strong className="block text-sm leading-none text-[#002757]">{openShifts.length}</strong></span></button>
+            <button type="button" className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300/30"><UsersRound size={15} className="text-amber-700" /><span><span className="block text-[10px] font-extrabold text-slate-500">Applicants</span><strong className="block text-sm leading-none text-[#002757]">{applicantCount}</strong></span></button>
+            <button type="button" className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#01A32E]/35 bg-gradient-to-r from-[#eaf8ee] to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#01A32E]/70 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#01A32E]/20"><Check size={15} className="text-[#017f27]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Booked</span><strong className="block text-sm leading-none text-[#002757]">{upcomingBookings.length}</strong></span></button>
           </div>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2 lg:col-start-1 lg:row-start-2 lg:self-end">
-          <button type="button" aria-label="Previous period" onClick={() => moveCalendar(-1)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-[#032757] hover:bg-slate-50"><ChevronLeft size={17} /></button>
-          <button type="button" onClick={() => { const now = new Date(); setCalendarCursor(now); setSelectedDate(localDateKey(now)); }} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-[#032757]">Today</button>
-          <button type="button" aria-label="Next period" onClick={() => moveCalendar(1)} className="grid h-9 w-9 place-items-center rounded-xl border border-slate-200 bg-white text-[#032757] hover:bg-slate-50"><ChevronRight size={17} /></button>
-          <div className="ml-1 flex rounded-xl bg-slate-100 p-1">
-            {(["month", "week"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-1.5 text-xs font-black capitalize ${calendarView === mode ? "bg-white text-[#032757] shadow-sm" : "text-slate-500"}`}>{mode}</button>)}
+        <div className="flex flex-wrap items-center gap-2 md:col-start-1 md:row-start-2 md:self-end">
+          <button type="button" aria-label="Previous period" onClick={() => moveCalendar(-1)} className="secondary-btn px-3"><ChevronLeft size={19} /></button>
+          <button type="button" onClick={() => { const now = new Date(); setCalendarCursor(now); setSelectedDate(localDateKey(now)); }} className="secondary-btn">Today</button>
+          <button type="button" aria-label="Next period" onClick={() => moveCalendar(1)} className="secondary-btn px-3"><ChevronRight size={19} /></button>
+          <div className="ml-1 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+            {(["month", "week"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}>{mode}</button>)}
           </div>
         </div>
       </div>
