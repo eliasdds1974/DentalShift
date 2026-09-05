@@ -50,7 +50,7 @@ function Brand({ compact = false }: { compact?: boolean }) {
       <Image src="/dentalshift-logo.svg" alt="" width={2171} height={724} className="h-11 w-[132px] max-w-none object-contain object-left" priority />
     </div>;
   }
-  return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-12 w-auto" priority />;
+  return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-14 w-auto sm:h-16" priority />;
 }
 
 function WebsiteLink({ website, className = "" }: { website?: string | null; className?: string }) {
@@ -72,13 +72,13 @@ function Sidebar({ role, setRole, view, setView, open, setOpen }: { role: Role; 
   const nav = role === "office"
     ? [["overview", "Overview", <LayoutDashboard key="a" size={19} />], ["shifts", "My shifts", <CalendarDays key="b" size={19} />], ["talent", "Find professionals", <UsersRound key="c" size={19} />], ["bookings", "Bookings", <BriefcaseBusiness key="d" size={19} />]]
     : role === "professional"
-      ? [["overview", "Find shifts", <Search key="e" size={19} />], ["shifts", "My applications", <FileCheck2 key="f" size={19} />], ["bookings", "My schedule", <CalendarDays key="g" size={19} />], ["talent", "Favourite offices", <Heart key="h" size={19} />], ["profile", "Profile & credentials", <UserRound key="p" size={19} />]]
+      ? [["overview", "Find shifts", <Search key="e" size={19} />], ["shifts", "My applications", <FileCheck2 key="f" size={19} />], ["bookings", "My schedule", <CalendarDays key="g" size={19} />]]
       : [["overview", "Admin overview", <LayoutDashboard key="i" size={19} />], ["talent", "Verification", <ShieldCheck key="j" size={19} />], ["shifts", "All shifts", <CalendarDays key="k" size={19} />], ["bookings", "Disputes", <MessageCircle key="l" size={19} />]];
   return <>{open && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden" onClick={() => setOpen(false)} />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="px-2"><Brand /></div><p className="mb-2 mt-7 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Workspace</p><nav className="space-y-1">{nav.map(([key, label, icon]) => <button key={key as string} onClick={() => { setView(key as View); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${view === key ? "bg-[#eaf8ee] text-[#017f27]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}>{icon}{label}</button>)}</nav><div className="mt-auto rounded-2xl border border-[#01A32E]/20 bg-[#eaf8ee] p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-[#017f27]"><ShieldCheck size={18} /> Trust & safety</div><p className="mt-2 text-xs leading-5 text-[#017f27]">Licences are checked against the applicable provincial registry.</p></div><div className="mt-4 flex items-center gap-3 px-2"><div className="grid h-10 w-10 place-items-center rounded-full bg-[#002757] text-sm font-bold text-white">{role === "office" ? "LD" : role === "professional" ? "MR" : "EK"}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{role === "office" ? "Lakeside Dental" : role === "professional" ? "Maya Roberts" : "DentalShift Admin"}</p><p className="truncate text-xs text-slate-500">{role === "admin" ? "Platform administrator" : "Verified account"}</p></div></div></aside></>;
 }
 
 function Header({ role, onMenu, onPost, onMessages, onAccount, onSignOut, signedIn }: { role: Role; onMenu: () => void; onPost: () => void; onMessages: () => void; onAccount: () => void; onSignOut: () => void; signedIn: boolean }) {
-  return <header className="sticky top-0 z-30 flex h-[72px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex items-center gap-3">{role !== "professional" && <button className="rounded-xl border border-slate-200 p-2 lg:hidden" onClick={onMenu}><Menu size={21} /></button>}<div className={role === "professional" ? "w-[145px] shrink-0 sm:w-[170px]" : "lg:hidden"}>{role === "professional" ? <Brand /> : <Brand compact />}</div>{role !== "professional" && <div className="hidden text-sm text-slate-500 sm:block">{role === "office" ? "Office portal" : "Administration"}</div>}</div><div className="flex items-center gap-2 sm:gap-3"><button onClick={onAccount} className="secondary-btn"><span className={"h-2 w-2 rounded-full " + (signedIn ? "bg-[#01A32E]" : "bg-slate-300")} /><span className="hidden sm:inline">{signedIn ? "Account" : "Sign in"}</span></button><button onClick={onMessages} className="secondary-btn"><MessageCircle size={17} /><span className="hidden sm:inline">Messages</span></button>{signedIn && <button onClick={onSignOut} className="secondary-btn text-rose-700 hover:border-rose-200 hover:bg-rose-50"><LogOut size={17} /><span className="hidden sm:inline">Sign out</span></button>}{role === "office" && <button onClick={onPost} className="primary-btn"><Plus size={18} /> <span className="hidden sm:inline">Post a shift</span></button>}</div></header>;
+  return <header className="sticky top-0 z-30 flex h-[82px] items-center justify-between border-b border-slate-200 bg-white/95 px-4 backdrop-blur sm:px-7"><div className="flex items-center gap-3">{role !== "professional" && <button className="rounded-xl border border-slate-200 p-2 lg:hidden" onClick={onMenu}><Menu size={21} /></button>}<div className={role === "professional" ? "w-[175px] shrink-0 sm:w-[215px]" : "lg:hidden"}>{role === "professional" ? <Brand /> : <Brand compact />}</div>{role !== "professional" && <div className="hidden text-sm text-slate-500 sm:block">{role === "office" ? "Office portal" : "Administration"}</div>}</div><div className="flex items-center gap-2 sm:gap-3"><button onClick={onAccount} className="secondary-btn"><span className={"h-2 w-2 rounded-full " + (signedIn ? "bg-[#01A32E]" : "bg-slate-300")} /><span className="hidden sm:inline">{signedIn ? "Account" : "Sign in"}</span></button><button onClick={onMessages} className="secondary-btn"><MessageCircle size={17} /><span className="hidden sm:inline">Messages</span></button>{signedIn && <button onClick={onSignOut} className="secondary-btn text-rose-700 hover:border-rose-200 hover:bg-rose-50"><LogOut size={17} /><span className="hidden sm:inline">Sign out</span></button>}{role === "office" && <button onClick={onPost} className="primary-btn"><Plus size={18} /> <span className="hidden sm:inline">Post a shift</span></button>}</div></header>;
 }
 
 function OfficeDashboard({ onPost, onRebook }: { onPost: () => void; onRebook: () => void }) {
@@ -1185,6 +1185,12 @@ export default function Home() {
     setView(nextView);
     router.push(portalRoutes[nextRole][nextView]);
   }, [router]);
+
+  useEffect(() => {
+    if (role !== "professional" || !session || (view !== "profile" && view !== "talent")) return;
+    setAccountOpen(true);
+    navigate("professional", "overview");
+  }, [role, view, session, navigate]);
 
   const completePasswordRecovery = useCallback(() => {
     const savedRecoveryRole = window.localStorage.getItem("dentalshift_password_recovery_role");
