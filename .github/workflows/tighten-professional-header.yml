@@ -1,0 +1,33 @@
+name: Tighten professional workspace header
+
+on:
+  push:
+    paths:
+      - '.github/workflows/tighten-professional-header.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove redundant professional headings
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/WorkflowWorkspaceV2.tsx')
+          s = p.read_text()
+          s = s.replace('import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin, ShieldCheck } from "lucide-react";', 'import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin } from "lucide-react";')
+          s = s.replace('        <div className="flex flex-wrap items-center gap-2"><Chip tone="blue"><ShieldCheck size={13} />Live professional workspace</Chip><Chip tone="gray"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} />{signedRoleStyle.label} · {profession}</Chip></div>\n', '')
+          s = s.replace('<h2 className="text-xl font-black tracking-tight text-[#002757] sm:text-2xl">Professional calendar</h2><p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Availability, bookings and office requests in one calendar.</p><p className="mt-1 text-xs font-bold text-[#002757]">', '<h2 className="text-xl font-black tracking-tight text-[#002757] sm:text-2xl">Professional calendar</h2><p className="mt-1 text-xs font-bold text-[#002757]">', 1)
+          p.write_text(s)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Remove redundant professional workspace headings'
+          git push
