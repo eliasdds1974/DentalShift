@@ -1332,7 +1332,6 @@ export default function Home() {
       }} view={view} setView={(nextView) => navigate(role, nextView)} open={menu} setOpen={setMenu} />}
       <div className={role === "professional" ? "" : "lg:pl-[270px]"}>
         <Header role={role} onMenu={() => setMenu(true)} onPost={() => setPost(true)} onMessages={() => setMessages(true)} onAccount={() => setAccountOpen(true)} onSignOut={() => void supabase.auth.signOut()} signedIn={Boolean(session)} />
-        {session && profile && <div className="border-b border-[#01A32E]/20 bg-[#eaf8ee] px-5 py-2 text-center text-xs font-bold text-[#017f27]">Live account connected · changes are saved securely</div>}
         {content}
       </div>
       {post && <ShiftModal close={() => setPost(false)} officeId={officeId} onSaved={() => setRefreshKey((value) => value + 1)} />}
