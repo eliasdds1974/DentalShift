@@ -20,38 +20,37 @@ jobs:
           from pathlib import Path
           p = Path('components/WorkflowWorkspace.tsx')
           s = p.read_text()
-          old = '''  const refresh = async () => {
-            setLoading(true); setError("");
-            try { setData(await loadProfessionalWorkflow(userId)); }
-            catch (value) { setError(value instanceof Error ? value.message : "Could not load your shifts."); }
-            finally { setLoading(false); }
-          };'''
+          start_marker = '  const refresh = async () => {'
+          end_marker = '  useEffect(() => { void refresh(); }, [userId, refreshKey]);'
+          start = s.find(start_marker)
+          end = s.find(end_marker, start)
+          if start == -1 or end == -1:
+              raise SystemExit('Professional refresh block markers not found; refusing to modify file')
           new = '''  const refresh = async () => {
-            setLoading(true);
-            setError("");
-            const watchdog = window.setTimeout(() => {
-              setLoading(false);
-              setError((current) => current || "Live shift data is taking longer than expected. You can keep using DentalShift while it reconnects.");
-            }, 8000);
-            try {
-              const nextData = await Promise.race([
-                loadProfessionalWorkflow(userId),
-                new Promise<never>((_, reject) => window.setTimeout(
-                  () => reject(new Error("DentalShift could not finish loading your workflow. Please refresh and try again.")),
-                  9000,
-                )),
-              ]);
-              setData(nextData);
-            } catch (value) {
-              setError(value instanceof Error ? value.message : "Could not load your shifts.");
-            } finally {
-              window.clearTimeout(watchdog);
-              setLoading(false);
-            }
-          };'''
-          if old not in s:
-              raise SystemExit('Target refresh block not found; refusing to modify file')
-          p.write_text(s.replace(old, new, 1))
+    setLoading(true);
+    setError("");
+    const watchdog = window.setTimeout(() => {
+      setLoading(false);
+      setError((current) => current || "Live shift data is taking longer than expected. You can keep using DentalShift while it reconnects.");
+    }, 8000);
+    try {
+      const nextData = await Promise.race([
+        loadProfessionalWorkflow(userId),
+        new Promise<never>((_, reject) => window.setTimeout(
+          () => reject(new Error("DentalShift could not finish loading your workflow. Please refresh and try again.")),
+          9000,
+        )),
+      ]);
+      setData(nextData);
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "Could not load your shifts.");
+    } finally {
+      window.clearTimeout(watchdog);
+      setLoading(false);
+    }
+  };
+'''
+          p.write_text(s[:start] + new + s[end:])
           PY
       - name: Commit fix
         run: |
