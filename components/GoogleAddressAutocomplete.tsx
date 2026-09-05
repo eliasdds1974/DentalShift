@@ -15,7 +15,53 @@ type SelectedPlace = {
   country: string;
   latitude: number | null;
   longitude: number | null;
+  website?: string;
 };
+
+export type GoogleOfficeSelection = Pick<SelectedPlace, "placeId" | "name" | "formattedAddress" | "city" | "province" | "website">;
+
+export function GoogleOfficeFavouriteSearch({ onAdd, disabled }: { onAdd: (office: GoogleOfficeSelection) => Promise<void>; disabled?: boolean }) {
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const sessionToken = useRef(typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()));
+
+  useEffect(() => {
+    if (query.trim().length < 3) { setSuggestions([]); return; }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setLoading(true); setError("");
+      try {
+        const response = await fetch("/api/google/places/autocomplete", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ input: query, kind: "favourite-office", sessionToken: sessionToken.current }), signal: controller.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Office suggestions could not be loaded.");
+        setSuggestions(data.suggestions || []);
+      } catch (value) { if ((value as Error).name !== "AbortError") setError(value instanceof Error ? value.message : "Office suggestions could not be loaded."); }
+      finally { setLoading(false); }
+    }, 300);
+    return () => { window.clearTimeout(timer); controller.abort(); };
+  }, [query]);
+
+  const choose = async (suggestion: Suggestion) => {
+    setLoading(true); setError(""); setSuggestions([]);
+    try {
+      const response = await fetch("/api/google/places/details", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ placeId: suggestion.placeId, sessionToken: sessionToken.current }) });
+      const office = await response.json() as GoogleOfficeSelection & { error?: string };
+      if (!response.ok) throw new Error(office.error || "The selected office could not be verified.");
+      await onAdd(office);
+      setQuery("");
+      sessionToken.current = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
+    } catch (value) { setError(value instanceof Error ? value.message : "The office could not be added."); }
+    finally { setLoading(false); }
+  };
+
+  return <div className="relative">
+    <label className="field"><span>Search for a dental office by name</span><div className="relative"><Search size={18} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={query} disabled={disabled} onChange={(event) => { setQuery(event.target.value); setError(""); }} className="pl-10!" autoComplete="off" placeholder="Start typing an office name" />{loading && <span className="absolute right-3 top-3.5 text-xs font-bold text-slate-400">Searching…</span>}</div></label>
+    {suggestions.length > 0 && <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[#0078FE]/25 bg-white shadow-xl">{suggestions.map((suggestion) => <button type="button" key={suggestion.placeId} onClick={() => void choose(suggestion)} className="flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-[#edf3fa]"><MapPin size={18} className="mt-0.5 shrink-0 text-[#0078FE]" /><span><strong className="block text-sm text-[#002757]">{suggestion.mainText}</strong><span className="mt-0.5 block text-xs text-slate-500">{suggestion.secondaryText}</span></span></button>)}<p className="bg-slate-50 px-4 py-2 text-right text-[10px] font-bold text-slate-400">Powered by Google</p></div>}
+    {error && <p className="mt-2 rounded-xl bg-red-50 p-3 text-sm font-bold text-[#F21C13]">{error}</p>}
+  </div>;
+}
 
 export function GoogleAddressAutocomplete({ kind }: { kind: "office" | "professional" }) {
   const [query, setQuery] = useState("");

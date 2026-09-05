@@ -24,6 +24,7 @@ export type ProfessionalDetails = {
   years_experience: number | null;
   bio: string | null;
   skills: string[] | null;
+  resume_path: string | null;
   available_for_work: boolean;
 };
 
@@ -167,7 +168,7 @@ export async function loadAccountDetails(userId: string): Promise<AccountDetails
   const [{ data: professionalData, error: professionalError }, { data: officeData, error: officeError }] = await Promise.all([
     supabase
       .from("professional_profiles")
-      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,available_for_work")
+      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,resume_path,available_for_work")
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
@@ -235,7 +236,7 @@ export async function createProfessionalWorkspace(input: Pick<ProfessionalDetail
       travel_radius_km: 25,
       available_for_work: false,
     })
-    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,available_for_work")
+    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,resume_path,available_for_work")
     .single();
   if (error) throw error;
   return data as ProfessionalDetails;
@@ -303,6 +304,26 @@ export async function uploadOfficeLogo(userId: string, officeId: string, file: F
   return updatedOffice.logo_url;
 }
 
+export async function uploadProfessionalResume(userId: string, file: File) {
+  const extensions: Record<string, string> = { "application/pdf": "pdf", "application/msword": "doc", "application/vnd.openxmlformats-officedocument.wordprocessingml.document": "docx" };
+  if (!file || file.size === 0) throw new Error("Choose a résumé or CV to upload.");
+  const extension = extensions[file.type];
+  if (!extension) throw new Error("Choose a PDF, DOC or DOCX file.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Your résumé or CV must be smaller than 5 MB.");
+  const path = `${userId}/resume.${extension}`;
+  const { error: uploadError } = await supabase.storage.from("professional-resumes").upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+  if (uploadError) throw new Error(`Your résumé could not be uploaded: ${uploadError.message}`);
+  const { data, error } = await supabase.from("professional_profiles").update({ resume_path: path }).eq("user_id", userId).select("resume_path").single();
+  if (error || !data?.resume_path) throw new Error(`The file uploaded, but it could not be saved to your profile: ${error?.message || "No path returned"}`);
+  return data.resume_path as string;
+}
+
+export async function openProfessionalResume(path: string) {
+  const { data, error } = await supabase.storage.from("professional-resumes").createSignedUrl(path, 60);
+  if (error || !data?.signedUrl) throw new Error(error?.message || "Your résumé could not be opened.");
+  return data.signedUrl;
+}
+
 export async function submitOfficeForVerification(officeId: string, ownerId: string) {
   const { data, error } = await supabase
     .from("offices")
@@ -345,6 +366,7 @@ export async function saveAccountDetails(input: AccountDetails) {
         years_experience: input.professional.years_experience,
         bio: input.professional.bio,
         skills: input.professional.skills,
+        resume_path: input.professional.resume_path,
         available_for_work: input.professional.available_for_work,
       })
       .eq("user_id", input.professional.user_id);
@@ -548,7 +570,7 @@ export async function updateAttendance(bookingId: string, action: "check_in" | "
 }
 
 export type ProfessionalAvailability = { id: string; starts_at: string; ends_at: string; available: boolean };
-export type FavouriteOffice = { office_id: string; offices: { id: string; name: string; city: string; province: string; website: string | null } | null };
+export type FavouriteOffice = { id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; offices: { id: string; name: string; city: string; province: string; website: string | null } | null };
 
 export type WorkflowApplication = {
   id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string;
@@ -605,13 +627,24 @@ export async function setFavouriteOffice(userId: string, officeId: string, favou
   if (error) throw error;
 }
 
+export async function addGoogleFavouriteOffice(userId: string, office: { placeId: string; name: string; formattedAddress: string; city: string; province: string; website?: string }) {
+  const { error } = await supabase.from("favourites").insert({ professional_id: userId, google_place_id: office.placeId, name: office.name, formatted_address: office.formattedAddress, city: office.city, province: office.province, website: normalizeWebsite(office.website) });
+  if (error?.code === "23505") throw new Error("This office is already in your favourites.");
+  if (error) throw error;
+}
+
+export async function removeFavouriteOffice(userId: string, favouriteId: string) {
+  const { error } = await supabase.from("favourites").delete().eq("id", favouriteId).eq("professional_id", userId);
+  if (error) throw error;
+}
+
 export async function loadProfessionalWorkflow(userId: string) {
   const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult] = await Promise.all([
     loadOpenShifts(),
     supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website))").eq("professional_id", userId).order("created_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
     supabase.from("availability").select("id,starts_at,ends_at,available").eq("professional_id", userId).order("starts_at", { ascending: true }),
-    supabase.from("favourites").select("office_id,offices!favourites_office_id_fkey(id,name,city,province,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
+    supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,city,province,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
   ]);
   if (applicationsResult.error) throw applicationsResult.error;
   if (bookingsResult.error) throw bookingsResult.error;
