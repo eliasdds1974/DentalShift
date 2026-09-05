@@ -1,0 +1,38 @@
+name: Stack calendar summary cards vertically
+
+on:
+  push:
+    paths:
+      - '.github/workflows/stack-calendar-summary-cards.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stack summary cards
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('components/WorkflowWorkspaceV2.tsx')
+          text = path.read_text()
+          old = 'className="grid shrink-0 grid-cols-3 gap-2"'
+          new = 'className="grid w-full shrink-0 grid-cols-1 gap-2 sm:w-auto sm:min-w-[180px]"'
+          if old not in text:
+              raise SystemExit('Summary card layout class not found')
+          text = text.replace(old, new, 1)
+          text = text.replace('className="flex min-w-[112px] items-center gap-2 rounded-xl border border-[#0078FE]/20', 'className="flex w-full items-center gap-2 rounded-xl border border-[#0078FE]/20', 1)
+          text = text.replace('className="flex min-w-[96px] items-center gap-2 rounded-xl border border-[#01A32E]/20', 'className="flex w-full items-center gap-2 rounded-xl border border-[#01A32E]/20', 1)
+          text = text.replace('className="flex min-w-[112px] items-center gap-2 rounded-xl border border-amber-200', 'className="flex w-full items-center gap-2 rounded-xl border border-amber-200', 1)
+          path.write_text(text)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Stack calendar summary cards on right'
+          git push
