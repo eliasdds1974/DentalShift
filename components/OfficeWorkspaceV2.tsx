@@ -170,7 +170,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         <h1 className="page-title">{office.name} schedule</h1>
         <p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>
       </div>
-      <button onClick={onPost} className="primary-btn"><Plus size={18} />Post a shift</button>
     </div>
 
     {error && <p className="mt-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
@@ -203,7 +202,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       {calendarView === "list" ? <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-2">
         <section><h3 className="text-lg font-black text-[#002757]">Open shifts & applicants</h3><div className="mt-3 space-y-3">{openShifts.length ? openShifts.slice().sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()).map((shift) => <button type="button" key={shift.id} onClick={() => { setSelectedDate(localDateKey(shift.starts_at)); setCalendarCursor(new Date(shift.starts_at)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{shift.profession}</strong><span className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-800">{(shift.applications || []).filter((item) => item.status === "applied").length} applicants</span></div><p className="mt-1 text-xs text-slate-500">{new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p></button>) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No open shifts right now.</p>}</div></section>
         <section><h3 className="text-lg font-black text-[#002757]">Confirmed bookings</h3><div className="mt-3 space-y-3">{upcomingBookings.length ? upcomingBookings.map((booking) => <button type="button" key={booking.id} onClick={() => { if (!booking.shifts) return; setSelectedDate(localDateKey(booking.shifts.starts_at)); setCalendarCursor(new Date(booking.shifts.starts_at)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{booking.shifts?.profession || "Booked shift"}</strong><span className="rounded-full bg-[#eaf8ee] px-2 py-1 text-[10px] font-black text-[#017f27]">Booked</span></div>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{new Date(booking.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}</button>) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No upcoming bookings right now.</p>}</div></section>
-      </div> : <div className="grid gap-0 xl:grid-cols-[minmax(0,1fr)_340px]">
+      </div> : <div className="grid gap-0 lg:grid-cols-[minmax(0,1fr)_340px]">
         <div className="p-3 sm:p-4">
           <h3 className="mb-3 text-xl font-black text-[#0f172a]">{calendarCursor.toLocaleDateString("en-CA", calendarView === "month" ? { month: "long", year: "numeric" } : { month: "long", day: "numeric", year: "numeric" })}</h3>
           <div className="grid grid-cols-7">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-slate-500">{day}</div>)}</div>
@@ -221,7 +220,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
           })}</div>
         </div>
 
-        <aside className="border-t border-slate-200 bg-white p-4 xl:border-l xl:border-t-0 sm:p-5">
+        <aside className="border-t border-slate-200 bg-white p-4 lg:border-l lg:border-t-0 sm:p-5">
           <p className="text-xs font-black uppercase tracking-[.12em] text-[#0078FE]">Selected date</p>
           <h3 className="mt-1 text-xl font-black text-[#0f172a]">{longDate(selectedDate)}</h3>
           <div className="mt-4 space-y-4">
