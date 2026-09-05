@@ -1282,8 +1282,10 @@ export default function Home() {
         ? <OfficeWorkspace userId={session.user.id} office={office} onPost={() => setPost(true)} refreshKey={refreshKey} view={view} />
         : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />
       : role === "professional"
-        ? session && profile
-          ? <ProfessionalWorkspace userId={session.user.id} profile={profile} refreshKey={refreshKey} view={view} onNavigate={(nextView) => navigate("professional", nextView)} />
+        ? session
+          ? profile
+            ? <ProfessionalWorkspace userId={session.user.id} profile={profile} refreshKey={refreshKey} view={view} onNavigate={(nextView) => navigate("professional", nextView)} />
+            : <div className="page-wrap"><div className="panel mx-auto max-w-xl p-8 text-center"><h1 className="text-xl font-black text-[#002757]">Loading your professional workspace</h1><p className="mt-2 text-sm leading-6 text-slate-500">DentalShift is reconnecting your account. Your calendar and workspace will appear here as soon as your professional profile is available.</p><button type="button" onClick={() => window.location.reload()} className="secondary-btn mx-auto mt-5 justify-center">Retry</button></div></div>
           : <ProfessionalDashboard userId={null} refreshKey={refreshKey} />
         : session && profile?.role === "admin"
           ? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : <AdminDashboard userId={session.user.id} />
