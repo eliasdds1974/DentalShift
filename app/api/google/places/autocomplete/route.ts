@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Google address suggestions are not configured." }, { status: 503 });
   }
 
-  const { input, sessionToken } = await request.json();
+  const { input, kind, sessionToken } = await request.json();
   const search = String(input || "").trim();
   if (search.length < 3 || search.length > 160) {
     return NextResponse.json({ suggestions: [] });
@@ -32,6 +32,7 @@ export async function POST(request: Request) {
     body: JSON.stringify({
       input: search,
       includedRegionCodes: ["ca"],
+      ...(kind === "favourite-office" ? { includedPrimaryTypes: ["dentist"] } : {}),
       languageCode: "en",
       regionCode: "CA",
       sessionToken: String(sessionToken || ""),
