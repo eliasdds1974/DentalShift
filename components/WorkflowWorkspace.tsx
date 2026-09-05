@@ -153,6 +153,11 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
   };
   const existing = new Map(data.applications.map((application) => [application.shifts?.id, application]));
   const upcomingBookings = data.bookings.filter((booking) => !booking.cancelled_at);
+  const bookedShifts = upcomingBookings
+    .filter((booking) => booking.shifts && !booking.professional_confirmed_completion && (booking.check_in_at || new Date(booking.shifts.ends_at).getTime() >= Date.now()))
+    .sort((first, second) => new Date(first.shifts!.starts_at).getTime() - new Date(second.shifts!.starts_at).getTime());
+  const nextBooking = bookedShifts[0];
+  const canCheckIn = Boolean(nextBooking?.shifts && !nextBooking.check_in_at && new Date(nextBooking.shifts.starts_at).getTime() <= Date.now() + 30 * 60 * 1000 && new Date(nextBooking.shifts.ends_at).getTime() > Date.now());
   const activeApplications = data.applications.filter((application) => ["applied", "invited"].includes(application.status));
   const favouriteOfficeIds = new Set(data.favourites.map((favourite) => favourite.office_id));
   const matchesAvailability = (shift: LiveShift) => data.availability.some((slot) => slot.available && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at));
@@ -301,6 +306,14 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
         <button type="button" onClick={() => onNavigate("bookings")} className="panel group flex items-center gap-3 p-4 text-left transition hover:-translate-y-0.5 hover:border-[#01A32E]/40 hover:shadow-md">
           <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#eaf8ee] text-[#017f27]"><CalendarDays size={19} /></span><span className="min-w-0 flex-1"><span className="block text-xs font-extrabold text-slate-500">Confirmed bookings</span><strong className="block text-2xl leading-tight text-[#002757]">{upcomingBookings.length}</strong></span><ChevronRight size={18} className="text-slate-300 transition group-hover:translate-x-0.5 group-hover:text-[#01A32E]" />
         </button>
+      </section>}
+
+      {view === "overview" && nextBooking?.shifts && <section aria-label="Upcoming booked shift" className="mt-5 overflow-hidden rounded-2xl border border-[#01A32E]/30 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
+          <div className="flex shrink-0 items-center gap-3 sm:w-44"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#eaf8ee] text-[#017f27]"><CalendarDays size={21} /></span><div><p className="text-[11px] font-black uppercase tracking-[.1em] text-[#017f27]">Upcoming booking</p><p className="mt-0.5 text-sm font-extrabold text-[#002757]">{bookedShifts.length} confirmed</p></div></div>
+          <div className="min-w-0 flex-1 border-slate-200 sm:border-l sm:pl-5"><div className="flex flex-wrap items-center gap-2"><h2 className="font-black text-[#002757]">{nextBooking.shifts.offices?.name || nextBooking.contact?.name || "Dental office"}</h2><Pill tone={nextBooking.check_in_at ? "blue" : "green"}>{nextBooking.check_out_at ? "Awaiting completion" : nextBooking.check_in_at ? "In progress" : "Confirmed"}</Pill></div><p className="mt-1 text-sm font-extrabold text-slate-700">{nextBooking.shifts.profession}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-500"><span>{dateLabel(nextBooking.shifts.starts_at)}–{new Date(nextBooking.shifts.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><strong className="text-[#002757]">${Number(nextBooking.shifts.hourly_rate)}/hr</strong>{nextBooking.shifts.offices && <span><MapPin size={13} className="mr-1 inline" />{nextBooking.shifts.offices.city}, {nextBooking.shifts.offices.province}</span>}</div></div>
+          <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn">{bookedShifts.length > 1 ? "View all bookings" : "View booking"}</button>{canCheckIn && <button type="button" disabled={busy === nextBooking.id} onClick={() => void act(nextBooking.id, () => bookingAction(nextBooking.id, "check_in"))} className="primary-btn">{busy === nextBooking.id ? "Checking in…" : "Check in"}</button>}{nextBooking.check_in_at && !nextBooking.check_out_at && <button type="button" disabled={busy === nextBooking.id} onClick={() => void act(nextBooking.id, () => bookingAction(nextBooking.id, "check_out"))} className="primary-btn">{busy === nextBooking.id ? "Checking out…" : "Check out"}</button>}</div>
+        </div>
       </section>}
 
       {view === "overview" && <section id="available-shifts-calendar" className="mt-7 scroll-mt-24 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
