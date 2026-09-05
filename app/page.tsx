@@ -1267,12 +1267,12 @@ export default function Home() {
         : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />
       : role === "professional"
         ? session && profile
-          ? <ProfessionalWorkspace userId={session.user.id} profile={profile} refreshKey={refreshKey} view={view} />
+          ? <ProfessionalWorkspace userId={session.user.id} profile={profile} refreshKey={refreshKey} view={view} onNavigate={(nextView) => navigate("professional", nextView)} />
           : <ProfessionalDashboard userId={null} refreshKey={refreshKey} />
         : session && profile?.role === "admin"
           ? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : <AdminDashboard userId={session.user.id} />
           : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />,
-    [role, session, profile, office, refreshKey, view],
+    [role, session, profile, office, refreshKey, view, navigate],
   );
 
   if (session === undefined) {
