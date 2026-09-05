@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin, ShieldCheck } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin } from "lucide-react";
 import {
   addProfessionalAvailability,
   applyForShift,
@@ -212,7 +212,6 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   return <div className="page-wrap">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <div className="flex flex-wrap items-center gap-2"><Chip tone="blue"><ShieldCheck size={13} />Live professional workspace</Chip><Chip tone="gray"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} />{signedRoleStyle.label} · {profession}</Chip></div>
         <h1 className="page-title">Find shifts</h1>
         <p className="page-subtitle">Your availability, confirmed bookings and office requests in one calendar.</p>
       </div>
@@ -224,7 +223,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="grid gap-3 border-b border-slate-200 p-3 sm:p-4 lg:grid-cols-[minmax(0,1fr)_170px]">
         <div className="contents">
-          <div className="min-w-0 lg:col-start-1 lg:row-start-1"><h2 className="text-xl font-black tracking-tight text-[#002757] sm:text-2xl">Professional calendar</h2><p className="mt-0.5 text-xs text-slate-500 sm:text-sm">Availability, bookings and office requests in one calendar.</p><p className="mt-1 text-xs font-bold text-[#002757]">{minimumHourlyRate ? `Your minimum: $${minimumHourlyRate.toFixed(2)}/hr · Only shifts at or above your minimum are shown.` : "Set your minimum hourly rate in Account to filter shifts by pay."}</p></div>
+          <div className="min-w-0 lg:col-start-1 lg:row-start-1"><h2 className="text-xl font-black tracking-tight text-[#002757] sm:text-2xl">Professional calendar</h2><p className="mt-1 text-xs font-bold text-[#002757]">{minimumHourlyRate ? `Your minimum: $${minimumHourlyRate.toFixed(2)}/hr · Only shifts at or above your minimum are shown.` : "Set your minimum hourly rate in Account to filter shifts by pay."}</p></div>
           <div className="grid w-full gap-1 sm:w-[170px] lg:col-start-2 lg:row-span-2 lg:row-start-1 lg:shrink-0"><button type="button" onClick={() => setSelection({ type: "day" })} className="flex h-8 w-full items-center gap-2 rounded-lg border border-[#0078FE]/20 bg-blue-50/60 px-2.5 text-left"><CalendarDays size={15} className="text-[#0078FE]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Availability</span><strong className="ml-auto block text-sm leading-none text-[#002757]">{workflow.availability.filter((slot) => slot.available && new Date(slot.ends_at).getTime() >= Date.now()).length}</strong></span></button><button type="button" onClick={() => onNavigate("bookings")} className="flex h-8 w-full items-center gap-2 rounded-lg border border-[#01A32E]/20 bg-[#eaf8ee]/60 px-2.5 text-left"><Check size={15} className="text-[#017f27]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Booked</span><strong className="ml-auto block text-sm leading-none text-[#002757]">{upcomingBookings.length}</strong></span></button><button type="button" onClick={() => onNavigate("shifts")} className="flex h-8 w-full items-center gap-2 rounded-lg border border-amber-200 bg-amber-50/70 px-2.5 text-left"><FileCheck2 size={15} className="text-amber-700" /><span><span className="block text-[10px] font-extrabold text-slate-500">Office requests</span><strong className="ml-auto block text-sm leading-none text-[#002757]">{officeRequests.length}</strong></span></button></div>
         </div>
         <div className="flex flex-wrap items-center gap-2 lg:col-start-1 lg:row-start-2 lg:self-end">
