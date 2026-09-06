@@ -1,0 +1,24 @@
+name: Add professional office request calendar
+on:
+  push:
+    paths:
+      - 'scripts/add-professional-office-request-calendar.py'
+      - '.github/workflows/add-professional-office-request-calendar.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional office request calendar update
+        run: python3 scripts/add-professional-office-request-calendar.py
+      - name: Build
+        run: npm install --no-audit --no-fund && npm run build
+      - name: Commit source changes
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Show matching office requests on professional calendar'
+          git push
