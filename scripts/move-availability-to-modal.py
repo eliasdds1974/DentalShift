@@ -1,6 +1,7 @@
 from pathlib import Path
 
 # Trigger the one-time GitHub source patch after the workflow exists.
+# Second trigger uses the corrected build command.
 path = Path("components/WorkflowWorkspaceV2.tsx")
 text = path.read_text()
 
