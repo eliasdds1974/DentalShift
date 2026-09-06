@@ -1,0 +1,59 @@
+name: Show full preferred office address
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/show-full-preferred-office-address.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch preferred office address display
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('lib/dentalshift.ts')
+          s = p.read_text()
+          old_type = 'export type FavouriteOffice = { id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; offices: { id: string; name: string; city: string; province: string; website: string | null } | null };'
+          new_type = 'export type FavouriteOffice = { id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; offices: { id: string; name: string; address: string; city: string; province: string; postal_code: string; google_place_id: string | null; latitude: number | null; longitude: number | null; website: string | null } | null };'
+          if old_type not in s:
+              raise SystemExit('FavouriteOffice type pattern not found')
+          s = s.replace(old_type, new_type, 1)
+          old_select = 'supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,city,province,website)").eq("professional_id", userId).order("created_at", { ascending: false })'
+          new_select = 'supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,address,city,province,postal_code,google_place_id,latitude,longitude,website)").eq("professional_id", userId).order("created_at", { ascending: false })'
+          if old_select not in s:
+              raise SystemExit('favourites select pattern not found')
+          s = s.replace(old_select, new_select, 1)
+          p.write_text(s)
+
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          old = 'const city = office?.city || favourite.city; const province = office?.province || favourite.province; const website = office?.website || favourite.website; return <div key={favourite.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="font-extrabold text-[#002757]">{name}</p><p className="mt-1 text-xs font-bold text-slate-500">{[city, province].filter(Boolean).join(", ") || favourite.formatted_address || "Location not listed"}</p>{website && <WebsiteLink website={website} className="mt-2" />}'
+          new = 'const city = office?.city || favourite.city; const province = office?.province || favourite.province; const website = office?.website || favourite.website; const fullAddress = office ? [office.address, [office.city, office.province].filter(Boolean).join(", "), office.postal_code].filter(Boolean).join(", ") : favourite.formatted_address || [city, province].filter(Boolean).join(", "); return <div key={favourite.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="font-extrabold text-[#002757]">{name}</p><p className="mt-1 text-xs font-bold leading-5 text-slate-500">{fullAddress || "Location not listed"}</p>{website && <WebsiteLink website={website} className="mt-2" />}'
+          if old not in s:
+              raise SystemExit('preferred office card pattern not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Verify patch
+        run: |
+          grep -F 'address: string; city: string; province: string; postal_code: string' lib/dentalshift.ts
+          grep -F 'offices!favourites_office_id_fkey(id,name,address,city,province,postal_code,google_place_id,latitude,longitude,website)' lib/dentalshift.ts
+          grep -F 'const fullAddress = office ?' app/page.tsx
+      - name: Commit
+        run: |
+          rm .github/workflows/show-full-preferred-office-address.yml
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add app/page.tsx lib/dentalshift.ts .github/workflows/show-full-preferred-office-address.yml
+          git commit -m 'Show complete preferred office addresses'
+          git push origin main
