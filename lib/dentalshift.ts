@@ -377,8 +377,10 @@ export async function saveAccountDetails(input: AccountDetails) {
       longitude: input.profile.longitude,
       updated_at: new Date().toISOString(),
     })
-    .eq("id", input.profile.id);
-  if (profileError) throw profileError;
+    .eq("id", input.profile.id)
+    .select("id")
+    .single();
+  if (profileError) throw new Error(`Your contact information could not be saved: ${profileError.message}`);
 
   if (input.professional) {
     const { error } = await supabase
@@ -395,8 +397,10 @@ export async function saveAccountDetails(input: AccountDetails) {
         resume_path: input.professional.resume_path,
         available_for_work: input.professional.available_for_work,
       })
-      .eq("user_id", input.professional.user_id);
-    if (error) throw error;
+      .eq("user_id", input.professional.user_id)
+      .select("user_id")
+      .single();
+    if (error) throw new Error(`Your professional information could not be saved: ${error.message}`);
   }
 
   if (input.office) {

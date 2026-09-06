@@ -63,7 +63,7 @@ export function GoogleOfficeFavouriteSearch({ onAdd, disabled }: { onAdd: (offic
   </div>;
 }
 
-export function GoogleAddressAutocomplete({ kind, initialAddress }: { kind: "office" | "professional"; initialAddress?: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null } }) {
+export function GoogleAddressAutocomplete({ kind, initialAddress, required = true }: { kind: "office" | "professional"; initialAddress?: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null }; required?: boolean }) {
   const initialPlace: SelectedPlace | null = initialAddress?.address ? {
     placeId: initialAddress.googlePlaceId || "",
     name: "",
@@ -163,7 +163,7 @@ export function GoogleAddressAutocomplete({ kind, initialAddress }: { kind: "off
           className="pl-10!"
           autoComplete="off"
           placeholder={kind === "office" ? "Start typing the office name or address" : "Start typing your Canadian address"}
-          required
+          required={required}
         />
         {loading && <span className="absolute right-3 top-3.5 text-xs font-bold text-slate-400">Searching…</span>}
       </div>
