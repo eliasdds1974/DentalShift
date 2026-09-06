@@ -1,0 +1,114 @@
+name: Build preferred relationships
+on:
+  push:
+    paths:
+      - '.github/workflows/build-preferred-relationships.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add preferred relationship UI and badges
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          # lib helpers
+          p=Path('lib/dentalshift.ts'); s=p.read_text()
+          anchor='export type FavouriteOffice = { id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; offices: { id: string; name: string; city: string; province: string; website: string | null } | null };\n'
+          insert='''export type OfficePreferredProfessional = {\n  id: string;\n  office_id: string;\n  first_name: string;\n  last_name: string;\n  profession: string;\n  licence_province: string;\n  licence_number: string;\n  matched_professional_id: string | null;\n  created_at: string;\n};\n\nexport async function loadOfficePreferredProfessionals(officeId: string) {\n  const { data, error } = await supabase.from("office_preferred_professionals")\n    .select("id,office_id,first_name,last_name,profession,licence_province,licence_number,matched_professional_id,created_at")\n    .eq("office_id", officeId).order("created_at", { ascending: true });\n  if (error) throw error;\n  return (data ?? []) as OfficePreferredProfessional[];\n}\n\nexport async function addOfficePreferredProfessional(input: { officeId: string; firstName: string; lastName: string; profession: string; licenceProvince: string; licenceNumber: string }) {\n  const { data, error } = await supabase.rpc("office_add_preferred_professional", {\n    p_office_id: input.officeId, p_first_name: input.firstName.trim(), p_last_name: input.lastName.trim(),\n    p_profession: input.profession, p_licence_province: input.licenceProvince, p_licence_number: input.licenceNumber.trim(),\n  });\n  if (error) throw error;\n  return data as OfficePreferredProfessional;\n}\n\nexport async function removeOfficePreferredProfessional(officeId: string, id: string) {\n  const { error } = await supabase.from("office_preferred_professionals").delete().eq("id", id).eq("office_id", officeId);\n  if (error) throw error;\n}\n\n'''
+          if anchor not in s: raise SystemExit('FavouriteOffice anchor missing')
+          if 'export type OfficePreferredProfessional' not in s: s=s.replace(anchor,anchor+insert,1)
+          p.write_text(s)
+
+          # app Account UI
+          p=Path('app/page.tsx'); s=p.read_text()
+          old='import { addGoogleFavouriteOffice, addVerificationInternalNote,'
+          new='import { addGoogleFavouriteOffice, addOfficePreferredProfessional, addVerificationInternalNote,'
+          if old not in s: raise SystemExit('app import start missing')
+          s=s.replace(old,new,1)
+          old='openProfessionalResume, removeFavouriteOffice, requestVerificationReview,'
+          new='openProfessionalResume, removeFavouriteOffice, removeOfficePreferredProfessional, requestVerificationReview,'
+          if old not in s: raise SystemExit('app remove import missing')
+          s=s.replace(old,new,1)
+          old='loadOpenShifts, loadProfessionalWorkflow, loadVerificationCase,'
+          new='loadOpenShifts, loadOfficePreferredProfessionals, loadProfessionalWorkflow, loadVerificationCase,'
+          if old not in s: raise SystemExit('app load import missing')
+          s=s.replace(old,new,1)
+          old='type FavouriteOffice, type LiveShift,'
+          new='type FavouriteOffice, type OfficePreferredProfessional, type LiveShift,'
+          if old not in s: raise SystemExit('app type import missing')
+          s=s.replace(old,new,1)
+
+          anchor='  const [favouritesLoading, setFavouritesLoading] = useState(false);\n'
+          state='''  const [preferredProfessionals, setPreferredProfessionals] = useState<OfficePreferredProfessional[]>([]);\n  const [preferredLoading, setPreferredLoading] = useState(false);\n  const [preferredFirstName, setPreferredFirstName] = useState("");\n  const [preferredLastName, setPreferredLastName] = useState("");\n  const [preferredProfession, setPreferredProfession] = useState("Registered Dental Hygienist");\n  const [preferredProvince, setPreferredProvince] = useState("AB");\n  const [preferredLicence, setPreferredLicence] = useState("");\n'''
+          if anchor not in s: raise SystemExit('account state anchor missing')
+          s=s.replace(anchor,anchor+state,1)
+
+          anchor='''  useEffect(() => {\n    if (!session || activeRole !== "professional") return;\n    setFavouritesLoading(true);\n    loadProfessionalWorkflow(session.user.id)\n      .then((workflow) => setFavouriteOffices(workflow.favourites))\n      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load your favourite offices."))\n      .finally(() => setFavouritesLoading(false));\n  }, [session, activeRole]);\n'''
+          office_effect='''\n  useEffect(() => {\n    if (!session || activeRole !== "office" || !details?.office?.id) return;\n    setPreferredLoading(true);\n    loadOfficePreferredProfessionals(details.office.id)\n      .then(setPreferredProfessionals)\n      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load preferred professionals."))\n      .finally(() => setPreferredLoading(false));\n  }, [session, activeRole, details?.office?.id]);\n'''
+          if anchor not in s: raise SystemExit('professional favourites effect missing')
+          s=s.replace(anchor,anchor+office_effect,1)
+
+          anchor='''  const uploadResume = async (file?: File) => {'''
+          handlers='''  const addPreferredProfessional = async () => {\n    if (!details?.office || !preferredFirstName.trim() || !preferredLastName.trim() || !preferredLicence.trim()) return;\n    setBusy(true); setError(""); setNotice("");\n    try {\n      await addOfficePreferredProfessional({ officeId: details.office.id, firstName: preferredFirstName, lastName: preferredLastName, profession: preferredProfession, licenceProvince: preferredProvince, licenceNumber: preferredLicence });\n      setPreferredProfessionals(await loadOfficePreferredProfessionals(details.office.id));\n      setPreferredFirstName(""); setPreferredLastName(""); setPreferredLicence("");\n      setNotice("Preferred professional saved. The badge will appear automatically when DentalShift finds a verified match.");\n      onSaved();\n    } catch (value) { setError(value instanceof Error ? value.message : "Could not save this preferred professional."); }\n    finally { setBusy(false); }\n  };\n\n  const removePreferredProfessional = async (id: string) => {\n    if (!details?.office) return;\n    setBusy(true); setError(""); setNotice("");\n    try {\n      await removeOfficePreferredProfessional(details.office.id, id);\n      setPreferredProfessionals((current) => current.filter((item) => item.id !== id));\n      setNotice("Preferred professional removed.");\n      onSaved();\n    } catch (value) { setError(value instanceof Error ? value.message : "Could not remove this preferred professional."); }\n    finally { setBusy(false); }\n  };\n\n'''
+          if anchor not in s: raise SystemExit('uploadResume anchor missing')
+          s=s.replace(anchor,handlers+anchor,1)
+
+          s=s.replace('Favourite offices</h3>','Preferred offices</h3>',1)
+          s=s.replace('add it.</p><div className="mt-4"><GoogleOfficeFavouriteSearch','mark it as preferred.</p><div className="mt-4"><GoogleOfficeFavouriteSearch',1)
+          s=s.replace('Loading favourite offices…','Loading preferred offices…',1)
+          s=s.replace('You have not saved any favourite offices yet.','You have not saved any preferred offices yet.',1)
+          s=s.replace('was added to your favourite offices.','was added to your preferred offices.',1)
+          s=s.replace('Favourite office removed.','Preferred office removed.',1)
+
+          office_anchor='''            {!details.professional && <>\n              <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2">'''
+          office_ui='''            <div className="rounded-2xl border border-[#FDB605]/45 bg-amber-50/50 p-5 sm:col-span-2">\n              <div className="flex items-center gap-2"><Star size={19} className="fill-[#FDB605] text-[#FDB605]" /><h3 className="font-black text-[#002757]">Preferred professionals</h3></div>\n              <p className="mt-1 text-xs leading-5 text-slate-600">Add professionals your office prefers. DentalShift matches province + licence number, then validates the name and position. The Preferred badge is visible only to your office.</p>\n              <div className="mt-4 grid gap-3 sm:grid-cols-2">\n                <label className="field"><span>First name</span><input value={preferredFirstName} onChange={(e) => setPreferredFirstName(e.target.value)} /></label>\n                <label className="field"><span>Last name</span><input value={preferredLastName} onChange={(e) => setPreferredLastName(e.target.value)} /></label>\n                <label className="field"><span>Position</span><select value={preferredProfession} onChange={(e) => setPreferredProfession(e.target.value)}><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>\n                <label className="field"><span>Province</span><select value={preferredProvince} onChange={(e) => setPreferredProvince(e.target.value)}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>\n                <label className="field sm:col-span-2"><span>Licence / registration number</span><input value={preferredLicence} onChange={(e) => setPreferredLicence(e.target.value)} /></label>\n              </div>\n              <button type="button" disabled={busy || !preferredFirstName.trim() || !preferredLastName.trim() || !preferredLicence.trim()} onClick={() => void addPreferredProfessional()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#FDB605] px-4 py-2.5 text-sm font-black text-white shadow-sm"><Star size={16} />Add preferred professional</button>\n            </div>\n            <div className="sm:col-span-2">{preferredLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading preferred professionals…</p> : preferredProfessionals.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">No preferred professionals added yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{preferredProfessionals.map((person) => <div key={person.id} className="rounded-2xl border border-[#FDB605]/35 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-[#002757]">{person.first_name} {person.last_name}</p><p className="mt-1 text-xs font-bold text-slate-500">{person.profession} · {person.licence_province}</p><p className="mt-1 text-xs text-slate-500">Licence: {person.licence_number}</p>{person.matched_professional_id ? <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900"><Star size={12} className="fill-[#FDB605] text-[#FDB605]" />Matched</span> : <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Waiting for match</span>}</div><button type="button" disabled={busy} onClick={() => void removePreferredProfessional(person.id)} className="text-xs font-black text-slate-500 underline">Remove</button></div></div>)}</div>}</div>\n'''
+          if office_anchor not in s: raise SystemExit('office form insertion anchor missing')
+          s=s.replace(office_anchor,office_ui+office_anchor,1)
+          p.write_text(s)
+
+          # Office available card preferred badge
+          p=Path('components/OfficeWorkspaceV2.tsx'); s=p.read_text()
+          s=s.replace('import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, UsersRound } from "lucide-react";','import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star, UsersRound } from "lucide-react";',1)
+          s=s.replace('  loadOfficeWorkflow,','  loadOfficePreferredProfessionals,\n  loadOfficeWorkflow,',1)
+          s=s.replace('  type OfficeDetails,','  type OfficeDetails,\n  type OfficePreferredProfessional,',1)
+          s=s.replace('  availability: AvailableProfessionalSlot[];\n};','  availability: AvailableProfessionalSlot[];\n  preferredProfessionals: OfficePreferredProfessional[];\n};',1)
+          s=s.replace('useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [] })','useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [], preferredProfessionals: [] })',1)
+          old='''      setData(await loadOfficeWorkflow(office.id) as OfficeWorkflow);'''
+          new='''      const [workflow, preferredProfessionals] = await Promise.all([loadOfficeWorkflow(office.id), loadOfficePreferredProfessionals(office.id)]);\n      setData({ ...(workflow as Omit<OfficeWorkflow, "preferredProfessionals">), preferredProfessionals });'''
+          if old not in s: raise SystemExit('office refresh anchor missing')
+          s=s.replace(old,new,1)
+          old='<div className="flex items-center gap-2"><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong></div>'
+          new='<div className="flex flex-wrap items-center gap-2"><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong>{data.preferredProfessionals.some((person) => person.matched_professional_id === slot.professional_id) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={11} className="fill-white" />Preferred</span>}</div>'
+          if old not in s: raise SystemExit('office preferred badge anchor missing')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+
+          # Professional preferred office badges
+          p=Path('components/WorkflowWorkspaceV2.tsx'); s=p.read_text()
+          s=s.replace('import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin } from "lucide-react";','import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin, Star } from "lucide-react";',1)
+          anchor='  const [selection, setSelection] = useState<CalendarSelection>({ type: "day" });\n'
+          if anchor not in s: raise SystemExit('professional state anchor missing')
+          s=s.replace(anchor,anchor+'  const [preferredOfficeIds, setPreferredOfficeIds] = useState<string[]>([]);\n',1)
+          anchor='''      setWorkflow({\n        open: nextWorkflow.open,\n        applications: nextWorkflow.applications,\n        bookings: nextWorkflow.bookings,\n        availability: nextWorkflow.availability,\n      });'''
+          replacement=anchor+'\n      setPreferredOfficeIds(nextWorkflow.favourites.map((favourite) => favourite.office_id).filter((id): id is string => Boolean(id)));'
+          if anchor not in s: raise SystemExit('professional workflow set anchor missing')
+          s=s.replace(anchor,replacement,1)
+          old='<div className="flex flex-wrap items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} /><strong className="text-[#002757]">{shift.offices?.name || "Dental office"}</strong></div>'
+          new='<div className="flex flex-wrap items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} /><strong className="text-[#002757]">{shift.offices?.name || "Dental office"}</strong>{preferredOfficeIds.includes(shift.office_id) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={11} className="fill-white" />Preferred office</span>}</div>'
+          if old not in s: raise SystemExit('professional office name anchor missing')
+          s=s.replace(old,new,1)
+          p.write_text(s)
+          PY
+      - name: Build
+        run: npm ci && npm run build
+      - name: Commit source changes
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/page.tsx lib/dentalshift.ts components/OfficeWorkspaceV2.tsx components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Add preferred offices and professionals'
+          git push
