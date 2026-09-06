@@ -1,0 +1,80 @@
+name: Patch office Google location
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/patch-office-google-location.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Patch office account Google location
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          p = Path('components/GoogleAddressAutocomplete.tsx')
+          s = p.read_text()
+          old = 'export function GoogleAddressAutocomplete({ kind, initialAddress, required = true }: { kind: "office" | "professional"; initialAddress?: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null }; required?: boolean }) {'
+          new = 'export function GoogleAddressAutocomplete({ kind, initialAddress, required = true }: { kind: "office" | "professional"; initialAddress?: { name?: string | null; address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null }; required?: boolean }) {'
+          assert old in s
+          s = s.replace(old, new, 1)
+          s = s.replace('    name: "",\n    formattedAddress:', '    name: initialAddress?.name || "",\n    formattedAddress:', 1)
+          p.write_text(s)
+
+          p = Path('lib/dentalshift.ts')
+          s = p.read_text()
+          s = s.replace('  postal_code: string;\n  phone: string | null;', '  postal_code: string;\n  google_place_id: string | null;\n  latitude: number | null;\n  longitude: number | null;\n  phone: string | null;', 1)
+          s = s.replace('id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url', 'id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url')
+          s = s.replace('      postal_code: office.postal_code,\n      phone: office.phone,', '      postal_code: office.postal_code,\n      google_place_id: office.google_place_id,\n      latitude: office.latitude,\n      longitude: office.longitude,\n      phone: office.phone,', 1)
+          s = s.replace('        postal_code: input.office.postal_code,\n        phone: input.office.phone,', '        postal_code: input.office.postal_code,\n        google_place_id: input.office.google_place_id,\n        latitude: input.office.latitude,\n        longitude: input.office.longitude,\n        phone: input.office.phone,', 1)
+          p.write_text(s)
+
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          old_save = '''      name: String(form.get("office_name") || ""),
+      address: String(form.get("address") || ""),
+      city: String(form.get("office_city") || ""),
+      province: String(form.get("office_province") || ""),
+      postal_code: String(form.get("office_postal_code") || ""),
+      phone: String(form.get("office_phone") || "") || null,'''
+          new_save = '''      name: String(form.get("office_name") || details.office.name || ""),
+      address: String(form.get("address") || details.office.address || ""),
+      city: String(form.get("city") || details.office.city || ""),
+      province: String(form.get("province") || details.office.province || ""),
+      postal_code: String(form.get("postal_code") || details.office.postal_code || ""),
+      google_place_id: String(form.get("google_place_id") || details.office.google_place_id || "") || null,
+      latitude: String(form.get("latitude") || "") ? Number(form.get("latitude")) : details.office.latitude,
+      longitude: String(form.get("longitude") || "") ? Number(form.get("longitude")) : details.office.longitude,
+      phone: String(form.get("office_phone") || "") || null,'''
+          assert old_save in s
+          s = s.replace(old_save, new_save, 1)
+
+          old_fields = '''            <label className="field sm:col-span-2"><span>Clinic name</span><input name="office_name" required defaultValue={details.office.name} /></label>
+            <label className="field sm:col-span-2"><span>Street address</span><input name="address" required defaultValue={details.office.address} /></label>
+            <label className="field"><span>City</span><input name="office_city" required defaultValue={details.office.city} /></label>
+            <label className="field"><span>Province</span><select name="office_province" required defaultValue={details.office.province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
+            <label className="field"><span>Postal code</span><input name="office_postal_code" required defaultValue={details.office.postal_code} /></label>'''
+          new_fields = '''            <div className="rounded-2xl border border-[#0078FE]/15 bg-white p-4 sm:col-span-2">
+              <div className="mb-3"><h4 className="font-black text-[#002757]">Clinic location</h4><p className="mt-1 text-xs leading-5 text-slate-500">Search Google for your dental office and select the correct result. DentalShift uses the verified location for accurate distance matching with professionals.</p></div>
+              <GoogleAddressAutocomplete kind="office" initialAddress={{ name: details.office.name, address: details.office.address, city: details.office.city, province: details.office.province, postalCode: details.office.postal_code, googlePlaceId: details.office.google_place_id, latitude: details.office.latitude, longitude: details.office.longitude }} />
+            </div>'''
+          assert old_fields in s
+          s = s.replace(old_fields, new_fields, 1)
+          p.write_text(s)
+          PY
+
+          rm .github/workflows/patch-office-google-location.yml
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add app/page.tsx lib/dentalshift.ts components/GoogleAddressAutocomplete.tsx .github/workflows/patch-office-google-location.yml
+          git commit -m 'Use Google office search for office account location'
+          git push origin main
