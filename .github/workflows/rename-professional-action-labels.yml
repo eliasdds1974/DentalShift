@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 4
+          fetch-depth: 5
       - name: Restore workspace and rename labels
         run: |
-          git show HEAD~2:components/WorkflowWorkspaceV2.tsx > components/WorkflowWorkspaceV2.tsx
+          git show HEAD~3:components/WorkflowWorkspaceV2.tsx > components/WorkflowWorkspaceV2.tsx
           python - <<'PY'
           from pathlib import Path
           p=Path('components/WorkflowWorkspaceV2.tsx')
