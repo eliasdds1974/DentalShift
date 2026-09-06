@@ -22,3 +22,5 @@ if licence not in text:
 text = text.replace(licence, "", 1)
 
 path.write_text(text)
+
+# one-time GitHub patch trigger
