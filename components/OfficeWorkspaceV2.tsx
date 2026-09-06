@@ -243,7 +243,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                   const profile = slot.professional_profiles;
                   const code = roleCode(profile?.profession);
                   const role = roleStyles[code];
-                  return <article key={slot.id} className={`rounded-xl border-2 p-3 ${role.soft} ${code === "RDH" ? "border-[#0078FE]/35" : code === "CDA" ? "border-[#F21C13]/35" : code === "DA" ? "border-amber-300" : "border-[#04A62F]/35"}`}>
+                  return <article key={slot.id} className="rounded-xl border-2 border-[#04A62F]/35 bg-[#eaf8ee] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${role.solid}`} /><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong></div>
@@ -256,6 +256,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                       <span>Rating: <strong className="text-[#032757]">{profile?.rating || 0}★</strong></span>
                       <span>Completed: <strong className="text-[#032757]">{profile?.completed_shifts || 0}</strong></span>
                       <span>Reliability: <strong className="text-[#032757]">{profile?.reliability_score || 0}%</strong></span>
+                      <span className="col-span-2">Requested wage: <strong className="text-[#032757]">{profile?.hourly_rate ? `$${Number(profile.hourly_rate).toFixed(2)}/hr` : "Not set"}</strong></span>
                     </div>
                   </article>;
                 })}
