@@ -732,7 +732,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
         ...details.professional,
         profession: String(form.get("profession") || ""),
         licence_number: String(form.get("licence_number") || ""),
-        licence_province: String(form.get("licence_province") || ""),
+        licence_province: String(form.get("province") || details.profile.province || details.professional.licence_province || ""),
         hourly_rate: form.get("hourly_rate") ? Number(form.get("hourly_rate")) : null,
         travel_radius_km: Number(form.get("travel_radius_km") || 25),
         years_experience: form.get("years_experience") ? Number(form.get("years_experience")) : null,
@@ -896,12 +896,10 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
               <label className="field"><span>Last name</span><input name="last_name" required defaultValue={details.profile.last_name ?? ""} /></label>
               <label className="field sm:col-span-2"><span>Phone</span><input name="phone" type="tel" defaultValue={details.profile.phone ?? ""} /></label>
               <GoogleAddressAutocomplete kind="professional" initialAddress={{ address: details.profile.address, city: details.profile.city, province: details.profile.province, postalCode: details.profile.postal_code, googlePlaceId: details.profile.google_place_id, latitude: details.profile.latitude, longitude: details.profile.longitude }} />
-              <label className="field"><span>Postal code</span><input name="postal_code" defaultValue={details.profile.postal_code ?? ""} /></label>
               {details.professional && <>
                 <div className="mt-1 rounded-xl border border-[#0078FE]/15 bg-white px-4 py-3 sm:col-span-2"><h3 className="font-extrabold text-[#002757]">Professional qualifications</h3><p className="mt-1 text-xs text-slate-500">Licence identity changes automatically trigger a fresh review.</p></div>
                 <label className="field"><span>Profession</span><select name="profession" defaultValue={details.professional.profession}><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
                 <label className="field"><span>Licence number</span><input name="licence_number" required defaultValue={details.professional.licence_number} /></label>
-                <label className="field"><span>Licence province</span><input name="licence_province" required defaultValue={details.professional.licence_province} /></label>
                 <label className="field"><span>Minimum hourly rate desired</span><input name="hourly_rate" min="0" step="1" type="number" defaultValue={details.professional.hourly_rate ?? ""} placeholder="e.g. 55" /></label>
                 <label className="field"><span>Travel radius (km)</span><input name="travel_radius_km" min="1" max="500" type="number" defaultValue={details.professional.travel_radius_km} /></label>
                 <label className="field"><span>Years of experience</span><input name="years_experience" min="0" type="number" defaultValue={details.professional.years_experience ?? ""} /></label>
