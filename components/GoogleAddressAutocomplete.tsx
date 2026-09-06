@@ -63,10 +63,22 @@ export function GoogleOfficeFavouriteSearch({ onAdd, disabled }: { onAdd: (offic
   </div>;
 }
 
-export function GoogleAddressAutocomplete({ kind }: { kind: "office" | "professional" }) {
-  const [query, setQuery] = useState("");
+export function GoogleAddressAutocomplete({ kind, initialAddress }: { kind: "office" | "professional"; initialAddress?: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null } }) {
+  const initialPlace: SelectedPlace | null = initialAddress?.address ? {
+    placeId: initialAddress.googlePlaceId || "",
+    name: "",
+    formattedAddress: [initialAddress.address, initialAddress.city, initialAddress.province, initialAddress.postalCode].filter(Boolean).join(", "),
+    address: initialAddress.address || "",
+    city: initialAddress.city || "",
+    province: initialAddress.province || "",
+    postalCode: initialAddress.postalCode || "",
+    country: "CA",
+    latitude: initialAddress.latitude ?? null,
+    longitude: initialAddress.longitude ?? null,
+  } : null;
+  const [query, setQuery] = useState(initialPlace?.formattedAddress || "");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [selected, setSelected] = useState<SelectedPlace | null>(null);
+  const [selected, setSelected] = useState<SelectedPlace | null>(initialPlace);
   const [manual, setManual] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");

@@ -11,6 +11,8 @@ export type AccountProfile = {
   province: string | null;
   phone: string | null;
   postal_code: string | null;
+  address: string | null;
+  google_place_id: string | null;
   latitude: number | null;
   longitude: number | null;
 };
@@ -143,7 +145,7 @@ export type LiveShift = {
 export async function loadAccount(userId: string) {
   const { data: profile, error: profileError } = await supabase
     .from("profiles")
-    .select("id,role,first_name,last_name,city,province,phone,postal_code,latitude,longitude")
+    .select("id,role,first_name,last_name,city,province,phone,postal_code,address,google_place_id,latitude,longitude")
     .eq("id", userId)
     .single();
   if (profileError) throw profileError;
@@ -369,6 +371,10 @@ export async function saveAccountDetails(input: AccountDetails) {
       city: input.profile.city,
       province: input.profile.province,
       postal_code: input.profile.postal_code,
+      address: input.profile.address,
+      google_place_id: input.profile.google_place_id,
+      latitude: input.profile.latitude,
+      longitude: input.profile.longitude,
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.profile.id);
