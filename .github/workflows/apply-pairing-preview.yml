@@ -1,0 +1,30 @@
+name: Apply pairing preview
+on:
+  push:
+    paths:
+      - '.github/workflows/apply-pairing-preview.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply pairing preview
+        run: python3 .github/scripts/patch_pairing_preview.py
+      - name: Verify
+        run: |
+          grep -F 'Office interested — waiting for you' components/WorkflowWorkspaceV2.tsx
+          grep -F 'Professional interested — waiting for you' components/OfficeWorkspaceV2.tsx
+          grep -F 'Interest open · {interestAge(application.created_at, pairingNow)}' components/WorkflowWorkspaceV2.tsx
+          grep -F 'Pairings ({pendingPairings.length})' components/OfficeWorkspaceV2.tsx
+      - name: Commit
+        run: |
+          rm .github/workflows/apply-pairing-preview.yml
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx .github/workflows/apply-pairing-preview.yml
+          git commit -m 'Add pairing status preview to both portals'
+          git push origin main
