@@ -100,6 +100,9 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [selection, setSelection] = useState<CalendarSelection>({ type: "day" });
   const [preferredOfficeIds, setPreferredOfficeIds] = useState<string[]>([]);
+  const [preferredGooglePlaceIds, setPreferredGooglePlaceIds] = useState<string[]>([]);
+  const [preferredOfficeKeys, setPreferredOfficeKeys] = useState<string[]>([]);
+  const [googleOfficeLocations, setGoogleOfficeLocations] = useState<Record<string, { latitude: number; longitude: number }>>({});
   const [editingAvailabilityId, setEditingAvailabilityId] = useState<string | null>(null);
   const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
 
@@ -119,6 +122,8 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         availability: nextWorkflow.availability,
       });
       setPreferredOfficeIds(nextWorkflow.favourites.map((favourite) => favourite.office_id).filter((id): id is string => Boolean(id)));
+      setPreferredGooglePlaceIds(nextWorkflow.favourites.map((favourite) => favourite.google_place_id).filter((id): id is string => Boolean(id)));
+      setPreferredOfficeKeys(nextWorkflow.favourites.map((favourite) => [favourite.name || favourite.offices?.name || "", favourite.city || favourite.offices?.city || "", favourite.province || favourite.offices?.province || ""].map((value) => value.trim().toLowerCase()).join("|")));
     } catch (value) {
       setError(value instanceof Error ? value.message : "DentalShift could not load your calendar.");
     } finally {
@@ -127,6 +132,59 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   };
 
   useEffect(() => { void refresh(); }, [userId, refreshKey]);
+
+  useEffect(() => {
+    const placeIds = Array.from(new Set(workflow.open
+      .filter((shift) => shift.offices?.google_place_id && (shift.offices.latitude == null || shift.offices.longitude == null))
+      .map((shift) => shift.offices!.google_place_id!)
+      .filter((placeId) => !googleOfficeLocations[placeId])));
+    if (!placeIds.length) return;
+    let cancelled = false;
+    void Promise.all(placeIds.map(async (placeId) => {
+      try {
+        const response = await fetch("/api/google/places/details", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ placeId }),
+        });
+        if (!response.ok) return null;
+        const place = await response.json() as { latitude?: number | null; longitude?: number | null };
+        if (place.latitude == null || place.longitude == null) return null;
+        return { placeId, latitude: Number(place.latitude), longitude: Number(place.longitude) };
+      } catch {
+        return null;
+      }
+    })).then((locations) => {
+      if (cancelled) return;
+      const valid = locations.filter((location): location is { placeId: string; latitude: number; longitude: number } => Boolean(location));
+      if (!valid.length) return;
+      setGoogleOfficeLocations((current) => {
+        const next = { ...current };
+        valid.forEach((location) => { next[location.placeId] = { latitude: location.latitude, longitude: location.longitude }; });
+        return next;
+      });
+    });
+    return () => { cancelled = true; };
+  }, [workflow.open, googleOfficeLocations]);
+
+  const isPreferredOffice = (shift: LiveShift) => {
+    if (isPreferredOffice(shift)) return true;
+    const placeId = shift.offices?.google_place_id;
+    if (placeId && preferredGooglePlaceIds.includes(placeId)) return true;
+    const key = [shift.offices?.name || "", shift.offices?.city || "", shift.offices?.province || ""].map((value) => value.trim().toLowerCase()).join("|");
+    return preferredOfficeKeys.includes(key);
+  };
+
+  const distanceForShift = (shift: LiveShift) => {
+    const placeId = shift.offices?.google_place_id || "";
+    const fallback = placeId ? googleOfficeLocations[placeId] : undefined;
+    return distanceKm(
+      details?.profile.latitude,
+      details?.profile.longitude,
+      shift.offices?.latitude ?? fallback?.latitude,
+      shift.offices?.longitude ?? fallback?.longitude,
+    );
+  };
 
   const profession = details?.professional?.profession || "Dental Professional";
   const signedRole = roleCode(profession);
@@ -248,7 +306,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     return <article key={shift.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} /><strong className="text-[#002757]">{shift.offices?.name || "Dental office"}</strong>{preferredOfficeIds.includes(shift.office_id) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={11} className="fill-white" />Preferred office</span>}</div>
+          <div className="flex flex-wrap items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} /><strong className="text-[#002757]">{shift.offices?.name || "Dental office"}</strong>{isPreferredOffice(shift) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={11} className="fill-white" />Preferred office</span>}</div>
           <p className="mt-1 text-xs font-bold text-slate-500">{shiftDateLabel(shift)}</p>
           <p className="mt-2 text-sm font-extrabold text-slate-700">${Number(shift.hourly_rate)}/hr</p>
           {shift.offices && <p className="mt-1 text-xs text-slate-500"><MapPin size={13} className="mr-1 inline" />{shift.offices.city}, {shift.offices.province}</p>}
@@ -360,9 +418,9 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               <div className="flex items-center justify-between gap-2"><h4 className="font-black text-[#002757]">Office Requests</h4><span className="rounded-full bg-[#F21C13] px-2.5 py-1 text-xs font-black text-white">{selectedDayShifts.length}</span></div>
               <div className="mt-3 space-y-2">{selectedDayShifts.map((shift) => {
                 const application = workflow.applications.find((item) => item.shifts?.id === shift.id);
-                const officeDistance = distanceKm(details?.profile.latitude, details?.profile.longitude, shift.offices?.latitude, shift.offices?.longitude);
+                const officeDistance = distanceForShift(shift);
                 return <article key={shift.id} className="rounded-xl border border-[#F21C13]/25 bg-red-50/60 p-3">
-                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><strong className="block truncate text-sm text-[#002757]">{shift.offices?.name || "Dental office"}</strong><p className="mt-1 text-xs font-bold text-slate-600">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p><p className="mt-1 text-[11px] font-bold text-slate-500"><MapPin size={11} className="mr-1 inline" />{officeDistance == null ? "Distance unavailable" : `${officeDistance.toFixed(1)} km away`}</p></div>{preferredOfficeIds.includes(shift.office_id) && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={10} className="fill-white" />Preferred office</span>}</div>
+                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><strong className="block truncate text-sm text-[#002757]">{shift.offices?.name || "Dental office"}</strong><p className="mt-1 text-xs font-bold text-slate-600">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p><p className="mt-1 text-[11px] font-bold text-slate-500"><MapPin size={11} className="mr-1 inline" />{officeDistance == null ? "Office location not verified yet" : `${officeDistance.toFixed(1)} km away`}</p></div>{isPreferredOffice(shift) && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={10} className="fill-white" />Preferred office</span>}</div>
                   <div className="mt-3">{application ? <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-[11px] font-extrabold text-[#002757]">{application.status.replace("_", " ")}</span> : <button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void act(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center">{busy === `apply-${shift.id}` ? "Applying…" : "Apply"}</button>}</div>
                 </article>;
               })}</div>

@@ -142,7 +142,7 @@ export type LiveShift = {
   required_software: string | null;
   notes: string | null;
   status: string;
-  offices: { name: string; city: string; province: string; website: string | null; latitude: number | null; longitude: number | null } | null;
+  offices: { name: string; city: string; province: string; website: string | null; google_place_id: string | null; latitude: number | null; longitude: number | null } | null;
 };
 
 export async function loadAccount(userId: string) {
@@ -557,7 +557,7 @@ export async function cancelAdminShift(shiftId: string, reason: string) {
 export async function loadOpenShifts() {
   const { data, error } = await supabase
     .from("shifts")
-    .select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,latitude,longitude)")
+    .select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,google_place_id,latitude,longitude)")
     .eq("status", "open")
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true });
@@ -719,8 +719,8 @@ export async function removeFavouriteOffice(userId: string, favouriteId: string)
 export async function loadProfessionalWorkflow(userId: string) {
   const workflowPromise = Promise.all([
     loadOpenShifts(),
-    supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,latitude,longitude))").eq("professional_id", userId).order("created_at", { ascending: false }),
-    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
+    supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,google_place_id,latitude,longitude))").eq("professional_id", userId).order("created_at", { ascending: false }),
+    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,google_place_id,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
     supabase.from("availability").select("id,starts_at,ends_at,available").eq("professional_id", userId).order("starts_at", { ascending: true }),
     supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,address,city,province,postal_code,google_place_id,latitude,longitude,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
   ]);
@@ -739,8 +739,8 @@ export async function loadProfessionalWorkflow(userId: string) {
 
 export async function loadOfficeWorkflow(officeId: string) {
   const [shiftsResult, bookingsResult, directoryResult, availabilityResult] = await Promise.all([
-    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,latitude,longitude),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
-    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
+    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,google_place_id,latitude,longitude),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
+    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,google_place_id,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
     supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").eq("available_for_work", true).order("rating", { ascending: false }).limit(12),
     supabase.from("availability").select("id,professional_id,starts_at,ends_at,professional_profiles!availability_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,hourly_rate,years_experience)").eq("available", true).gte("ends_at", new Date().toISOString()),
   ]);
