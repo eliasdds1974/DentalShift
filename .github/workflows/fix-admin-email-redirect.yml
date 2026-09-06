@@ -1,0 +1,35 @@
+name: Fix admin email redirect
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-admin-email-redirect.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Route admin magic links directly to admin portal
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          old = 'const redirectTo = `${window.location.origin}/?portal_role=${role}`;'
+          new = 'const redirectTo = role === "admin"\n      ? `${window.location.origin}/admin/overview`\n      : `${window.location.origin}/?portal_role=${role}`;'
+          if old not in s:
+              raise SystemExit('redirect target not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add app/page.tsx
+          git commit -m 'Route admin email sign-in to admin portal'
+          git push
