@@ -232,7 +232,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
       await refresh();
       setSelection({ type: "day" });
     } catch (value) {
-      setError(value instanceof Error ? value.message : "The action could not be completed.");
+      setError(value instanceof Error ? value.message : (typeof value === "object" && value && "message" in value ? String((value as { message?: unknown }).message || "The action could not be completed.") : "The action could not be completed."));
     } finally {
       setBusy("");
     }
