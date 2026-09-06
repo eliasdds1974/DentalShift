@@ -246,10 +246,10 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                   return <article key={slot.id} className="rounded-xl border-2 border-[#04A62F]/35 bg-[#eaf8ee] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${role.solid}`} /><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong></div>
-                        <p className="mt-1 text-[11px] font-black uppercase tracking-wide text-[#04A62F]">Available {shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p>
+                        <div className="flex items-center gap-2"><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong></div>
+                        <span className="mt-2 inline-block rounded-lg bg-[#04A62F] px-3 py-2 text-[11px] font-black text-white">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</span>
                       </div>
-                      <span className="shrink-0 rounded-full bg-[#eaf8ee] px-2 py-1 text-[10px] font-black text-[#017f27]">Available</span>
+                      <span className="shrink-0 rounded-lg bg-[#04A62F] px-3 py-2 text-[11px] font-black uppercase tracking-wide text-white">Available</span>
                     </div>
                     <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-600">
                       <span>Province: <strong className="text-[#032757]">{profile?.licence_province || "—"}</strong></span>
