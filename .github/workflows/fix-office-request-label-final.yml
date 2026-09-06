@@ -1,0 +1,24 @@
+name: Fix office request label final
+
+on:
+  push:
+    paths:
+      - "scripts/fix-office-request-label-final.py"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply targeted label fix
+        run: python scripts/fix-office-request-label-final.py
+      - name: Commit source change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m "Fit office request label beside count badge"
+          git push
