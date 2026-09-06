@@ -611,7 +611,7 @@ export async function updateAttendance(bookingId: string, action: "check_in" | "
 }
 
 export type ProfessionalAvailability = { id: string; starts_at: string; ends_at: string; available: boolean };
-export type FavouriteOffice = { id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; offices: { id: string; name: string; city: string; province: string; website: string | null } | null };
+export type FavouriteOffice = { id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; offices: { id: string; name: string; address: string; city: string; province: string; postal_code: string; google_place_id: string | null; latitude: number | null; longitude: number | null; website: string | null } | null };
 export type OfficePreferredProfessional = {
   id: string;
   office_id: string;
@@ -722,7 +722,7 @@ export async function loadProfessionalWorkflow(userId: string) {
     supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,latitude,longitude))").eq("professional_id", userId).order("created_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
     supabase.from("availability").select("id,starts_at,ends_at,available").eq("professional_id", userId).order("starts_at", { ascending: true }),
-    supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,city,province,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
+    supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,address,city,province,postal_code,google_place_id,latitude,longitude,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
   ]);
 
   const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult] = await Promise.race([
