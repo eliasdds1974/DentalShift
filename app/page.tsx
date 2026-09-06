@@ -607,72 +607,45 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
     setNotice("");
     const form = new FormData(event.currentTarget);
     const email = String(form.get("email") || "").trim().toLowerCase();
-    const password = String(form.get("password") || "");
+    const metadata = mode === "signup" ? {
+      role,
+      first_name: String(form.get("first_name") || ""),
+      last_name: String(form.get("last_name") || ""),
+      office_name: String(form.get("office_name") || ""),
+      profession: String(form.get("profession") || ""),
+      licence_number: String(form.get("licence_number") || ""),
+      address: String(form.get("address") || ""),
+      city: String(form.get("city") || ""),
+      province: String(form.get("province") || "BC"),
+      postal_code: String(form.get("postal_code") || ""),
+      google_place_id: String(form.get("google_place_id") || ""),
+      latitude: String(form.get("latitude") || ""),
+      longitude: String(form.get("longitude") || ""),
+    } : undefined;
 
-    if (mode === "signin") {
-      // Authenticate against the password for the selected DentalShift workspace.
-      window.sessionStorage.setItem("dentalshift_signin_role", role);
-      const { data: roleAuth, error: signInError } = await supabase.functions.invoke("role-auth", {
-        body: { action: "login", email, password, role },
-      });
-      if (signInError || !roleAuth?.session) {
-        window.sessionStorage.removeItem("dentalshift_signin_role");
-        setError(roleAuth?.error || `Incorrect email or password for your Dental ${role === "office" ? "Office" : "Professional"} account. Select Forgot password if you need to reset this account's password.`);
-      } else {
-        const { error: sessionError } = await supabase.auth.setSession(roleAuth.session);
-        if (sessionError) {
-          window.sessionStorage.removeItem("dentalshift_signin_role");
-          setError("DentalShift could not start your secure session. Please try again.");
-        } else close();
-      }
+    if (mode === "signup" && metadata && (!metadata.address || !metadata.city || !metadata.province || !metadata.postal_code || (role === "office" && !metadata.office_name))) {
+      setError("Select an address from Google or enter the complete address manually.");
+      setBusy(false);
+      return;
+    }
+
+    window.sessionStorage.setItem("dentalshift_signin_role", role);
+    window.localStorage.setItem("dentalshift_portal_role", role);
+    const redirectTo = `${window.location.origin}/?portal_role=${role}`;
+    const { error: emailError } = await supabase.auth.signInWithOtp({
+      email,
+      options: {
+        shouldCreateUser: mode === "signup",
+        emailRedirectTo: redirectTo,
+        ...(metadata ? { data: metadata } : {}),
+      },
+    });
+
+    if (emailError) {
+      setError(mode === "signin" ? "We could not send your secure sign-in email. Check the email address and try again." : emailError.message);
     } else {
-      const metadata = {
-        role,
-        first_name: String(form.get("first_name") || ""),
-        last_name: String(form.get("last_name") || ""),
-        office_name: String(form.get("office_name") || ""),
-        profession: String(form.get("profession") || ""),
-        licence_number: String(form.get("licence_number") || ""),
-        address: String(form.get("address") || ""),
-        city: String(form.get("city") || ""),
-        province: String(form.get("province") || "BC"),
-        postal_code: String(form.get("postal_code") || ""),
-        google_place_id: String(form.get("google_place_id") || ""),
-        latitude: String(form.get("latitude") || ""),
-        longitude: String(form.get("longitude") || ""),
-      };
-      if (!metadata.address || !metadata.city || !metadata.province || !metadata.postal_code || (role === "office" && !metadata.office_name)) {
-        setError("Select an address from Google or enter the complete address manually.");
-        setBusy(false);
-        return;
-      }
-      const { data, error: signUpError } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: metadata,
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      });
-      if (signUpError) {
-        const message = signUpError.message.toLowerCase();
-        if (message.includes("already registered") || message.includes("already exists")) {
-          setMode("signin");
-          setSignInRoleChosen(true);
-          setEmailValue(email);
-          setError("This email is already registered with DentalShift. Choose Dental Office or Dental Professional and use the password for that account.");
-        } else {
-          setError(signUpError.message);
-        }
-      } else if (!data.session && data.user?.identities?.length === 0) {
-        setMode("signin");
-        setSignInRoleChosen(true);
-        setEmailValue(email);
-        setError("This email is already registered with DentalShift. Choose Dental Office or Dental Professional and use the password for that account.");
-      } else if (!data.session) {
-        setCreatedEmail(email);
-        setAccountCreated(true);
-      } else close();
+      setResetEmailAddress(email);
+      setResetEmailSent(true);
     }
     setBusy(false);
   };
@@ -863,11 +836,11 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
         ) : resetEmailSent ? (
           <div className="p-8 text-center sm:p-10">
             <div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E] ring-8 ring-[#eaf8ee]/60"><Check size={34} strokeWidth={3} /></div>
-            <h3 className="mt-6 text-2xl font-extrabold tracking-tight text-[#002757]">Password setup email sent</h3>
+            <h3 className="mt-6 text-2xl font-extrabold tracking-tight text-[#002757]">Secure sign-in email sent</h3>
             <p className="mx-auto mt-3 max-w-md text-base leading-7 text-slate-600">We sent a secure sign-in link to <strong className="font-extrabold text-slate-900">{resetEmailAddress}</strong>.</p>
-            <div className="mx-auto mt-6 max-w-md rounded-2xl border border-[#002757]/10 bg-[#f5f8fb] p-5 text-left"><p className="font-extrabold text-[#002757]">What to do next</p><ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600"><li><strong className="text-[#002757]">1.</strong> Check your inbox and junk folder.</li><li><strong className="text-[#002757]">2.</strong> Open the email from DentalShift.</li><li><strong className="text-[#002757]">3.</strong> Select the secure link and create a new password for the account type you chose.</li></ol></div>
+            <div className="mx-auto mt-6 max-w-md rounded-2xl border border-[#002757]/10 bg-[#f5f8fb] p-5 text-left"><p className="font-extrabold text-[#002757]">What to do next</p><ol className="mt-3 space-y-2 text-sm leading-6 text-slate-600"><li><strong className="text-[#002757]">1.</strong> Check your inbox and junk folder.</li><li><strong className="text-[#002757]">2.</strong> Open the email from DentalShift.</li><li><strong className="text-[#002757]">3.</strong> Select the secure link to enter the account type you chose.</li></ol></div>
             <div className="mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row sm:justify-center"><button type="button" onClick={() => { setResetEmailSent(false); setError(""); setNotice(""); }} className="primary-btn justify-center">Back to sign in</button><button type="button" onClick={close} className="secondary-btn justify-center">Close</button></div>
-            <p className="mt-5 text-xs leading-5 text-slate-500">For security, the message is the same whether or not the address is registered.</p>
+            <p className="mt-5 text-xs leading-5 text-slate-500">For security, DentalShift does not reveal whether an email address is registered.</p>
           </div>
         ) : session && activeRole === "office" && details?.office ? (
           <form onSubmit={saveOfficeAccount} className="grid gap-4 p-6 sm:grid-cols-2">
@@ -900,7 +873,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             </div>
             <div className="sm:col-span-2">{preferredLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading preferred professionals…</p> : preferredProfessionals.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">No preferred professionals added yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{preferredProfessionals.map((person) => <div key={person.id} className="rounded-2xl border border-[#FDB605]/35 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-[#002757]">{person.first_name} {person.last_name}</p><p className="mt-1 text-xs font-bold text-slate-500">{person.profession} · {person.licence_province}</p><p className="mt-1 text-xs text-slate-500">Licence: {person.licence_number}</p>{person.matched_professional_id ? <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900"><Star size={12} className="fill-[#FDB605] text-[#FDB605]" />Matched</span> : <span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">Preferred professional</span>}</div><button type="button" disabled={busy} onClick={() => void removePreferredProfessional(person.id)} className="text-xs font-black text-slate-500 underline">Remove</button></div></div>)}</div>}</div>
             {!details.professional && <>
-              <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Use the same email address for both sides of DentalShift. Your Dental Office and Dental Professional accounts can have different passwords. Professional verification is handled separately.</p></div>
+              <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Use the same email address for both sides of DentalShift. Each time you sign in, choose the workspace you want and verify through your email. Professional verification is handled separately.</p></div>
               <label className="field sm:col-span-2"><span>Profession</span><select name="new_profession" required defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
               <label className="field"><span>Licence or registration number</span><input name="new_licence_number" required /></label>
               <label className="field"><span>Licence province</span><select name="new_licence_province" required defaultValue={details.office.province || "AB"}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
@@ -936,7 +909,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
                 <div className="sm:col-span-2">{favouritesLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading preferred offices…</p> : favouriteOffices.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">You have not saved any preferred offices yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{favouriteOffices.map((favourite) => { const office = favourite.offices; const name = office?.name || favourite.name || "Dental office"; const city = office?.city || favourite.city; const province = office?.province || favourite.province; const website = office?.website || favourite.website; return <div key={favourite.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="font-extrabold text-[#002757]">{name}</p><p className="mt-1 text-xs font-bold text-slate-500">{[city, province].filter(Boolean).join(", ") || favourite.formatted_address || "Location not listed"}</p>{website && <WebsiteLink website={website} className="mt-2" />}</div><button type="button" disabled={busy} onClick={() => void removeSavedOffice(favourite.id)} className="secondary-btn w-fit justify-center">Remove</button></div>; })}</div>}</div>
               </>}
               {!details.professional && details.office && <>
-                <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Keep the same email address, then complete a separate professional verification profile. Your Professional account can use its own password.</p></div>
+                <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Keep the same email address, then complete a separate professional verification profile. Choose the Professional workspace when signing in by email.</p></div>
                 <label className="field sm:col-span-2"><span>Profession</span><select name="new_profession" required defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
                 <label className="field"><span>Licence or registration number</span><input name="new_licence_number" required /></label>
                 <label className="field"><span>Licence province</span><select name="new_licence_province" required defaultValue={details.profile.province || details.office.province || "AB"}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
@@ -1008,11 +981,10 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
 
             {mode === "signin" && <div className="flex items-center justify-between rounded-2xl border border-[#002757]/15 bg-[#edf3fa] px-4 py-3 sm:col-span-2"><div className="flex items-center gap-3"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#002757] text-white">{role === "office" ? <Building2 size={18} /> : <UserRound size={18} />}</span><div><p className="text-xs font-bold text-slate-500">Signing in as</p><p className="text-sm font-extrabold text-[#002757]">{role === "office" ? "Dental Office" : "Dental Professional"}</p></div></div><button type="button" onClick={() => setSignInRoleChosen(false)} className="text-sm font-extrabold text-[#002757] underline underline-offset-4">Change</button></div>}
             <label className="field sm:col-span-2"><span>Email</span><input name="email" type="email" value={emailValue} onChange={(event) => setEmailValue(event.target.value)} autoComplete="email" required /></label>
-            <label className="field sm:col-span-2"><span>Password</span><input name="password" type="password" minLength={8} required /></label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
-            {mode === "signin" && <button type="button" onClick={() => void sendPasswordReset()} disabled={busy} className="justify-self-start text-sm font-extrabold text-[#002757] underline underline-offset-4 sm:col-span-2">Forgot password?</button>}
-            <button disabled={busy} className="primary-btn sm:col-span-2">{busy ? "Please wait…" : mode === "signin" ? "Sign in securely" : "Create account"}</button>
+            <p className="text-xs leading-5 text-slate-500 sm:col-span-2">DentalShift will email you a secure one-time sign-in link. No password is required.</p>
+            <button disabled={busy} className="primary-btn sm:col-span-2">{busy ? "Sending secure email…" : mode === "signin" ? "Email me a sign-in link" : "Create account & verify email"}</button>
           </form>
         )}
       </section>
@@ -1346,6 +1318,11 @@ export default function Home() {
       }
     };
 
+    const emailPortalRole = new URLSearchParams(window.location.search).get("portal_role");
+    if (emailPortalRole === "office" || emailPortalRole === "professional") {
+      window.sessionStorage.setItem("dentalshift_signin_role", emailPortalRole);
+      window.localStorage.setItem("dentalshift_portal_role", emailPortalRole);
+    }
     supabase.auth.getSession().then(({ data }) => syncAccount(data.session));
     const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
       const savedRecoveryRole = window.localStorage.getItem("dentalshift_password_recovery_role");
