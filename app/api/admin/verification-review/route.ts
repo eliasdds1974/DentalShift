@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { escapeEmailHtml, renderDentalShiftEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
@@ -7,19 +8,13 @@ const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://pvugjtlmtly
 const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "sb_publishable_cl7HUUywEucu1DsSbuaodA_oKo8qNFJ";
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.dentalshift.ca";
 
-function escapeHtml(value: string) {
-  return value.replace(/[&<>'\"]/g, (character) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", "'": "&#39;", '"': "&quot;" })[character] ?? character);
-}
-
 export async function POST(request: Request) {
   console.log("[verification-review] request received");
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
 
   const resendApiKey = process.env.RESEND_API_KEY;
-  if (!resendApiKey) {
-    return NextResponse.json({ error: "Email delivery has not been configured yet." }, { status: 503 });
-  }
+  if (!resendApiKey) return NextResponse.json({ error: "Email delivery has not been configured yet." }, { status: 503 });
 
   const accessToken = authorization.slice("Bearer ".length);
   const requestClient = createClient(supabaseUrl, supabasePublishableKey, {
@@ -64,7 +59,19 @@ export async function POST(request: Request) {
   }
 
   const firstName = recipient.first_name?.trim() || "there";
-  const safeNotes = escapeHtml(notes).replace(/\n/g, "<br />");
+  const safeNotes = escapeEmailHtml(notes).replace(/\n/g, "<br />");
+  const html = renderDentalShiftEmail({
+    siteUrl,
+    preheader: "DentalShift needs a little more information to complete your verification.",
+    title: "Action needed to verify your account",
+    greeting: `Hello ${firstName},`,
+    intro: "We need a little more information before we can complete your DentalShift verification.",
+    bodyHtml: `<div style="margin:20px 0;padding:16px 18px;background:#FFF8E6;border:1px solid #F6D77C;border-radius:12px;color:#334155;font-size:15px;line-height:1.65;"><strong style="display:block;margin-bottom:6px;color:#002757;">What we need from you</strong>${safeNotes}</div>`,
+    actionLabel: "Open DentalShift",
+    actionUrl: siteUrl,
+    noteHtml: `<p style="margin:0;font-size:14px;line-height:1.6;color:#64748B;">Your account will remain unavailable for live shifts until verification is complete.</p>`,
+  });
+
   const emailResponse = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
@@ -72,8 +79,8 @@ export async function POST(request: Request) {
       from: "DentalShift <support@dentalshift.ca>",
       to: [recipientEmail],
       subject: "Action needed to verify your DentalShift account",
-      text: `Hello ${firstName},\n\nYour DentalShift verification needs additional information:\n\n${notes}\n\nSign in to DentalShift to update your profile: ${siteUrl}\n\nYour account will remain unavailable for live shifts until verification is complete.\n\nDentalShift Support`,
-      html: `<div style="font-family:Arial,sans-serif;color:#14213d;line-height:1.6;max-width:600px;margin:0 auto;padding:24px"><h1 style="font-size:24px;margin:0 0 20px">Action needed to verify your account</h1><p>Hello ${escapeHtml(firstName)},</p><p>Your DentalShift verification needs additional information:</p><div style="background:#fff8e6;border:1px solid #f2c95c;border-radius:12px;padding:16px;margin:20px 0">${safeNotes}</div><p><a href="${siteUrl}" style="display:inline-block;background:#16b85a;color:#ffffff;text-decoration:none;border-radius:8px;padding:12px 18px;font-weight:700">Sign in to DentalShift</a></p><p>Your account will remain unavailable for live shifts until verification is complete.</p><p>DentalShift Support</p></div>`,
+      text: `Hello ${firstName},\n\nWe need a little more information before we can complete your DentalShift verification:\n\n${notes}\n\nOpen DentalShift: ${siteUrl}\n\nYour account will remain unavailable for live shifts until verification is complete.\n\nThe DentalShift Team`,
+      html,
     }),
   });
 
@@ -82,6 +89,7 @@ export async function POST(request: Request) {
     console.error("[verification-review] Resend rejected email", { status: emailResponse.status, resendError });
     return NextResponse.json({ emailSent: false, error: "Review request was saved, but Resend rejected the email. Please check the Resend API key and sender domain." });
   }
+
   console.log("[verification-review] email accepted by Resend", { targetKind, targetId });
   return NextResponse.json({ emailSent: true });
 }
