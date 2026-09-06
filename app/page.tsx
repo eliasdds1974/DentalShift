@@ -1380,18 +1380,7 @@ export default function Home() {
           setAccountIntent({ mode: "signin", role: "office" });
           setAccountOpen(true);
         })(); }}
-        onAdmin={() => { void (async () => {
-          if (session) {
-            const { error: signOutError } = await supabase.auth.signOut();
-            if (signOutError) { window.alert(signOutError.message); return; }
-            setSession(null); setProfile(null); setOfficeId(null); setOffice(null);
-          }
-          window.sessionStorage.setItem("dentalshift_signin_role", "admin");
-          window.localStorage.setItem("dentalshift_portal_role", "admin");
-          setRole("admin");
-          setAccountIntent({ mode: "signin", role: "admin" });
-          setAccountOpen(true);
-        })(); }}
+        onAdmin={() => router.push("/admin/overview")}
         onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
         onWorkspace={() => navigate(role, "overview")}
       />
