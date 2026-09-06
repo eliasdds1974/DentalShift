@@ -9,3 +9,4 @@ if old not in text:
 path.write_text(text.replace(old, new, 1))
 
 # one-time source patch
+# build trigger
