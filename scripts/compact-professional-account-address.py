@@ -47,7 +47,8 @@ if old_contact not in text:
     raise SystemExit('professional contact form block not found')
 text = text.replace(old_contact, new_contact, 1)
 
-# Compact the two largest section wrappers without changing content or workflow.
 text = text.replace('className="mt-2 rounded-2xl border border-[#0078FE]/15 bg-white p-4 sm:col-span-2"', 'className="mt-1 rounded-xl border border-[#0078FE]/15 bg-white px-4 py-3 sm:col-span-2"', 1)
 text = text.replace('className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2"', 'className="rounded-xl border border-slate-200 bg-white p-3 sm:col-span-2"', 1)
 path.write_text(text)
+
+# trigger one-time workflow
