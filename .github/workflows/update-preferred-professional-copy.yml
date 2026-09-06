@@ -1,0 +1,29 @@
+name: Update preferred professional wording
+on:
+  push:
+    paths:
+      - '.github/workflows/update-preferred-professional-copy.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update copy
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/page.tsx')
+          s=p.read_text()
+          s=s.replace('Preferred professional saved. The badge will appear automatically when DentalShift finds a verified match.','Preferred professional saved. The badge will appear next to a preferred professional.')
+          s=s.replace('<span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Waiting for match</span>','<span className="mt-2 inline-flex rounded-full bg-amber-50 px-2.5 py-1 text-xs font-bold text-amber-800">Preferred professional</span>')
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/page.tsx
+          git commit -m 'Simplify preferred professional wording'
+          git push
