@@ -1,0 +1,41 @@
+name: Fix preferred office helper
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-preferred-office-helper.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fix helper recursion
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('components/WorkflowWorkspaceV2.tsx')
+          text = path.read_text()
+          bad = '''  const isPreferredOffice = (shift: LiveShift) => {\n    if (isPreferredOffice(shift)) return true;\n'''
+          good = '''  const isPreferredOffice = (shift: LiveShift) => {\n    if (preferredOfficeIds.includes(shift.office_id)) return true;\n'''
+          if bad not in text:
+              raise SystemExit('recursive helper pattern not found')
+          path.write_text(text.replace(bad, good, 1))
+          PY
+      - name: Verify
+        run: |
+          grep -q 'if (preferredOfficeIds.includes(shift.office_id)) return true;' components/WorkflowWorkspaceV2.tsx
+          ! grep -q 'if (isPreferredOffice(shift)) return true;' components/WorkflowWorkspaceV2.tsx
+      - name: Commit
+        run: |
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Fix preferred office matching helper'
+          git push origin HEAD:main
