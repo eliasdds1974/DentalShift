@@ -1,0 +1,58 @@
+name: Role-specific account passwords
+on:
+  push:
+    paths:
+      - '.github/workflows/role-specific-auth.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch role-specific authentication
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('app/page.tsx')
+          s=p.read_text()
+
+          old='''      // Save the intended workspace before Supabase emits SIGNED_IN.\n      window.sessionStorage.setItem("dentalshift_signin_role", role);\n      const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });\n      if (signInError) {\n        window.sessionStorage.removeItem("dentalshift_signin_role");\n        setError(signInError.message.toLowerCase().includes("invalid login credentials")\n          ? "Incorrect email or password. Use the same DentalShift password for either your Dental Office or Dental Professional workspace. Select Forgot password if you need to reset it."\n          : signInError.message);\n      } else {\n        close();\n      }'''
+          new='''      // Authenticate against the password for the selected DentalShift workspace.\n      window.sessionStorage.setItem("dentalshift_signin_role", role);\n      const { data: roleAuth, error: signInError } = await supabase.functions.invoke("role-auth", {\n        body: { action: "login", email, password, role },\n      });\n      if (signInError || !roleAuth?.session) {\n        window.sessionStorage.removeItem("dentalshift_signin_role");\n        setError(roleAuth?.error || `Incorrect email or password for your Dental ${role === "office" ? "Office" : "Professional"} account. Select Forgot password if you need to reset this account's password.`);\n      } else {\n        const { error: sessionError } = await supabase.auth.setSession(roleAuth.session);\n        if (sessionError) {\n          window.sessionStorage.removeItem("dentalshift_signin_role");\n          setError("DentalShift could not start your secure session. Please try again.");\n        } else close();\n      }'''
+          if old not in s: raise SystemExit('signin block not found')
+          s=s.replace(old,new,1)
+
+          old='''    window.localStorage.setItem("dentalshift_password_recovery_role", role);\n    const { error: resetError } = await supabase.auth.resetPasswordForEmail(emailValue.trim(), {\n      redirectTo: `${window.location.origin}/`,\n    });'''
+          new='''    window.localStorage.setItem("dentalshift_password_recovery_role", role);\n    const { error: resetError } = await supabase.auth.signInWithOtp({\n      email: emailValue.trim(),\n      options: { shouldCreateUser: false, emailRedirectTo: `${window.location.origin}/?role_recovery=${role}` },\n    });'''
+          if old not in s: raise SystemExit('reset block not found')
+          s=s.replace(old,new,1)
+
+          old='''    setBusy(true);\n    const { error: updateError } = await supabase.auth.updateUser({ password });\n    if (updateError) setError(updateError.message);\n    else {\n      setPasswordChanged(true);\n      setNotice("Your password has been changed successfully.");\n    }\n    setBusy(false);'''
+          new='''    setBusy(true);\n    const recoveryRole = window.localStorage.getItem("dentalshift_password_recovery_role");\n    const targetRole = recoveryRole === "office" || recoveryRole === "professional" ? recoveryRole : activeRole;\n    const { data: passwordResult, error: updateError } = await supabase.functions.invoke("role-auth", {\n      body: { action: "set_password", role: targetRole, password },\n    });\n    if (updateError || passwordResult?.error) setError(passwordResult?.error || "Your password could not be changed.");\n    else {\n      setPasswordChanged(true);\n      setNotice(`Your Dental ${targetRole === "office" ? "Office" : "Professional"} password has been changed successfully.`);\n    }\n    setBusy(false);'''
+          if old not in s: raise SystemExit('update password block not found')
+          s=s.replace(old,new,1)
+
+          old='''      if (event === "PASSWORD_RECOVERY") {\n        const savedRecoveryRole = window.localStorage.getItem("dentalshift_password_recovery_role");\n        if (savedRecoveryRole === "professional" || savedRecoveryRole === "office") setRole(savedRecoveryRole);\n        setPasswordRecovery(true);\n        setAccountOpen(true);\n      }'''
+          new='''      const savedRecoveryRole = window.localStorage.getItem("dentalshift_password_recovery_role");\n      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && (savedRecoveryRole === "professional" || savedRecoveryRole === "office") && new URLSearchParams(window.location.search).has("role_recovery"))) {\n        if (savedRecoveryRole === "professional" || savedRecoveryRole === "office") setRole(savedRecoveryRole);\n        setPasswordRecovery(true);\n        setAccountOpen(true);\n      }'''
+          if old not in s: raise SystemExit('auth listener recovery block not found')
+          s=s.replace(old,new,1)
+
+          s=s.replace('Use this same email and password for both sides of DentalShift. Professional verification will be handled separately.','Use the same email address for both sides of DentalShift. Your Dental Office and Dental Professional accounts can have different passwords. Professional verification is handled separately.')
+          s=s.replace('Keep this email and password, then complete a separate professional verification profile.','Keep the same email address, then complete a separate professional verification profile. Your Professional account can use its own password.')
+          s=s.replace('Office account saved. Your Dental Professional workspace is now available with the same email and password.','Office account saved. Your Dental Professional workspace can use the same email with its own password.')
+          s=s.replace('This email already has a DentalShift login. Sign in with the existing password; the same login can access both Dental Office and Dental Professional workspaces.','This email is already registered with DentalShift. Choose Dental Office or Dental Professional and use the password for that account.')
+          s=s.replace('Password-reset email sent','Password setup email sent')
+          s=s.replace('We sent a secure password-reset link to','We sent a secure sign-in link to')
+          s=s.replace('Select the secure link and create a new password.','Select the secure link and create a new password for the account type you chose.')
+
+          p.write_text(s)
+          PY
+      - name: Build
+        run: npm install --no-audit --no-fund && npm run build
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/page.tsx
+          git commit -m 'Use separate office and professional passwords'
+          git push
