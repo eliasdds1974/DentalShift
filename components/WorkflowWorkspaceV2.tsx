@@ -256,7 +256,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
           <button type="button" aria-label="Close availability" onClick={() => setAvailabilityModalOpen(false)} className="inline-grid h-9 w-9 shrink-0 place-items-center rounded-full bg-white text-lg font-black text-slate-500 shadow-sm">×</button>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div>
-        <button type="submit" disabled={busy === "availability-add"} className="primary-btn mt-4 w-full justify-center">{busy === "availability-add" ? "Saving…" : "Add availability"}</button>
+        <div className="mt-4 grid grid-cols-2 gap-3"><button type="button" onClick={() => setAvailabilityModalOpen(false)} className="secondary-btn justify-center">Cancel</button><button type="submit" disabled={busy === "availability-add"} className="primary-btn justify-center">{busy === "availability-add" ? "Saving…" : "Add availability"}</button></div>
       </form>
     </div>}
 
