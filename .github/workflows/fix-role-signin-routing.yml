@@ -1,20 +1,24 @@
-name: Fix role-specific sign-in routing
+name: "Fix role-specific sign-in routing"
+
 on:
   push:
     paths:
-      - '.github/workflows/fix-role-signin-routing.yml'
+      - ".github/workflows/fix-role-signin-routing.yml"
+
 permissions:
   contents: write
+
 jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Route successful sign-in to chosen portal
+        shell: bash
         run: |
-          python3 - <<'PY'
+          cat > /tmp/patch.py <<'PY'
           from pathlib import Path
-          p = Path('app/page.tsx')
+          p = Path("app/page.tsx")
           s = p.read_text()
           old = '''        const { error: sessionError } = await supabase.auth.setSession(roleAuth.session);
         if (sessionError) {
@@ -26,23 +30,21 @@ jobs:
           window.sessionStorage.removeItem("dentalshift_signin_role");
           setError("DentalShift could not start your secure session. Please try again.");
         } else {
-          // The account type selected at sign-in is authoritative. Persist it and
-          // enter that portal immediately so the shared underlying Supabase user
-          // cannot fall back to the profile's default role.
           window.localStorage.setItem("dentalshift_portal_role", role);
           window.sessionStorage.removeItem("dentalshift_signin_role");
           window.location.assign(portalRoutes[role].overview);
         }'''
           if old not in s:
-              raise SystemExit('sign-in session block not found')
+              raise SystemExit("sign-in session block not found")
           p.write_text(s.replace(old, new, 1))
           PY
+          python3 /tmp/patch.py
       - name: Build
         run: npm install --no-audit --no-fund && npm run build
       - name: Commit source fix
         run: |
-          git config user.name 'DentalShift Automation'
-          git config user.email 'actions@users.noreply.github.com'
+          git config user.name "DentalShift Automation"
+          git config user.email "actions@users.noreply.github.com"
           git add app/page.tsx
-          git commit -m 'Route login to selected account portal'
+          git commit -m "Route login to selected account portal"
           git push
