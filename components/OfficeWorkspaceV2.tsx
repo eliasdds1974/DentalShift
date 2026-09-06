@@ -247,12 +247,12 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <div className="flex items-center gap-2"><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong></div>
-                        <span className="mt-2 inline-block rounded-lg bg-[#04A62F] px-3 py-2 text-[11px] font-black text-white">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</span>
+                        <span className="mt-2 inline-block rounded-lg bg-[#04A62F] px-3 py-2 text-xs font-black text-white">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</span>
                       </div>
-                      <span className="shrink-0 rounded-lg bg-[#04A62F] px-3 py-2 text-[11px] font-black uppercase tracking-wide text-white">Available</span>
+                      <span className="shrink-0 rounded-lg bg-[#04A62F] px-3 py-2 text-xs font-black uppercase tracking-wide text-white">Available</span>
                     </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-600">
-                      <span>Province: <strong className="text-[#032757]">{profile?.licence_province || "—"}</strong></span>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold leading-tight text-slate-600">
+                      <span>Experience: <strong className="text-[#032757]">{profile?.years_experience != null ? `${profile.years_experience} ${profile.years_experience === 1 ? "yr" : "yrs"}` : "—"}</strong></span>
                       <span>Rating: <strong className="text-[#032757]">{profile?.rating || 0}★</strong></span>
                       <span>Completed: <strong className="text-[#032757]">{profile?.completed_shifts || 0}</strong></span>
                       <span>Reliability: <strong className="text-[#032757]">{profile?.reliability_score || 0}%</strong></span>
