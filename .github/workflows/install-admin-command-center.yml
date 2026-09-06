@@ -1,0 +1,41 @@
+name: Install admin command center
+on:
+  push:
+    paths:
+      - '.github/workflows/install-admin-command-center.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Wire admin command center
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          import_anchor = 'import { MarketingHome } from "@/components/MarketingHome";'
+          new_import = import_anchor + '\nimport { AdminCommandCenter } from "@/components/AdminCommandCenter";'
+          if 'AdminCommandCenter' not in s:
+              if import_anchor not in s:
+                  raise SystemExit('import anchor not found')
+              s = s.replace(import_anchor, new_import, 1)
+          old = '? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : <AdminDashboard userId={session.user.id} />'
+          new = '? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : view === "talent" ? <AdminDashboard userId={session.user.id} /> : <AdminCommandCenter onNavigate={(nextView) => navigate("admin", nextView)} />'
+          if old not in s:
+              raise SystemExit('admin render target not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add app/page.tsx
+          git commit -m 'Use DentalShift admin command center'
+          git push
