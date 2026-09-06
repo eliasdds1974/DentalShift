@@ -154,7 +154,7 @@ export function GoogleAddressAutocomplete({ kind, initialAddress }: { kind: "off
 
   return <div className="sm:col-span-2">
     <label className="field">
-      <span>{kind === "office" ? "Find your dental office" : "Home address"}</span>
+      <span>{kind === "office" ? "Find your dental office" : "Complete address"}</span>
       <div className="relative">
         <Search size={18} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" />
         <input
