@@ -13,16 +13,27 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Route admin magic links directly to admin portal
+      - name: Route temporary admin directly to admin portal
         run: |
           python - <<'PY'
           from pathlib import Path
           p = Path('app/page.tsx')
           s = p.read_text()
-          old = 'const redirectTo = `${window.location.origin}/?portal_role=${role}`;'
-          new = 'const redirectTo = role === "admin"\n      ? `${window.location.origin}/admin/overview`\n      : `${window.location.origin}/?portal_role=${role}`;'
+          old = '''        onAdmin={() => { void (async () => {
+          if (session) {
+            const { error: signOutError } = await supabase.auth.signOut();
+            if (signOutError) { window.alert(signOutError.message); return; }
+            setSession(null); setProfile(null); setOfficeId(null); setOffice(null);
+          }
+          window.sessionStorage.setItem("dentalshift_signin_role", "admin");
+          window.localStorage.setItem("dentalshift_portal_role", "admin");
+          setRole("admin");
+          setAccountIntent({ mode: "signin", role: "admin" });
+          setAccountOpen(true);
+        })(); }}'''
+          new = '''        onAdmin={() => router.push("/admin/overview")}'''
           if old not in s:
-              raise SystemExit('redirect target not found')
+              raise SystemExit('temporary admin handler not found')
           s = s.replace(old, new, 1)
           p.write_text(s)
           PY
@@ -31,5 +42,5 @@ jobs:
           git config user.name 'eliasdds1974'
           git config user.email 'eliasdds@gmail.com'
           git add app/page.tsx
-          git commit -m 'Route admin email sign-in to admin portal'
+          git commit -m 'Route temporary admin directly to admin page'
           git push
