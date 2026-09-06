@@ -1,0 +1,37 @@
+name: Fix safeupdate profile save
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-safeupdate-profile-save.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Make account updates safeupdate compatible
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('lib/dentalshift.ts')
+          s = p.read_text()
+          old = '''    .eq("id", input.profile.id)\n    .select("id")\n    .single();'''
+          new = '''    .eq("id", input.profile.id)\n    .limit(1)\n    .select("id")\n    .single();'''
+          if old not in s:
+              raise SystemExit('profiles save pattern not found')
+          s = s.replace(old, new, 1)
+          old2 = '''      .eq("user_id", input.professional.user_id)\n      .select("user_id")\n      .single();'''
+          new2 = '''      .eq("user_id", input.professional.user_id)\n      .limit(1)\n      .select("user_id")\n      .single();'''
+          if old2 not in s:
+              raise SystemExit('professional save pattern not found')
+          s = s.replace(old2, new2, 1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add lib/dentalshift.ts
+          git commit -m 'Make professional account saves safeupdate compatible'
+          git push
