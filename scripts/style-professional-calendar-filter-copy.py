@@ -7,3 +7,5 @@ new = '<div className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1"><h
 if old not in text:
     raise SystemExit("professional calendar guidance block not found")
 path.write_text(text.replace(old, new, 1))
+
+# trigger one-time build
