@@ -55,11 +55,48 @@ export default function AdminOverviewPage() {
       setChecking(false);
     };
 
+    const hydrateMagicLinkSession = async () => {
+      setChecking(true);
+
+      try {
+        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+        const accessToken = hash.get("access_token");
+        const refreshToken = hash.get("refresh_token");
+
+        if (accessToken && refreshToken) {
+          const { data, error: sessionError } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (sessionError) throw sessionError;
+          await verifySession(data.session);
+          return;
+        }
+
+        const code = new URLSearchParams(window.location.search).get("code");
+        if (code) {
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+          await verifySession(data.session);
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        await verifySession(data.session);
+      } catch {
+        if (!active) return;
+        setIsAdmin(false);
+        setChecking(false);
+      }
+    };
+
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_OUT") {
+      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_OUT") {
         void verifySession(session);
       }
     });
+
+    void hydrateMagicLinkSession();
 
     return () => {
       active = false;
