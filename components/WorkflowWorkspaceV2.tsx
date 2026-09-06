@@ -168,7 +168,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   }, [workflow.open, googleOfficeLocations]);
 
   const isPreferredOffice = (shift: LiveShift) => {
-    if (isPreferredOffice(shift)) return true;
+    if (preferredOfficeIds.includes(shift.office_id)) return true;
     const placeId = shift.offices?.google_place_id;
     if (placeId && preferredGooglePlaceIds.includes(placeId)) return true;
     const key = [shift.offices?.name || "", shift.offices?.city || "", shift.offices?.province || ""].map((value) => value.trim().toLowerCase()).join("|");
