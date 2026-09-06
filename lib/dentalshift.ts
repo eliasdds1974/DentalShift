@@ -378,6 +378,7 @@ export async function saveAccountDetails(input: AccountDetails) {
       updated_at: new Date().toISOString(),
     })
     .eq("id", input.profile.id)
+    .limit(1)
     .select("id")
     .single();
   if (profileError) throw new Error(`Your contact information could not be saved: ${profileError.message}`);
@@ -398,6 +399,7 @@ export async function saveAccountDetails(input: AccountDetails) {
         available_for_work: input.professional.available_for_work,
       })
       .eq("user_id", input.professional.user_id)
+      .limit(1)
       .select("user_id")
       .single();
     if (error) throw new Error(`Your professional information could not be saved: ${error.message}`);
