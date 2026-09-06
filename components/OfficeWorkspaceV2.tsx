@@ -109,6 +109,13 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     .filter((shift) => localDateKey(shift.starts_at) === selectedDate)
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   const selectedBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
+  const selectedAvailability = data.availability
+    .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
+    .sort((a, b) => {
+      const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
+      if (roleCompare) return roleCompare;
+      return (b.professional_profiles?.rating || 0) - (a.professional_profiles?.rating || 0);
+    });
 
   const act = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -226,6 +233,34 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[.12em] text-[#0078FE]">Selected date</p><h3 className="mt-1 text-xl font-black text-[#0f172a]">{longDate(selectedDate)}</h3></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">Office</span></div>
           <div className="my-5 border-t border-slate-200" />
           <div className="space-y-4">
+            {selectedAvailability.length > 0 && <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3">
+                <div><p className="text-xs font-black uppercase tracking-wide text-[#04A62F]">Available staff</p><p className="mt-1 text-sm font-extrabold text-[#032757]">{selectedAvailability.length} professional{selectedAvailability.length === 1 ? "" : "s"} available</p></div>
+                <UsersRound size={20} className="text-[#04A62F]" />
+              </div>
+              <div className="mt-3 space-y-2">
+                {selectedAvailability.map((slot) => {
+                  const profile = slot.professional_profiles;
+                  const code = roleCode(profile?.profession);
+                  const role = roleStyles[code];
+                  return <article key={slot.id} className={`rounded-xl border-2 p-3 ${role.soft} ${code === "RDH" ? "border-[#0078FE]/35" : code === "CDA" ? "border-[#F21C13]/35" : code === "DA" ? "border-amber-300" : "border-[#04A62F]/35"}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 shrink-0 rounded-full ${role.solid}`} /><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong></div>
+                        <p className="mt-1 text-[11px] font-black uppercase tracking-wide text-[#04A62F]">Available {shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p>
+                      </div>
+                      <span className="shrink-0 rounded-full bg-[#eaf8ee] px-2 py-1 text-[10px] font-black text-[#017f27]">Available</span>
+                    </div>
+                    <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-600">
+                      <span>Province: <strong className="text-[#032757]">{profile?.licence_province || "—"}</strong></span>
+                      <span>Rating: <strong className="text-[#032757]">{profile?.rating || 0}★</strong></span>
+                      <span>Completed: <strong className="text-[#032757]">{profile?.completed_shifts || 0}</strong></span>
+                      <span>Reliability: <strong className="text-[#032757]">{profile?.reliability_score || 0}%</strong></span>
+                    </div>
+                  </article>;
+                })}
+              </div>
+            </section>}
             <form onSubmit={postSelectedShift} className="rounded-2xl border border-[#0078FE]/25 bg-blue-50/40 p-4">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
               <div className="mt-4 space-y-3">
