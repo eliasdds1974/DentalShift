@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Trigger the one-time GitHub source patch after the workflow exists.
 path = Path("components/WorkflowWorkspaceV2.tsx")
 text = path.read_text()
 
