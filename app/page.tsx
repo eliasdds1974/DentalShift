@@ -769,11 +769,14 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
     const form = new FormData(event.currentTarget);
     const nextOffice: OfficeDetails = {
       ...details.office,
-      name: String(form.get("office_name") || ""),
-      address: String(form.get("address") || ""),
-      city: String(form.get("office_city") || ""),
-      province: String(form.get("office_province") || ""),
-      postal_code: String(form.get("office_postal_code") || ""),
+      name: String(form.get("office_name") || details.office.name || ""),
+      address: String(form.get("address") || details.office.address || ""),
+      city: String(form.get("city") || details.office.city || ""),
+      province: String(form.get("province") || details.office.province || ""),
+      postal_code: String(form.get("postal_code") || details.office.postal_code || ""),
+      google_place_id: String(form.get("google_place_id") || details.office.google_place_id || "") || null,
+      latitude: String(form.get("latitude") || "") ? Number(form.get("latitude")) : details.office.latitude,
+      longitude: String(form.get("longitude") || "") ? Number(form.get("longitude")) : details.office.longitude,
       phone: String(form.get("office_phone") || "") || null,
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
@@ -853,11 +856,10 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
               <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black text-[#002757]">{details.office.name}</h3><StatusPill tone={details.office.verification_status === "verified" ? "green" : "amber"}>Office {details.office.verification_status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{session.user.email}</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy ? "Please wait…" : details.office.logo_url ? "Replace office logo" : "Upload office logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy} onChange={(event) => void uploadAccountLogo(event.target.files?.[0])} /></label><p className="mt-2 text-xs leading-5 text-slate-500"><strong className="text-[#002757]">Best result:</strong> square PNG with a transparent background, 600 × 600 px. JPG or WebP also accepted; maximum 5 MB.</p></div>
             </div>
             <div className="sm:col-span-2"><h3 className="font-black text-[#002757]">Dental office account</h3><p className="mt-1 text-sm text-slate-500">Information used for your clinic profile and staffing activity.</p></div>
-            <label className="field sm:col-span-2"><span>Clinic name</span><input name="office_name" required defaultValue={details.office.name} /></label>
-            <label className="field sm:col-span-2"><span>Street address</span><input name="address" required defaultValue={details.office.address} /></label>
-            <label className="field"><span>City</span><input name="office_city" required defaultValue={details.office.city} /></label>
-            <label className="field"><span>Province</span><select name="office_province" required defaultValue={details.office.province}><option value="">Select</option>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
-            <label className="field"><span>Postal code</span><input name="office_postal_code" required defaultValue={details.office.postal_code} /></label>
+            <div className="rounded-2xl border border-[#0078FE]/15 bg-white p-4 sm:col-span-2">
+              <div className="mb-3"><h4 className="font-black text-[#002757]">Clinic location</h4><p className="mt-1 text-xs leading-5 text-slate-500">Search Google for your dental office and select the correct result. DentalShift uses the verified location for accurate distance matching with professionals.</p></div>
+              <GoogleAddressAutocomplete kind="office" initialAddress={{ name: details.office.name, address: details.office.address, city: details.office.city, province: details.office.province, postalCode: details.office.postal_code, googlePlaceId: details.office.google_place_id, latitude: details.office.latitude, longitude: details.office.longitude }} />
+            </div>
             <label className="field"><span>Main phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone || ""} /></label>
             <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={details.office.website || ""} /></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>

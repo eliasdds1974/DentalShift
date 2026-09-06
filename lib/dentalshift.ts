@@ -40,6 +40,9 @@ export type OfficeDetails = {
   city: string;
   province: string;
   postal_code: string;
+  google_place_id: string | null;
+  latitude: number | null;
+  longitude: number | null;
   phone: string | null;
   website: string | null;
   software: string[] | null;
@@ -177,7 +180,7 @@ async function loadAccountDetailsOnce(userId: string): Promise<AccountDetails> {
       .maybeSingle(),
     supabase
       .from("offices")
-      .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+      .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
       .eq("owner_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
@@ -240,7 +243,7 @@ export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id
       description: input.description,
       verification_status: "pending",
     })
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+    .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -273,6 +276,9 @@ export async function updateOfficeProfile(office: OfficeDetails) {
       city: office.city,
       province: office.province,
       postal_code: office.postal_code,
+      google_place_id: office.google_place_id,
+      latitude: office.latitude,
+      longitude: office.longitude,
       phone: office.phone,
       website: normalizeWebsite(office.website),
       software: office.software,
@@ -290,7 +296,7 @@ export async function updateOfficeProfile(office: OfficeDetails) {
     })
     .eq("id", office.id)
     .eq("owner_id", office.owner_id)
-    .select("id,owner_id,name,address,city,province,postal_code,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+    .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -414,6 +420,9 @@ export async function saveAccountDetails(input: AccountDetails) {
         city: input.office.city,
         province: input.office.province,
         postal_code: input.office.postal_code,
+        google_place_id: input.office.google_place_id,
+        latitude: input.office.latitude,
+        longitude: input.office.longitude,
         phone: input.office.phone,
         website: input.office.website,
         software: input.office.software,

@@ -63,10 +63,10 @@ export function GoogleOfficeFavouriteSearch({ onAdd, disabled }: { onAdd: (offic
   </div>;
 }
 
-export function GoogleAddressAutocomplete({ kind, initialAddress, required = true }: { kind: "office" | "professional"; initialAddress?: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null }; required?: boolean }) {
+export function GoogleAddressAutocomplete({ kind, initialAddress, required = true }: { kind: "office" | "professional"; initialAddress?: { name?: string | null; address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null }; required?: boolean }) {
   const initialPlace: SelectedPlace | null = initialAddress?.address ? {
     placeId: initialAddress.googlePlaceId || "",
-    name: "",
+    name: initialAddress?.name || "",
     formattedAddress: [initialAddress.address, initialAddress.city, initialAddress.province, initialAddress.postalCode].filter(Boolean).join(", "),
     address: initialAddress.address || "",
     city: initialAddress.city || "",
