@@ -65,6 +65,14 @@ function longDate(value: string) {
   return new Date(`${value}T12:00:00`).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" });
 }
 
+function interestAge(createdAt: string, now: number) {
+  const elapsed = Math.max(0, now - new Date(createdAt).getTime());
+  const day = Math.floor(elapsed / 86400000) + 1;
+  const hours = Math.floor((elapsed % 86400000) / 3600000);
+  const minutes = Math.floor((elapsed % 3600000) / 60000);
+  return `Day ${day} · ${hours}h ${minutes}m`;
+}
+
 function shiftDateLabel(shift: LiveShift) {
   return `${new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · ${shortTime(shift.starts_at)}–${shortTime(shift.ends_at)}`;
 }
@@ -105,6 +113,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const [googleOfficeLocations, setGoogleOfficeLocations] = useState<Record<string, { latitude: number; longitude: number }>>({});
   const [editingAvailabilityId, setEditingAvailabilityId] = useState<string | null>(null);
   const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
+  const [pairingNow, setPairingNow] = useState(() => Date.now());
 
   const refresh = async () => {
     setLoading(true);
@@ -132,6 +141,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   };
 
   useEffect(() => { void refresh(); }, [userId, refreshKey]);
+  useEffect(() => { const timer = window.setInterval(() => setPairingNow(Date.now()), 60000); return () => window.clearInterval(timer); }, []);
 
   useEffect(() => {
     const placeIds = Array.from(new Set(workflow.open
@@ -376,7 +386,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
                 <span className={`inline-grid h-7 w-7 place-items-center rounded-full text-sm font-black ${today ? "bg-[#002757] text-white" : ""}`}>{day.getDate()}</span>
                 {matchingOfficeRequests.length > 0 && <button type="button" onClick={() => chooseDate(day)} title={`${matchingOfficeRequests.length} office request${matchingOfficeRequests.length === 1 ? "" : "s"} for ${signedRoleStyle.label}`} className={`pointer-events-auto absolute left-0 right-0 ${firstAvailability ? "top-[100px] sm:top-[104px]" : "top-9"} grid min-w-0 grid-cols-[minmax(0,1fr)_18px] items-center gap-1 rounded-lg bg-[#F21C13] px-1.5 py-1 text-white shadow-sm sm:grid-cols-[minmax(0,1fr)_20px]`}><span className="min-w-0 whitespace-nowrap text-center text-[8px] font-black leading-none tracking-[-0.03em] sm:text-[9px]">Office Request</span><span className="inline-grid h-[18px] w-[18px] place-items-center rounded-full bg-white text-[8px] font-black leading-none text-[#F21C13] sm:h-5 sm:w-5 sm:text-[9px]">{matchingOfficeRequests.length}</span></button>}
                 <div className="pointer-events-auto mt-1.5 flex flex-wrap gap-1">
-                  {dayBookings.length > 0 && <button type="button" onClick={() => chooseItem(day, { type: "booking", id: dayBookings[0].id })} title={`${dayBookings.length} confirmed booking${dayBookings.length === 1 ? "" : "s"}`} className="rounded-full bg-[#eaf8ee] px-2 py-1 text-[10px] font-black text-[#017f27] shadow-sm">{dayBookings.length > 1 ? `${dayBookings.length} booked` : "Booked"}</button>}
+                  {dayBookings.length > 0 && <button type="button" onClick={() => chooseItem(day, { type: "booking", id: dayBookings[0].id })} title={`${dayBookings.length} confirmed booking${dayBookings.length === 1 ? "" : "s"}`} className="rounded-full bg-[#eaf8ee] px-2 py-1 text-[10px] font-black text-[#017f27] shadow-sm">{dayBookings.length > 1 ? `${dayBookings.length} BOOKED` : "BOOKED"}</button>}
                   {dayRequests.length > 0 && <button type="button" onClick={() => chooseItem(day, { type: "request", id: dayRequests[0].id })} title={`${dayRequests.length} direct office invitation${dayRequests.length === 1 ? "" : "s"}`} className="rounded-full bg-amber-50 px-2 py-1 text-[10px] font-black text-amber-800 shadow-sm">{dayRequests.length > 1 ? `${dayRequests.length} invites` : "Invite"}</button>}
                 </div>
               </div>
@@ -400,7 +410,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               <button type="button" disabled={busy === selectedAvailability.id} onClick={() => void act(selectedAvailability.id, () => removeProfessionalAvailability(selectedAvailability.id))} className="inline-flex min-h-11 items-center justify-center rounded-xl border-2 border-rose-500 bg-rose-50 px-4 py-2.5 text-sm font-extrabold text-rose-700 shadow-sm transition hover:bg-rose-100 focus:outline-none focus:ring-4 focus:ring-rose-500/20 disabled:cursor-not-allowed disabled:opacity-60">{busy === selectedAvailability.id ? "Deleting…" : "Delete"}</button>
             </div>}
           </div> : selectedBooking?.shifts ? <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee]/60 p-4">
-            <div className="flex flex-wrap items-center gap-2"><Chip tone="green">Booked</Chip><strong className="text-[#002757]">{selectedBooking.shifts.offices?.name || selectedBooking.contact?.name || "Dental office"}</strong></div>
+            <div className="flex flex-wrap items-center gap-2"><Chip tone="green">BOOKED</Chip><strong className="text-[#002757]">{selectedBooking.shifts.offices?.name || selectedBooking.contact?.name || "Dental office"}</strong></div>
             <p className="mt-2 text-sm font-extrabold text-slate-700">{selectedBooking.shifts.profession}</p><p className="mt-1 text-sm text-slate-600">{shiftDateLabel(selectedBooking.shifts)}</p><p className="mt-2 text-sm font-black text-[#002757]">${Number(selectedBooking.shifts.hourly_rate)}/hr</p>
             {selectedBooking.contact && <div className="mt-3 rounded-xl bg-white p-3 text-xs text-slate-600"><strong className="text-[#002757]">Confirmed office contact</strong><p className="mt-1">{selectedBooking.contact.phone || "No phone listed"} · {selectedBooking.contact.email || "No email listed"}</p></div>}
             <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn">Open booking</button>{!selectedBooking.check_in_at && <button type="button" disabled={busy === selectedBooking.id} onClick={() => void act(selectedBooking.id, () => bookingAction(selectedBooking.id, "check_in"))} className="primary-btn">Check in</button>}{selectedBooking.check_in_at && !selectedBooking.check_out_at && <button type="button" disabled={busy === selectedBooking.id} onClick={() => void act(selectedBooking.id, () => bookingAction(selectedBooking.id, "check_out"))} className="primary-btn">Check out</button>}</div>
@@ -421,12 +431,12 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
                 const officeDistance = distanceForShift(shift);
                 return <article key={shift.id} className="rounded-xl border border-[#F21C13]/25 bg-red-50/60 p-3">
                   <div className="flex items-start justify-between gap-2"><div className="min-w-0"><strong className="block truncate text-sm text-[#002757]">{shift.offices?.name || "Dental office"}</strong><p className="mt-1 text-xs font-bold text-slate-600">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p><p className="mt-1 text-[11px] font-bold text-slate-500"><MapPin size={11} className="mr-1 inline" />{officeDistance == null ? "Office location not verified yet" : `${officeDistance.toFixed(1)} km away`}</p></div>{isPreferredOffice(shift) && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={10} className="fill-white" />Preferred office</span>}</div>
-                  <div className="mt-3">{application ? <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-[11px] font-extrabold text-[#002757]">{application.status.replace("_", " ")}</span> : <button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void act(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>}</div>
+                  <div className="mt-3">{application ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className="text-xs font-black text-amber-900">{application.status === "invited" ? "Office interested — waiting for you" : "You’re interested — waiting for office"}</p><p className="mt-1 text-[11px] font-extrabold text-amber-700">Interest open · {interestAge(application.created_at, pairingNow)}</p>{application.status === "invited" && <button type="button" disabled={busy === application.id} onClick={() => void act(application.id, () => respondToInvitation(application.id, true))} className="primary-btn mt-2 w-full justify-center">{busy === application.id ? "Booking…" : "I’m Interested"}</button>}</div> : <button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void act(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>}</div>
                 </article>;
               })}</div>
             </section>}
 
-            {(selectedDayBookings.length > 0 || selectedDayRequests.length > 0) && <section><h4 className="font-black text-[#002757]">Calendar activity</h4><div className="mt-3 space-y-2">{selectedDayBookings.map((booking) => <button key={booking.id} type="button" onClick={() => setSelection({ type: "booking", id: booking.id })} className="w-full rounded-xl border border-[#01A32E]/20 bg-[#eaf8ee] p-3 text-left"><div className="flex items-center justify-between gap-2"><strong className="text-sm text-[#002757]">{booking.shifts?.offices?.name || "Booked office"}</strong><Chip tone="green">Booked</Chip></div></button>)}{selectedDayRequests.map((request) => <button key={request.id} type="button" onClick={() => setSelection({ type: "request", id: request.id })} className="w-full rounded-xl border border-amber-200 bg-amber-50 p-3 text-left"><div className="flex items-center justify-between gap-2"><strong className="text-sm text-[#002757]">{request.shifts?.offices?.name || "Dental office"}</strong><Chip tone="amber">Request</Chip></div></button>)}</div></section>}
+            {(selectedDayBookings.length > 0 || selectedDayRequests.length > 0) && <section><h4 className="font-black text-[#002757]">Calendar activity</h4><div className="mt-3 space-y-2">{selectedDayBookings.map((booking) => <button key={booking.id} type="button" onClick={() => setSelection({ type: "booking", id: booking.id })} className="w-full rounded-xl border border-[#01A32E]/20 bg-[#eaf8ee] p-3 text-left"><div className="flex items-center justify-between gap-2"><strong className="text-sm text-[#002757]">{booking.shifts?.offices?.name || "Booked office"}</strong><Chip tone="green">BOOKED</Chip></div></button>)}{selectedDayRequests.map((request) => <button key={request.id} type="button" onClick={() => setSelection({ type: "request", id: request.id })} className="w-full rounded-xl border border-amber-200 bg-amber-50 p-3 text-left"><div className="flex items-center justify-between gap-2"><strong className="text-sm text-[#002757]">{request.shifts?.offices?.name || "Dental office"}</strong><Chip tone="amber">Request</Chip></div></button>)}</div></section>}
 
           </div>}
         </aside>
