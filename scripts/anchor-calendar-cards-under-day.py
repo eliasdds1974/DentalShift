@@ -18,3 +18,5 @@ for old, new, label in [
     text = text.replace(old, new, 1)
 
 path.write_text(text)
+
+# trigger one-time build
