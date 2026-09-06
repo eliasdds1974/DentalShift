@@ -808,6 +808,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       setDetails({ ...refreshed, office: saved });
       setNotice(details.professional ? "Office account information saved." : "Office account saved. Your Dental Professional workspace is now available with the same email and password.");
       onSaved();
+      close();
     } catch (value) { setError(value instanceof Error ? value.message : "The office account could not be saved."); }
     finally { setBusy(false); }
   };
