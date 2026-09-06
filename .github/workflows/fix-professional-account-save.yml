@@ -1,0 +1,79 @@
+name: Fix professional account save
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-professional-account-save.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch professional account save
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
+              return text.replace(old, new, 1)
+
+          # Allow an existing professional to save other account fields even when
+          # they have not added an address yet. Signup still requires an address.
+          p = Path('components/GoogleAddressAutocomplete.tsx')
+          s = p.read_text()
+          s = replace_once(
+              s,
+              'export function GoogleAddressAutocomplete({ kind, initialAddress }: { kind: "office" | "professional"; initialAddress?: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null } }) {',
+              'export function GoogleAddressAutocomplete({ kind, initialAddress, required = true }: { kind: "office" | "professional"; initialAddress?: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null }; required?: boolean }) {',
+              'autocomplete props',
+          )
+          s = replace_once(
+              s,
+              '          required\n        />',
+              '          required={required}\n        />',
+              'autocomplete required flag',
+          )
+          p.write_text(s)
+
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          old = '<GoogleAddressAutocomplete kind="professional" initialAddress={{ address: details.profile.address, city: details.profile.city, province: details.profile.province, postalCode: details.profile.postal_code, googlePlaceId: details.profile.google_place_id, latitude: details.profile.latitude, longitude: details.profile.longitude }} />'
+          new = '<GoogleAddressAutocomplete kind="professional" required={false} initialAddress={{ address: details.profile.address, city: details.profile.city, province: details.profile.province, postalCode: details.profile.postal_code, googlePlaceId: details.profile.google_place_id, latitude: details.profile.latitude, longitude: details.profile.longitude }} />'
+          s = replace_once(s, old, new, 'professional account address edit')
+          p.write_text(s)
+
+          # Require both account-table updates to return the owned row. This turns
+          # RLS/session mismatches and zero-row updates into visible save errors.
+          p = Path('lib/dentalshift.ts')
+          s = p.read_text()
+          s = replace_once(
+              s,
+              '    })\n    .eq("id", input.profile.id);\n  if (profileError) throw profileError;',
+              '    })\n    .eq("id", input.profile.id)\n    .select("id")\n    .single();\n  if (profileError) throw new Error(`Your contact information could not be saved: ${profileError.message}`);',
+              'profile save confirmation',
+          )
+          s = replace_once(
+              s,
+              '      })\n      .eq("user_id", input.professional.user_id);\n    if (error) throw error;',
+              '      })\n      .eq("user_id", input.professional.user_id)\n      .select("user_id")\n      .single();\n    if (error) throw new Error(`Your professional information could not be saved: ${error.message}`);',
+              'professional save confirmation',
+          )
+          p.write_text(s)
+          PY
+      - name: Verify patch
+        run: |
+          grep -F 'required={false} initialAddress=' app/page.tsx
+          grep -F 'required={required}' components/GoogleAddressAutocomplete.tsx
+          grep -F '.select("user_id")' lib/dentalshift.ts
+          grep -F 'Your professional information could not be saved:' lib/dentalshift.ts
+      - name: Commit
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/page.tsx components/GoogleAddressAutocomplete.tsx lib/dentalshift.ts
+          git commit -m 'Fix professional account profile saving'
+          git push
