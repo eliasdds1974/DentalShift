@@ -1,0 +1,78 @@
+name: Link preferred office distance
+
+on:
+  push:
+    paths:
+      - '.github/workflows/link-preferred-office-distance.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch preferred office linking and distance fallback
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          lib = Path('lib/dentalshift.ts')
+          text = lib.read_text()
+          text = text.replace(
+            'offices: { name: string; city: string; province: string; website: string | null; latitude: number | null; longitude: number | null } | null;',
+            'offices: { name: string; city: string; province: string; website: string | null; google_place_id: string | null; latitude: number | null; longitude: number | null } | null;'
+          )
+          text = text.replace(
+            'offices(name,city,province,website,latitude,longitude)',
+            'offices(name,city,province,website,google_place_id,latitude,longitude)'
+          )
+          lib.write_text(text)
+
+          component = Path('components/WorkflowWorkspaceV2.tsx')
+          text = component.read_text()
+
+          old_state = '  const [preferredOfficeIds, setPreferredOfficeIds] = useState<string[]>([]);\n'
+          new_state = '''  const [preferredOfficeIds, setPreferredOfficeIds] = useState<string[]>([]);\n  const [preferredGooglePlaceIds, setPreferredGooglePlaceIds] = useState<string[]>([]);\n  const [preferredOfficeKeys, setPreferredOfficeKeys] = useState<string[]>([]);\n  const [googleOfficeLocations, setGoogleOfficeLocations] = useState<Record<string, { latitude: number; longitude: number }>>({});\n'''
+          if old_state not in text:
+              raise SystemExit('preferred state anchor not found')
+          text = text.replace(old_state, new_state, 1)
+
+          old_refresh = '      setPreferredOfficeIds(nextWorkflow.favourites.map((favourite) => favourite.office_id).filter((id): id is string => Boolean(id)));\n'
+          new_refresh = '''      setPreferredOfficeIds(nextWorkflow.favourites.map((favourite) => favourite.office_id).filter((id): id is string => Boolean(id)));\n      setPreferredGooglePlaceIds(nextWorkflow.favourites.map((favourite) => favourite.google_place_id).filter((id): id is string => Boolean(id)));\n      setPreferredOfficeKeys(nextWorkflow.favourites.map((favourite) => [favourite.name || favourite.offices?.name || "", favourite.city || favourite.offices?.city || "", favourite.province || favourite.offices?.province || ""].map((value) => value.trim().toLowerCase()).join("|")));\n'''
+          if old_refresh not in text:
+              raise SystemExit('preferred refresh anchor not found')
+          text = text.replace(old_refresh, new_refresh, 1)
+
+          anchor = '  useEffect(() => { void refresh(); }, [userId, refreshKey]);\n\n'
+          addition = '''  useEffect(() => { void refresh(); }, [userId, refreshKey]);\n\n  useEffect(() => {\n    const placeIds = Array.from(new Set(workflow.open\n      .filter((shift) => shift.offices?.google_place_id && (shift.offices.latitude == null || shift.offices.longitude == null))\n      .map((shift) => shift.offices!.google_place_id!)\n      .filter((placeId) => !googleOfficeLocations[placeId])));\n    if (!placeIds.length) return;\n    let cancelled = false;\n    void Promise.all(placeIds.map(async (placeId) => {\n      try {\n        const response = await fetch("/api/google/places/details", {\n          method: "POST",\n          headers: { "Content-Type": "application/json" },\n          body: JSON.stringify({ placeId }),\n        });\n        if (!response.ok) return null;\n        const place = await response.json() as { latitude?: number | null; longitude?: number | null };\n        if (place.latitude == null || place.longitude == null) return null;\n        return { placeId, latitude: Number(place.latitude), longitude: Number(place.longitude) };\n      } catch {\n        return null;\n      }\n    })).then((locations) => {\n      if (cancelled) return;\n      const valid = locations.filter((location): location is { placeId: string; latitude: number; longitude: number } => Boolean(location));\n      if (!valid.length) return;\n      setGoogleOfficeLocations((current) => {\n        const next = { ...current };\n        valid.forEach((location) => { next[location.placeId] = { latitude: location.latitude, longitude: location.longitude }; });\n        return next;\n      });\n    });\n    return () => { cancelled = true; };\n  }, [workflow.open, googleOfficeLocations]);\n\n  const isPreferredOffice = (shift: LiveShift) => {\n    if (preferredOfficeIds.includes(shift.office_id)) return true;\n    const placeId = shift.offices?.google_place_id;\n    if (placeId && preferredGooglePlaceIds.includes(placeId)) return true;\n    const key = [shift.offices?.name || "", shift.offices?.city || "", shift.offices?.province || ""].map((value) => value.trim().toLowerCase()).join("|");\n    return preferredOfficeKeys.includes(key);\n  };\n\n  const distanceForShift = (shift: LiveShift) => {\n    const placeId = shift.offices?.google_place_id || "";\n    const fallback = placeId ? googleOfficeLocations[placeId] : undefined;\n    return distanceKm(\n      details?.profile.latitude,\n      details?.profile.longitude,\n      shift.offices?.latitude ?? fallback?.latitude,\n      shift.offices?.longitude ?? fallback?.longitude,\n    );\n  };\n\n'''
+          if anchor not in text:
+              raise SystemExit('refresh effect anchor not found')
+          text = text.replace(anchor, addition, 1)
+
+          text = text.replace('preferredOfficeIds.includes(shift.office_id)', 'isPreferredOffice(shift)')
+          text = text.replace(
+            'const officeDistance = distanceKm(details?.profile.latitude, details?.profile.longitude, shift.offices?.latitude, shift.offices?.longitude);',
+            'const officeDistance = distanceForShift(shift);'
+          )
+          text = text.replace('"Distance unavailable"', '"Office location not verified yet"')
+
+          component.write_text(text)
+          PY
+      - name: Verify patch
+        run: |
+          grep -q 'google_place_id,latitude,longitude' lib/dentalshift.ts
+          grep -q 'preferredGooglePlaceIds' components/WorkflowWorkspaceV2.tsx
+          grep -q 'distanceForShift' components/WorkflowWorkspaceV2.tsx
+          grep -q 'isPreferredOffice(shift)' components/WorkflowWorkspaceV2.tsx
+      - name: Commit
+        run: |
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add lib/dentalshift.ts components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m 'Link preferred offices and calculate request distance'
+          git push origin HEAD:main
