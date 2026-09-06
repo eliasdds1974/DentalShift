@@ -21,3 +21,5 @@ if old not in text:
     raise SystemExit('office request card block not found')
 text = text.replace(old, new, 1)
 path.write_text(text)
+
+# trigger one-time build
