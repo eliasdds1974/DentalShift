@@ -7,3 +7,5 @@ new = '<div className="mt-4 grid grid-cols-2 gap-3"><button type="button" onClic
 if old not in text:
     raise SystemExit("availability submit button not found")
 path.write_text(text.replace(old, new, 1))
+
+# trigger one-time build
