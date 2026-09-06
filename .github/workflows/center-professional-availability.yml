@@ -1,0 +1,21 @@
+name: Center professional availability text
+on:
+  push:
+    paths:
+      - '.github/workflows/center-professional-availability.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Center availability text
+        run: python -c "from pathlib import Path; p=Path('components/WorkflowWorkspaceV2.tsx'); s=p.read_text(); old='bg-[#eaf8ee] p-2 text-left text-[#017f27] shadow-sm'; new='bg-[#eaf8ee] p-2 text-center text-[#017f27] shadow-sm'; assert old in s, 'availability calendar card not found'; p.write_text(s.replace(old,new,1))"
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m "Center professional availability card text"
+          git push
