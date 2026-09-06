@@ -771,6 +771,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       setDetails(refreshed);
       setNotice("Profile saved. Identity changes may return verification to review.");
       onSaved();
+      close();
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : "Your profile could not be saved.");
     } finally { setBusy(false); }
@@ -897,7 +898,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             </>}
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
-            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
+            <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
           </form>
         ) : session ? (
           <form onSubmit={saveProfile} className="grid gap-4 bg-[#f8fafc] p-5 sm:grid-cols-2 sm:p-6">
@@ -934,7 +935,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             </>}
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
-            <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn">Sign out</button><button type="button" onClick={close} className="secondary-btn">Close</button><button type="submit" disabled={busy || !details} className="primary-btn">{busy ? "Saving…" : "Save profile"}</button></div>
+            <div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={close} className="secondary-btn">Close</button><button type="submit" disabled={busy || !details} className="primary-btn">{busy ? "Saving…" : "Save profile"}</button></div>
           </form>
         ) : accountCreated ? (
           <div className="p-8 text-center sm:p-10">
