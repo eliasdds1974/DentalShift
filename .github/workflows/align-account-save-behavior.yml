@@ -1,8 +1,5 @@
 name: Align account save behavior
-on:
-  push:
-    paths:
-      - '.github/workflows/align-account-save-behavior.yml'
+on: [push]
 permissions:
   contents: write
 jobs:
@@ -14,26 +11,11 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          p=Path('app/page.tsx')
-          s=p.read_text()
-          old='''      setNotice("Profile saved. Identity changes may return verification to review.");
-      onSaved();'''
-          new='''      setNotice("Profile saved. Identity changes may return verification to review.");
-      onSaved();
-      close();'''
-          if old not in s:
-              raise SystemExit('professional save block not found')
-          s=s.replace(old,new,1)
-          old_office='''<div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>'''
-          new_office='''<div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>'''
-          if old_office not in s:
-              raise SystemExit('office footer not found')
-          s=s.replace(old_office,new_office,1)
-          old_prof='''<div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn">Sign out</button><button type="button" onClick={close} className="secondary-btn">Close</button><button type="submit" disabled={busy || !details} className="primary-btn">{busy ? "Saving…" : "Save profile"}</button></div>'''
-          new_prof='''<div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={close} className="secondary-btn">Close</button><button type="submit" disabled={busy || !details} className="primary-btn">{busy ? "Saving…" : "Save profile"}</button></div>'''
-          if old_prof not in s:
-              raise SystemExit('professional footer not found')
-          s=s.replace(old_prof,new_prof,1)
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          s = s.replace('      setNotice("Profile saved. Identity changes may return verification to review.");\n      onSaved();', '      setNotice("Profile saved. Identity changes may return verification to review.");\n      onSaved();\n      close();', 1)
+          s = s.replace('<div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn justify-center"><LogOut size={17} />Sign out</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>', '<div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>', 1)
+          s = s.replace('<div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={signOut} disabled={busy} className="secondary-btn">Sign out</button><button type="button" onClick={close} className="secondary-btn">Close</button><button type="submit" disabled={busy || !details} className="primary-btn">{busy ? "Saving…" : "Save profile"}</button></div>', '<div className="flex flex-wrap justify-end gap-3 border-t border-slate-100 pt-5 sm:col-span-2"><button type="button" onClick={close} className="secondary-btn">Close</button><button type="submit" disabled={busy || !details} className="primary-btn">{busy ? "Saving…" : "Save profile"}</button></div>', 1)
           p.write_text(s)
           PY
       - name: Build
