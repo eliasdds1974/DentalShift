@@ -13,9 +13,9 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Restore workspace and rename labels
+      - name: Restore latest intact workspace and rename labels
         run: |
-          git show a8d0038b515be931d5c40366bef8a920b2a19c39:components/WorkflowWorkspaceV2.tsx > components/WorkflowWorkspaceV2.tsx
+          git show a150173a628bc08714d5376ac4b83a5f20ed1ea5:components/WorkflowWorkspaceV2.tsx > components/WorkflowWorkspaceV2.tsx
           python - <<'PY'
           from pathlib import Path
           p=Path('components/WorkflowWorkspaceV2.tsx')
@@ -26,6 +26,8 @@ jobs:
           assert 'Add availability' not in s
           assert 'I’m Available' in s
           assert 'I’m Interested' in s
+          assert 'distanceForShift' in s
+          assert 'isPreferredOffice' in s
           PY
       - name: Commit
         run: |
