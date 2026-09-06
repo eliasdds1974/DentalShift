@@ -14,8 +14,10 @@ export default function AdminOverviewPage() {
   const [checking, setChecking] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [email, setEmail] = useState("");
+  const [code, setCode] = useState("");
   const [sending, setSending] = useState(false);
-  const [sent, setSent] = useState(false);
+  const [verifying, setVerifying] = useState(false);
+  const [codeSent, setCodeSent] = useState(false);
   const [error, setError] = useState("");
 
   useEffect(() => {
@@ -53,50 +55,16 @@ export default function AdminOverviewPage() {
       if (!active || version !== verificationVersion) return;
       setIsAdmin(false);
       setChecking(false);
-    };
-
-    const hydrateMagicLinkSession = async () => {
-      setChecking(true);
-
-      try {
-        const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
-        const accessToken = hash.get("access_token");
-        const refreshToken = hash.get("refresh_token");
-
-        if (accessToken && refreshToken) {
-          const { data, error: sessionError } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (sessionError) throw sessionError;
-          await verifySession(data.session);
-          return;
-        }
-
-        const code = new URLSearchParams(window.location.search).get("code");
-        if (code) {
-          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-          if (exchangeError) throw exchangeError;
-          await verifySession(data.session);
-          return;
-        }
-
-        const { data } = await supabase.auth.getSession();
-        await verifySession(data.session);
-      } catch {
-        if (!active) return;
-        setIsAdmin(false);
-        setChecking(false);
-      }
+      setError("This email is not authorized for DentalShift administration.");
     };
 
     const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_OUT") {
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_OUT") {
         void verifySession(session);
       }
     });
 
-    void hydrateMagicLinkSession();
+    void supabase.auth.getSession().then(({ data }) => verifySession(data.session));
 
     return () => {
       active = false;
@@ -104,28 +72,77 @@ export default function AdminOverviewPage() {
     };
   }, []);
 
-  const sendAdminLink = async (event: FormEvent<HTMLFormElement>) => {
+  const sendAdminCode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setSending(true);
     setError("");
-    setSent(false);
 
+    const normalizedEmail = email.trim().toLowerCase();
     const { error: signInError } = await supabase.auth.signInWithOtp({
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       options: {
         shouldCreateUser: false,
-        emailRedirectTo: `${window.location.origin}/admin/overview`,
       },
     });
 
-    if (signInError) setError("We could not send the admin sign-in email. Check the address and try again.");
-    else setSent(true);
+    if (signInError) {
+      setError("We could not send the admin verification code. Check the address and try again.");
+    } else {
+      setEmail(normalizedEmail);
+      setCode("");
+      setCodeSent(true);
+    }
     setSending(false);
+  };
+
+  const verifyAdminCode = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setVerifying(true);
+    setError("");
+
+    const token = code.replace(/\D/g, "").slice(0, 6);
+    if (token.length !== 6) {
+      setError("Enter the 6-digit code from the email.");
+      setVerifying(false);
+      return;
+    }
+
+    const { data, error: verifyError } = await supabase.auth.verifyOtp({
+      email: email.trim().toLowerCase(),
+      token,
+      type: "email",
+    });
+
+    if (verifyError || !data.session) {
+      setError("That code is invalid or expired. Request a new code and try again.");
+      setVerifying(false);
+      return;
+    }
+
+    try {
+      const details = await loadAccountDetails(data.session.user.id);
+      if (details.profile.role !== "admin") {
+        await supabase.auth.signOut();
+        setError("This email is not authorized for DentalShift administration.");
+        setVerifying(false);
+        return;
+      }
+      setIsAdmin(true);
+      setChecking(false);
+      setVerifying(false);
+      window.history.replaceState(null, "", "/admin/overview");
+    } catch {
+      await supabase.auth.signOut();
+      setError("We could not verify administrator access. Please try again.");
+      setVerifying(false);
+    }
   };
 
   const signOut = async () => {
     await supabase.auth.signOut();
     setIsAdmin(false);
+    setCodeSent(false);
+    setCode("");
     router.replace("/");
   };
 
@@ -139,13 +156,25 @@ export default function AdminOverviewPage() {
         <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-14 w-auto" priority />
         <div className="mt-7 inline-flex items-center gap-2 rounded-full bg-[#edf3fa] px-3 py-1.5 text-xs font-black uppercase tracking-[.1em] text-[#002757]"><ShieldCheck size={14} /> Secure administration</div>
         <h1 className="mt-4 text-3xl font-black tracking-tight text-[#002757]">Admin sign in</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-500">Use the DentalShift administrator email. Office and professional sessions are kept separate from the admin portal.</p>
-        <form onSubmit={sendAdminLink} className="mt-6 space-y-4">
-          <label className="block"><span className="mb-1.5 block text-sm font-extrabold text-slate-700">Admin email</span><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Administrator email" className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none focus:border-[#04A62F] focus:ring-2 focus:ring-[#04A62F]/15" /></label>
-          {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
-          {sent && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">Admin sign-in email sent. Open the secure link in that email to continue.</p>}
-          <button type="submit" disabled={sending} className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#04A62F] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#038827] disabled:opacity-60">{sending ? "Sending…" : "Send secure admin link"}</button>
-        </form>
+        {!codeSent ? <>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Enter the DentalShift administrator email. We will send a one-time 6-digit code instead of a clickable magic link.</p>
+          <form onSubmit={sendAdminCode} className="mt-6 space-y-4">
+            <label className="block"><span className="mb-1.5 block text-sm font-extrabold text-slate-700">Admin email</span><input type="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="Administrator email" autoComplete="email" className="h-12 w-full rounded-xl border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-900 outline-none focus:border-[#04A62F] focus:ring-2 focus:ring-[#04A62F]/15" /></label>
+            {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+            <button type="submit" disabled={sending} className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#04A62F] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#038827] disabled:opacity-60">{sending ? "Sending…" : "Send 6-digit code"}</button>
+          </form>
+        </> : <>
+          <p className="mt-2 text-sm leading-6 text-slate-500">Enter the 6-digit verification code sent to <strong className="text-slate-700">{email}</strong>. Do not click any sign-in link in the email.</p>
+          <form onSubmit={verifyAdminCode} className="mt-6 space-y-4">
+            <label className="block"><span className="mb-1.5 block text-sm font-extrabold text-slate-700">Verification code</span><input inputMode="numeric" autoComplete="one-time-code" required value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} placeholder="000000" className="h-14 w-full rounded-xl border border-slate-200 bg-white px-4 text-center text-2xl font-black tracking-[0.35em] text-slate-900 outline-none focus:border-[#04A62F] focus:ring-2 focus:ring-[#04A62F]/15" /></label>
+            {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+            <button type="submit" disabled={verifying || code.length !== 6} className="inline-flex h-12 w-full items-center justify-center rounded-xl bg-[#04A62F] px-4 text-sm font-black text-white shadow-sm transition hover:bg-[#038827] disabled:opacity-60">{verifying ? "Verifying…" : "Open admin dashboard"}</button>
+            <div className="flex items-center justify-between gap-3 text-sm font-bold">
+              <button type="button" onClick={() => { setCodeSent(false); setCode(""); setError(""); }} className="text-[#002757] hover:underline">Use another email</button>
+              <button type="button" disabled={sending} onClick={() => void (async () => { setSending(true); setError(""); const { error: resendError } = await supabase.auth.signInWithOtp({ email, options: { shouldCreateUser: false } }); if (resendError) setError("We could not resend the code yet. Please wait a moment and try again."); setSending(false); })()} className="text-[#017f27] hover:underline disabled:opacity-50">Resend code</button>
+            </div>
+          </form>
+        </>}
       </section>
     </main>;
   }
