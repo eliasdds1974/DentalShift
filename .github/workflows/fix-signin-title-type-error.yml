@@ -1,0 +1,37 @@
+name: Fix sign-in title type error
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-signin-title-type-error.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Fix narrowed role comparison
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          old = '`Sign in as a ${role === "admin" ? "DentalShift Admin" : role === "office" ? "Dental Office" : "Dental Professional"}`'
+          new = '`Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}`'
+          if old not in s:
+              raise SystemExit('target expression not found')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Verify typecheck/build
+        run: npm run build
+      - name: Commit
+        run: |
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add app/page.tsx
+          git commit -m 'Fix sign-in role type comparison'
+          git push
