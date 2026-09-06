@@ -1,8 +1,6 @@
 name: Fix safeupdate profile save
 on:
-  push:
-    paths:
-      - '.github/workflows/fix-safeupdate-profile-save.yml'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -30,8 +28,8 @@ jobs:
           PY
       - name: Commit
         run: |
-          git config user.name 'DentalShift Automation'
-          git config user.email 'actions@users.noreply.github.com'
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
           git add lib/dentalshift.ts
           git commit -m 'Make professional account saves safeupdate compatible'
           git push
