@@ -1,0 +1,23 @@
+name: Add office request distance and preferred badge
+
+on:
+  push:
+    paths:
+      - "scripts/add-office-request-distance-preferred.py"
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python scripts/add-office-request-distance-preferred.py
+      - run: npm install --no-audit --no-fund && npm run build
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/dentalshift.ts components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m "Show office distance and preferred badge"
+          git push
