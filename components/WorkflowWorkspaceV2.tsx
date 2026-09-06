@@ -69,6 +69,16 @@ function shiftDateLabel(shift: LiveShift) {
   return `${new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · ${shortTime(shift.starts_at)}–${shortTime(shift.ends_at)}`;
 }
 
+function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null) {
+  if ([lat1, lon1, lat2, lon2].some((value) => value == null || !Number.isFinite(Number(value)))) return null;
+  const toRad = (value: number) => value * Math.PI / 180;
+  const earthKm = 6371;
+  const dLat = toRad(Number(lat2) - Number(lat1));
+  const dLon = toRad(Number(lon2) - Number(lon1));
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(Number(lat1))) * Math.cos(toRad(Number(lat2))) * Math.sin(dLon / 2) ** 2;
+  return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function Chip({ children, tone = "blue" }: { children: React.ReactNode; tone?: "blue" | "green" | "amber" | "gray" }) {
   const styles = {
     blue: "bg-[#edf3fa] text-[#002757]",
@@ -350,8 +360,9 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               <div className="flex items-center justify-between gap-2"><h4 className="font-black text-[#002757]">Office Requests</h4><span className="rounded-full bg-[#F21C13] px-2.5 py-1 text-xs font-black text-white">{selectedDayShifts.length}</span></div>
               <div className="mt-3 space-y-2">{selectedDayShifts.map((shift) => {
                 const application = workflow.applications.find((item) => item.shifts?.id === shift.id);
+                const officeDistance = distanceKm(details?.profile.latitude, details?.profile.longitude, shift.offices?.latitude, shift.offices?.longitude);
                 return <article key={shift.id} className="rounded-xl border border-[#F21C13]/25 bg-red-50/60 p-3">
-                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><strong className="block truncate text-sm text-[#002757]">{shift.offices?.name || "Dental office"}</strong><p className="mt-1 text-xs font-bold text-slate-600">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p>{shift.offices && <p className="mt-1 text-[11px] text-slate-500">{shift.offices.city}, {shift.offices.province}</p>}</div>{preferredOfficeIds.includes(shift.office_id) && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={10} className="fill-white" />Preferred</span>}</div>
+                  <div className="flex items-start justify-between gap-2"><div className="min-w-0"><strong className="block truncate text-sm text-[#002757]">{shift.offices?.name || "Dental office"}</strong><p className="mt-1 text-xs font-bold text-slate-600">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p><p className="mt-1 text-[11px] font-bold text-slate-500"><MapPin size={11} className="mr-1 inline" />{officeDistance == null ? "Distance unavailable" : `${officeDistance.toFixed(1)} km away`}</p></div>{preferredOfficeIds.includes(shift.office_id) && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={10} className="fill-white" />Preferred office</span>}</div>
                   <div className="mt-3">{application ? <span className="inline-flex rounded-full bg-white px-2.5 py-1 text-[11px] font-extrabold text-[#002757]">{application.status.replace("_", " ")}</span> : <button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void act(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center">{busy === `apply-${shift.id}` ? "Applying…" : "Apply"}</button>}</div>
                 </article>;
               })}</div>
