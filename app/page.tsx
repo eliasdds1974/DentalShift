@@ -631,7 +631,9 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
 
     window.sessionStorage.setItem("dentalshift_signin_role", role);
     window.localStorage.setItem("dentalshift_portal_role", role);
-    const redirectTo = `${window.location.origin}/?portal_role=${role}`;
+    const redirectTo = role === "admin"
+      ? `${window.location.origin}/admin/overview`
+      : `${window.location.origin}/?portal_role=${role}`;
     const { error: emailError } = await supabase.auth.signInWithOtp({
       email,
       options: {
