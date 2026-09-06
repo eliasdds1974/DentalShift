@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import { ProfessionalLocationField } from "@/components/ProfessionalLocationField";
 import { ProfessionalMarketplaceCleanup } from "@/components/ProfessionalMarketplaceCleanup";
 import { ProfessionalAvailabilityCalendar } from "@/components/ProfessionalAvailabilityCalendar";
 import { ProfessionalInvitationCalendar } from "@/components/ProfessionalInvitationCalendar";
@@ -26,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}<ProfessionalLocationField /><ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /><ProfessionalWorkspacePolish /><OfficeWorkspacePolish /></body>
+      <body className="antialiased">{children}<ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /><ProfessionalWorkspacePolish /><OfficeWorkspacePolish /></body>
     </html>
   );
 }
