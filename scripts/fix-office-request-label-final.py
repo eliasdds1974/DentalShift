@@ -7,3 +7,4 @@ new = 'className="pointer-events-auto absolute left-0 right-0 top-7 block min-w-
 if old not in text:
     raise SystemExit("office request label class not found")
 path.write_text(text.replace(old, new, 1))
+# targeted final fit: keep full label visible beside count badge
