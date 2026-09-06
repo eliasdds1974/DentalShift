@@ -26,6 +26,9 @@
       "@/components/WorkflowWorkspace": [
         "./components/WorkflowWorkspaceV2.tsx"
       ],
+      "@/components/MarketingHome": [
+        "./components/MarketingHomeDirectAdmin.tsx"
+      ],
       "@/*": [
         "./*"
       ]
