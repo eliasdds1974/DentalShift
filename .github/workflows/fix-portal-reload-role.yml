@@ -1,95 +1,64 @@
-name: Fix portal reload role
+name: "Fix portal reload role"
+
 on:
   push:
     paths:
-      - '.github/workflows/fix-portal-reload-role.yml'
+      - ".github/workflows/fix-portal-reload-role.yml"
+
 permissions:
   contents: write
+
 jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - name: Preserve route role on reload
+        shell: bash
         run: |
-          python3 - <<'PY'
+          cat > /tmp/patch.py <<'PY'
           from pathlib import Path
-          p = Path('app/page.tsx')
+          p = Path("app/page.tsx")
           s = p.read_text()
 
-          old = '''  const [role, setRole] = useState<Role>("office");
-  const [view, setView] = useState<View>("overview");'''
-          new = '''  const initialPortalState = portalState(pathname);
-  const [role, setRole] = useState<Role>(() => initialPortalState?.role ?? "office");
-  const [view, setView] = useState<View>(() => initialPortalState?.view ?? "overview");'''
-          if old not in s:
-              raise SystemExit('initial role state block not found')
-          s = s.replace(old, new, 1)
+          s = s.replace(
+              '  const [role, setRole] = useState<Role>("office");\n  const [view, setView] = useState<View>("overview");',
+              '  const initialPortalState = portalState(pathname);\n  const [role, setRole] = useState<Role>(() => initialPortalState?.role ?? "office");\n  const [view, setView] = useState<View>(() => initialPortalState?.view ?? "overview");',
+              1,
+          )
 
-          old = '''  useEffect(() => {
-    const next = portalState(pathname);
-    if (!next) return;
-    setRole(next.role);
-    setView(next.view);
-  }, [pathname]);'''
-          new = '''  useEffect(() => {
-    const next = portalState(pathname);
-    if (!next) return;
-    setRole(next.role);
-    setView(next.view);
-    window.localStorage.setItem("dentalshift_portal_role", next.role);
-  }, [pathname]);'''
-          if old not in s:
-              raise SystemExit('pathname effect not found')
-          s = s.replace(old, new, 1)
+          s = s.replace(
+              '  useEffect(() => {\n    const next = portalState(pathname);\n    if (!next) return;\n    setRole(next.role);\n    setView(next.view);\n  }, [pathname]);',
+              '  useEffect(() => {\n    const next = portalState(pathname);\n    if (!next) return;\n    setRole(next.role);\n    setView(next.view);\n    window.localStorage.setItem("dentalshift_portal_role", next.role);\n  }, [pathname]);',
+              1,
+          )
 
-          old = '''        const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
-        const routeRole = portalState(window.location.pathname)?.role;
-        const savedRole = window.localStorage.getItem("dentalshift_portal_role");'''
-          new = '''        const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
-        const routeState = portalState(pathname) ?? portalState(window.location.pathname);
-        const routeRole = routeState?.role;
-        const savedRole = window.localStorage.getItem("dentalshift_portal_role");'''
-          if old not in s:
-              raise SystemExit('route role block not found')
-          s = s.replace(old, new, 1)
+          s = s.replace(
+              '        const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");\n        const routeRole = portalState(window.location.pathname)?.role;\n        const savedRole = window.localStorage.getItem("dentalshift_portal_role");',
+              '        const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");\n        const routeState = portalState(pathname) ?? portalState(window.location.pathname);\n        const routeRole = routeState?.role;\n        const savedRole = window.localStorage.getItem("dentalshift_portal_role");',
+              1,
+          )
 
-          old = '''        const nextRole = [requestedRole, routeRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;
-        setRole(nextRole);
-        window.localStorage.setItem("dentalshift_portal_role", nextRole);
-        if (requestedRole && canUseRole(requestedRole) && window.location.pathname === "/") {
-          router.replace(portalRoutes[nextRole].overview);
-        }'''
-          new = '''        // A portal URL is authoritative during reload. Never switch an /office/* reload
-        // to the professional workspace just because the base profile role is professional.
-        const nextRole = routeRole && canUseRole(routeRole)
-          ? routeRole
-          : [requestedRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;
-        setRole(nextRole);
-        if (routeState) setView(routeState.view);
-        window.localStorage.setItem("dentalshift_portal_role", nextRole);
-        if (requestedRole && canUseRole(requestedRole) && window.location.pathname === "/") {
-          router.replace(portalRoutes[nextRole].overview);
-        }'''
-          if old not in s:
-              raise SystemExit('next role block not found')
-          s = s.replace(old, new, 1)
+          s = s.replace(
+              '        const nextRole = [requestedRole, routeRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;\n        setRole(nextRole);\n        window.localStorage.setItem("dentalshift_portal_role", nextRole);',
+              '        const nextRole = routeRole && canUseRole(routeRole)\n          ? routeRole\n          : [requestedRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;\n        setRole(nextRole);\n        if (routeState) setView(routeState.view);\n        window.localStorage.setItem("dentalshift_portal_role", nextRole);',
+              1,
+          )
 
-          old = '''  }, [router]);'''
-          # Replace the syncAccount effect dependency occurrence nearest auth listener by targeting last occurrence.
-          idx = s.rfind(old)
-          if idx == -1:
-              raise SystemExit('sync effect dependency not found')
-          s = s[:idx] + '''  }, [router, pathname]);''' + s[idx+len(old):]
+          marker = '  }, [router]);\n\n  const content = useMemo('
+          if marker not in s:
+              raise SystemExit("auth sync dependency marker not found")
+          s = s.replace(marker, '  }, [router, pathname]);\n\n  const content = useMemo(', 1)
 
           p.write_text(s)
           PY
+          python3 /tmp/patch.py
       - name: Build
         run: npm install --no-audit --no-fund && npm run build
       - name: Commit source fix
         run: |
-          git config user.name 'DentalShift Automation'
-          git config user.email 'actions@users.noreply.github.com'
+          git config user.name "DentalShift Automation"
+          git config user.email "actions@users.noreply.github.com"
           git add app/page.tsx
-          git commit -m 'Keep active portal on page reload'
+          git commit -m "Keep active portal on page reload"
           git push
