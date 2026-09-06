@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, FileText, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addGoogleFavouriteOffice, addVerificationInternalNote, applyForShift, cancelAdminShift, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadProfessionalWorkflow, loadVerificationCase, loadVerificationQueue, openProfessionalResume, removeFavouriteOffice, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, uploadProfessionalResume, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type FavouriteOffice, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addGoogleFavouriteOffice, addOfficePreferredProfessional, addVerificationInternalNote, applyForShift, cancelAdminShift, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadOfficePreferredProfessionals, loadProfessionalWorkflow, loadVerificationCase, loadVerificationQueue, openProfessionalResume, removeFavouriteOffice, removeOfficePreferredProfessional, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, uploadProfessionalResume, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type FavouriteOffice, type OfficePreferredProfessional, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
 import { GoogleAddressAutocomplete, GoogleOfficeFavouriteSearch, type GoogleOfficeSelection } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
@@ -497,6 +497,13 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   const [signInRoleChosen, setSignInRoleChosen] = useState(initialMode !== "signin");
   const [favouriteOffices, setFavouriteOffices] = useState<FavouriteOffice[]>([]);
   const [favouritesLoading, setFavouritesLoading] = useState(false);
+  const [preferredProfessionals, setPreferredProfessionals] = useState<OfficePreferredProfessional[]>([]);
+  const [preferredLoading, setPreferredLoading] = useState(false);
+  const [preferredFirstName, setPreferredFirstName] = useState("");
+  const [preferredLastName, setPreferredLastName] = useState("");
+  const [preferredProfession, setPreferredProfession] = useState("Registered Dental Hygienist");
+  const [preferredProvince, setPreferredProvince] = useState("AB");
+  const [preferredLicence, setPreferredLicence] = useState("");
 
   useEffect(() => {
     if (!session) return;
@@ -516,13 +523,22 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       .finally(() => setFavouritesLoading(false));
   }, [session, activeRole]);
 
+  useEffect(() => {
+    if (!session || activeRole !== "office" || !details?.office?.id) return;
+    setPreferredLoading(true);
+    loadOfficePreferredProfessionals(details.office.id)
+      .then(setPreferredProfessionals)
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load preferred professionals."))
+      .finally(() => setPreferredLoading(false));
+  }, [session, activeRole, details?.office?.id]);
+
   const removeSavedOffice = async (favouriteId: string) => {
     if (!session) return;
     setBusy(true); setError(""); setNotice("");
     try {
       await removeFavouriteOffice(session.user.id, favouriteId);
       setFavouriteOffices((current) => current.filter((favourite) => favourite.id !== favouriteId));
-      setNotice("Favourite office removed.");
+      setNotice("Preferred office removed.");
       onSaved();
     } catch (value) { setError(value instanceof Error ? value.message : "Could not remove this favourite office."); }
     finally { setBusy(false); }
@@ -535,9 +551,34 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       await addGoogleFavouriteOffice(session.user.id, office);
       const workflow = await loadProfessionalWorkflow(session.user.id);
       setFavouriteOffices(workflow.favourites);
-      setNotice(`${office.name} was added to your favourite offices.`);
+      setNotice(`${office.name} was added to your preferred offices.`);
       onSaved();
     } finally { setBusy(false); }
+  };
+
+  const addPreferredProfessional = async () => {
+    if (!details?.office || !preferredFirstName.trim() || !preferredLastName.trim() || !preferredLicence.trim()) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await addOfficePreferredProfessional({ officeId: details.office.id, firstName: preferredFirstName, lastName: preferredLastName, profession: preferredProfession, licenceProvince: preferredProvince, licenceNumber: preferredLicence });
+      setPreferredProfessionals(await loadOfficePreferredProfessionals(details.office.id));
+      setPreferredFirstName(""); setPreferredLastName(""); setPreferredLicence("");
+      setNotice("Preferred professional saved. The badge will appear automatically when DentalShift finds a verified match.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "Could not save this preferred professional."); }
+    finally { setBusy(false); }
+  };
+
+  const removePreferredProfessional = async (id: string) => {
+    if (!details?.office) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await removeOfficePreferredProfessional(details.office.id, id);
+      setPreferredProfessionals((current) => current.filter((item) => item.id !== id));
+      setNotice("Preferred professional removed.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "Could not remove this preferred professional."); }
+    finally { setBusy(false); }
   };
 
   const uploadResume = async (file?: File) => {
@@ -834,6 +875,19 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
             <label className="field sm:col-span-2"><span>Primary contact direct phone</span><input name="contact_phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="e.g. 780-555-0123" defaultValue={details.office.contact_phone || ""} /></label>
+            <div className="rounded-2xl border border-[#FDB605]/45 bg-amber-50/50 p-5 sm:col-span-2">
+              <div className="flex items-center gap-2"><Star size={19} className="fill-[#FDB605] text-[#FDB605]" /><h3 className="font-black text-[#002757]">Preferred professionals</h3></div>
+              <p className="mt-1 text-xs leading-5 text-slate-600">Add professionals your office prefers. DentalShift matches province + licence number, then validates the name and position. The Preferred badge is visible only to your office.</p>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <label className="field"><span>First name</span><input value={preferredFirstName} onChange={(e) => setPreferredFirstName(e.target.value)} /></label>
+                <label className="field"><span>Last name</span><input value={preferredLastName} onChange={(e) => setPreferredLastName(e.target.value)} /></label>
+                <label className="field"><span>Position</span><select value={preferredProfession} onChange={(e) => setPreferredProfession(e.target.value)}><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
+                <label className="field"><span>Province</span><select value={preferredProvince} onChange={(e) => setPreferredProvince(e.target.value)}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
+                <label className="field sm:col-span-2"><span>Licence / registration number</span><input value={preferredLicence} onChange={(e) => setPreferredLicence(e.target.value)} /></label>
+              </div>
+              <button type="button" disabled={busy || !preferredFirstName.trim() || !preferredLastName.trim() || !preferredLicence.trim()} onClick={() => void addPreferredProfessional()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#FDB605] px-4 py-2.5 text-sm font-black text-white shadow-sm"><Star size={16} />Add preferred professional</button>
+            </div>
+            <div className="sm:col-span-2">{preferredLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading preferred professionals…</p> : preferredProfessionals.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">No preferred professionals added yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{preferredProfessionals.map((person) => <div key={person.id} className="rounded-2xl border border-[#FDB605]/35 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-[#002757]">{person.first_name} {person.last_name}</p><p className="mt-1 text-xs font-bold text-slate-500">{person.profession} · {person.licence_province}</p><p className="mt-1 text-xs text-slate-500">Licence: {person.licence_number}</p>{person.matched_professional_id ? <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-black text-amber-900"><Star size={12} className="fill-[#FDB605] text-[#FDB605]" />Matched</span> : <span className="mt-2 inline-flex rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">Waiting for match</span>}</div><button type="button" disabled={busy} onClick={() => void removePreferredProfessional(person.id)} className="text-xs font-black text-slate-500 underline">Remove</button></div></div>)}</div>}</div>
             {!details.professional && <>
               <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Use this same email and password for both sides of DentalShift. Professional verification will be handled separately.</p></div>
               <label className="field sm:col-span-2"><span>Profession</span><select name="new_profession" required defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
@@ -867,8 +921,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
                 <fieldset className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2"><legend className="px-1 text-sm font-extrabold text-[#002757]">Dental software experience</legend><p className="mb-3 text-xs text-slate-500">Select every system you are comfortable using.</p><div className="grid gap-2 sm:grid-cols-3">{dentalSoftwareOptions.map((software) => <label key={software} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700 hover:border-[#0078FE]/40 hover:bg-[#edf3fa]"><input name="software" type="checkbox" value={software} defaultChecked={details.professional?.skills?.includes(software)} className="h-4 w-4 accent-[#0078FE]" />{software}</label>)}</div></fieldset>
                 <div className="rounded-2xl border border-dashed border-[#0078FE]/40 bg-[#edf3fa] p-5 sm:col-span-2"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-[#0078FE] shadow-sm"><FileText size={23} /></span><div className="min-w-0 flex-1"><h3 className="font-extrabold text-[#002757]">Professional résumé/CV</h3><p className="mt-1 text-xs leading-5 text-slate-500">Upload a PDF, DOC or DOCX file. Maximum size 5 MB. Your document is stored privately.</p>{details.professional.resume_path && <p className="mt-2 text-xs font-extrabold text-[#017f27]"><Check size={14} className="mr-1 inline" />Résumé/CV on file</p>}</div><div className="flex flex-wrap gap-2"><label className="primary-btn cursor-pointer justify-center"><Upload size={16} />{busy ? "Please wait…" : details.professional.resume_path ? "Replace CV" : "Upload CV"}<input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={busy} onChange={(event) => void uploadResume(event.target.files?.[0])} /></label>{details.professional.resume_path && <button type="button" onClick={() => void viewResume()} className="secondary-btn">View CV</button>}</div></div></div>
                 <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2"><input name="available_for_work" type="checkbox" defaultChecked={details.professional.available_for_work} className="h-4 w-4 accent-[#01A32E]" /><span className="text-sm font-bold text-slate-700">Available for new shifts</span></label>
-                <div className="mt-2 rounded-2xl border border-[#01A32E]/20 bg-white p-4 sm:col-span-2"><div className="flex items-center gap-2"><Heart size={18} className="fill-[#01A32E] text-[#01A32E]" /><h3 className="font-extrabold text-[#002757]">Favourite offices</h3></div><p className="mt-1 text-xs text-slate-500">Search Google by office name, then select an office to add it.</p><div className="mt-4"><GoogleOfficeFavouriteSearch onAdd={addFavouriteFromGoogle} disabled={busy} /></div></div>
-                <div className="sm:col-span-2">{favouritesLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading favourite offices…</p> : favouriteOffices.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">You have not saved any favourite offices yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{favouriteOffices.map((favourite) => { const office = favourite.offices; const name = office?.name || favourite.name || "Dental office"; const city = office?.city || favourite.city; const province = office?.province || favourite.province; const website = office?.website || favourite.website; return <div key={favourite.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="font-extrabold text-[#002757]">{name}</p><p className="mt-1 text-xs font-bold text-slate-500">{[city, province].filter(Boolean).join(", ") || favourite.formatted_address || "Location not listed"}</p>{website && <WebsiteLink website={website} className="mt-2" />}</div><button type="button" disabled={busy} onClick={() => void removeSavedOffice(favourite.id)} className="secondary-btn w-fit justify-center">Remove</button></div>; })}</div>}</div>
+                <div className="mt-2 rounded-2xl border border-[#01A32E]/20 bg-white p-4 sm:col-span-2"><div className="flex items-center gap-2"><Heart size={18} className="fill-[#01A32E] text-[#01A32E]" /><h3 className="font-extrabold text-[#002757]">Preferred offices</h3></div><p className="mt-1 text-xs text-slate-500">Search Google by office name, then select an office to mark it as preferred.</p><div className="mt-4"><GoogleOfficeFavouriteSearch onAdd={addFavouriteFromGoogle} disabled={busy} /></div></div>
+                <div className="sm:col-span-2">{favouritesLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading preferred offices…</p> : favouriteOffices.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">You have not saved any preferred offices yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{favouriteOffices.map((favourite) => { const office = favourite.offices; const name = office?.name || favourite.name || "Dental office"; const city = office?.city || favourite.city; const province = office?.province || favourite.province; const website = office?.website || favourite.website; return <div key={favourite.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="font-extrabold text-[#002757]">{name}</p><p className="mt-1 text-xs font-bold text-slate-500">{[city, province].filter(Boolean).join(", ") || favourite.formatted_address || "Location not listed"}</p>{website && <WebsiteLink website={website} className="mt-2" />}</div><button type="button" disabled={busy} onClick={() => void removeSavedOffice(favourite.id)} className="secondary-btn w-fit justify-center">Remove</button></div>; })}</div>}</div>
               </>}
               {!details.professional && details.office && <>
                 <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Keep this email and password, then complete a separate professional verification profile.</p></div>

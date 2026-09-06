@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, UsersRound } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star, UsersRound } from "lucide-react";
 import {
   acceptApplication,
   createShiftSeries,
   inviteProfessional,
+  loadOfficePreferredProfessionals,
   loadOfficeWorkflow,
   type AvailableProfessionalSlot,
   type OfficeDetails,
+  type OfficePreferredProfessional,
   type OfficeShift,
   type WorkflowBooking,
 } from "@/lib/dentalshift";
@@ -32,6 +34,7 @@ type OfficeWorkflow = {
   bookings: WorkflowBooking[];
   directory: DirectoryPerson[];
   availability: AvailableProfessionalSlot[];
+  preferredProfessionals: OfficePreferredProfessional[];
 };
 
 const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {
@@ -69,7 +72,7 @@ function longDate(value: string) {
 }
 
 function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number }) {
-  const [data, setData] = useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [] });
+  const [data, setData] = useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [], preferredProfessionals: [] });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -81,7 +84,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     setLoading(true);
     setError("");
     try {
-      setData(await loadOfficeWorkflow(office.id) as OfficeWorkflow);
+      const [workflow, preferredProfessionals] = await Promise.all([loadOfficeWorkflow(office.id), loadOfficePreferredProfessionals(office.id)]);
+      setData({ ...(workflow as Omit<OfficeWorkflow, "preferredProfessionals">), preferredProfessionals });
     } catch (value) {
       setError(value instanceof Error ? value.message : "DentalShift could not load your office calendar.");
     } finally {
@@ -246,7 +250,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                   return <article key={slot.id} className="rounded-xl border-2 border-[#04A62F]/35 bg-[#eaf8ee] p-3">
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
-                        <div className="flex items-center gap-2"><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong></div>
+                        <div className="flex flex-wrap items-center gap-2"><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong>{data.preferredProfessionals.some((person) => person.matched_professional_id === slot.professional_id) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={11} className="fill-white" />Preferred</span>}</div>
                         <span className="mt-2 inline-block rounded-lg bg-[#04A62F] px-3 py-2 text-xs font-black text-white">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</span>
                       </div>
                       <span className="shrink-0 rounded-lg bg-[#04A62F] px-3 py-2 text-xs font-black uppercase tracking-wide text-white">Available</span>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, FileCheck2, MapPin, Star } from "lucide-react";
 import {
   addProfessionalAvailability,
   applyForShift,
@@ -89,6 +89,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [selection, setSelection] = useState<CalendarSelection>({ type: "day" });
+  const [preferredOfficeIds, setPreferredOfficeIds] = useState<string[]>([]);
 
   const refresh = async () => {
     setLoading(true);
@@ -105,6 +106,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         bookings: nextWorkflow.bookings,
         availability: nextWorkflow.availability,
       });
+      setPreferredOfficeIds(nextWorkflow.favourites.map((favourite) => favourite.office_id).filter((id): id is string => Boolean(id)));
     } catch (value) {
       setError(value instanceof Error ? value.message : "DentalShift could not load your calendar.");
     } finally {
@@ -197,7 +199,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     return <article key={shift.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} /><strong className="text-[#002757]">{shift.offices?.name || "Dental office"}</strong></div>
+          <div className="flex flex-wrap items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${signedRoleStyle.solid}`} /><strong className="text-[#002757]">{shift.offices?.name || "Dental office"}</strong>{preferredOfficeIds.includes(shift.office_id) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={11} className="fill-white" />Preferred office</span>}</div>
           <p className="mt-1 text-xs font-bold text-slate-500">{shiftDateLabel(shift)}</p>
           <p className="mt-2 text-sm font-extrabold text-slate-700">${Number(shift.hourly_rate)}/hr</p>
           {shift.offices && <p className="mt-1 text-xs text-slate-500"><MapPin size={13} className="mr-1 inline" />{shift.offices.city}, {shift.offices.province}</p>}

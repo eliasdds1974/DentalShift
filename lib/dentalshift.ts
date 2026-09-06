@@ -589,6 +589,40 @@ export async function updateAttendance(bookingId: string, action: "check_in" | "
 
 export type ProfessionalAvailability = { id: string; starts_at: string; ends_at: string; available: boolean };
 export type FavouriteOffice = { id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; offices: { id: string; name: string; city: string; province: string; website: string | null } | null };
+export type OfficePreferredProfessional = {
+  id: string;
+  office_id: string;
+  first_name: string;
+  last_name: string;
+  profession: string;
+  licence_province: string;
+  licence_number: string;
+  matched_professional_id: string | null;
+  created_at: string;
+};
+
+export async function loadOfficePreferredProfessionals(officeId: string) {
+  const { data, error } = await supabase.from("office_preferred_professionals")
+    .select("id,office_id,first_name,last_name,profession,licence_province,licence_number,matched_professional_id,created_at")
+    .eq("office_id", officeId).order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as OfficePreferredProfessional[];
+}
+
+export async function addOfficePreferredProfessional(input: { officeId: string; firstName: string; lastName: string; profession: string; licenceProvince: string; licenceNumber: string }) {
+  const { data, error } = await supabase.rpc("office_add_preferred_professional", {
+    p_office_id: input.officeId, p_first_name: input.firstName.trim(), p_last_name: input.lastName.trim(),
+    p_profession: input.profession, p_licence_province: input.licenceProvince, p_licence_number: input.licenceNumber.trim(),
+  });
+  if (error) throw error;
+  return data as OfficePreferredProfessional;
+}
+
+export async function removeOfficePreferredProfessional(officeId: string, id: string) {
+  const { error } = await supabase.from("office_preferred_professionals").delete().eq("id", id).eq("office_id", officeId);
+  if (error) throw error;
+}
+
 
 export type WorkflowApplication = {
   id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string;
