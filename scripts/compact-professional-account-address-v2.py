@@ -11,3 +11,5 @@ if duplicate not in text:
     raise SystemExit("duplicate postal_code cleanup target not found")
 text = text.replace(duplicate, fixed, 1)
 path.write_text(text)
+
+# trigger corrected one-time workflow
