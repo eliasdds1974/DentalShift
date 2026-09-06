@@ -1,0 +1,25 @@
+name: Retry preferred relationships build
+on:
+  push:
+    paths:
+      - '.github/workflows/retry-preferred-relationships.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply preferred relationship patch
+        run: |
+          awk '/python3 - <<'"'"'PY'"'"'/{flag=1; next} flag && /^[[:space:]]*PY$/{exit} flag{sub(/^          /, ""); print}' .github/workflows/build-preferred-relationships.yml > /tmp/preferred_patch.py
+          python3 /tmp/preferred_patch.py
+      - name: Build
+        run: npm install --no-audit --no-fund && npm run build
+      - name: Commit source changes
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add app/page.tsx lib/dentalshift.ts components/OfficeWorkspaceV2.tsx components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Add preferred offices and professionals'
+          git push
