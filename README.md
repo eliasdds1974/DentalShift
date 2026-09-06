@@ -18,3 +18,5 @@ npm run dev
 ```
 
 The production database is hosted in the connected DentalShift Supabase project. Add Supabase publishable environment variables when the authentication layer is enabled.
+
+<!-- production redeploy sync: 2026-09-06 -->
