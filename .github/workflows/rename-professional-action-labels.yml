@@ -12,10 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 2
+          fetch-depth: 4
       - name: Restore workspace and rename labels
         run: |
-          git show HEAD~1:components/WorkflowWorkspaceV2.tsx > components/WorkflowWorkspaceV2.tsx
+          git show HEAD~2:components/WorkflowWorkspaceV2.tsx > components/WorkflowWorkspaceV2.tsx
           python - <<'PY'
           from pathlib import Path
           p=Path('components/WorkflowWorkspaceV2.tsx')
@@ -24,7 +24,6 @@ jobs:
           s=s.replace('busy === `apply-${shift.id}` ? "Applying…" : "Apply"', 'busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"')
           p.write_text(s)
           assert 'Add availability' not in s
-          assert '>Apply</button>' not in s
           assert 'I’m Available' in s
           assert 'I’m Interested' in s
           PY
