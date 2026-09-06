@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
+import type { Session } from "@supabase/supabase-js";
 import { CalendarDays, LayoutDashboard, LogOut, MessageCircle, ShieldCheck } from "lucide-react";
 import { AdminCommandCenter } from "@/components/AdminCommandCenter";
 import { loadAccountDetails } from "@/lib/dentalshift";
@@ -19,37 +20,47 @@ export default function AdminOverviewPage() {
 
   useEffect(() => {
     let active = true;
+    let verificationVersion = 0;
 
-    const verify = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = data.session;
+    const verifySession = async (session: Session | null) => {
+      const version = ++verificationVersion;
       if (!active) return;
 
       if (!session) {
+        setIsAdmin(false);
         setChecking(false);
         return;
       }
 
+      setChecking(true);
       try {
         const details = await loadAccountDetails(session.user.id);
-        if (!active) return;
+        if (!active || version !== verificationVersion) return;
         if (details.profile.role === "admin") {
           setIsAdmin(true);
           setChecking(false);
+          if (window.location.hash || window.location.search) {
+            window.history.replaceState(null, "", "/admin/overview");
+          }
           return;
         }
       } catch {
-        // A non-admin or incomplete profile must never fall through to an office workspace here.
+        // Keep admin routing isolated from office/professional sessions.
       }
 
+      if (!active || version !== verificationVersion) return;
       await supabase.auth.signOut();
-      if (!active) return;
+      if (!active || version !== verificationVersion) return;
       setIsAdmin(false);
       setChecking(false);
     };
 
-    void verify();
-    const { data: listener } = supabase.auth.onAuthStateChange(() => { void verify(); });
+    const { data: listener } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED" || event === "SIGNED_OUT") {
+        void verifySession(session);
+      }
+    });
+
     return () => {
       active = false;
       listener.subscription.unsubscribe();
