@@ -1,0 +1,37 @@
+name: Rename professional action labels
+on:
+  push:
+    paths:
+      - '.github/workflows/rename-professional-action-labels.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Restore workspace and rename labels
+        run: |
+          git show HEAD~1:components/WorkflowWorkspaceV2.tsx > components/WorkflowWorkspaceV2.tsx
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('components/WorkflowWorkspaceV2.tsx')
+          s=p.read_text()
+          s=s.replace('busy === "availability-add" ? "Saving…" : "Add availability"', 'busy === "availability-add" ? "Saving…" : "I’m Available"')
+          s=s.replace('busy === `apply-${shift.id}` ? "Applying…" : "Apply"', 'busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"')
+          p.write_text(s)
+          assert 'Add availability' not in s
+          assert '>Apply</button>' not in s
+          assert 'I’m Available' in s
+          assert 'I’m Interested' in s
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Rename availability and interest buttons'
+          git push
