@@ -1245,8 +1245,9 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
 export default function Home() {
   const pathname = usePathname();
   const router = useRouter();
-  const [role, setRole] = useState<Role>("office");
-  const [view, setView] = useState<View>("overview");
+  const initialPortalState = portalState(pathname);
+  const [role, setRole] = useState<Role>(() => initialPortalState?.role ?? "office");
+  const [view, setView] = useState<View>(() => initialPortalState?.view ?? "overview");
   const [menu, setMenu] = useState(false);
   const [post, setPost] = useState(false);
   const [rebook, setRebook] = useState(false);
@@ -1287,6 +1288,7 @@ export default function Home() {
     if (!next) return;
     setRole(next.role);
     setView(next.view);
+    window.localStorage.setItem("dentalshift_portal_role", next.role);
   }, [pathname]);
 
   useEffect(() => {
@@ -1310,7 +1312,8 @@ export default function Home() {
         setOfficeId(account.officeId);
         setOffice(details.office);
         const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
-        const routeRole = portalState(window.location.pathname)?.role;
+        const routeState = portalState(pathname) ?? portalState(window.location.pathname);
+        const routeRole = routeState?.role;
         const savedRole = window.localStorage.getItem("dentalshift_portal_role");
         window.sessionStorage.removeItem("dentalshift_signin_role");
 
@@ -1325,8 +1328,11 @@ export default function Home() {
           return;
         }
 
-        const nextRole = [requestedRole, routeRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;
+        const nextRole = routeRole && canUseRole(routeRole)
+          ? routeRole
+          : [requestedRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;
         setRole(nextRole);
+        if (routeState) setView(routeState.view);
         window.localStorage.setItem("dentalshift_portal_role", nextRole);
         if (requestedRole && canUseRole(requestedRole) && window.location.pathname === "/") {
           router.replace(portalRoutes[nextRole].overview);
@@ -1355,7 +1361,7 @@ export default function Home() {
       active = false;
       listener.subscription.unsubscribe();
     };
-  }, [router]);
+  }, [router, pathname]);
 
   const content = useMemo(
     () => role === "office"
