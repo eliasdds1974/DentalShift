@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'scripts/update-professional-selected-date.py'
+      - '.github/workflows/update-professional-selected-date.yml'
 permissions:
   contents: write
 jobs:
