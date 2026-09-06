@@ -1,8 +1,6 @@
 name: Close office account after save
 on:
   push:
-    paths:
-      - '.github/workflows/close-office-account-after-save.yml'
 permissions:
   contents: write
 jobs:
@@ -10,23 +8,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Close account modal after successful save
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          p=Path('app/page.tsx')
-          s=p.read_text()
-          old='''      setNotice(details.professional ? "Office account information saved." : "Office account saved. Your Dental Professional workspace is now available with the same email and password.");
-      onSaved();'''
-          new='''      setNotice(details.professional ? "Office account information saved." : "Office account saved. Your Dental Professional workspace is now available with the same email and password.");
-      onSaved();
-      close();'''
-          if old not in s:
-              raise SystemExit('office save success block not found')
-          p.write_text(s.replace(old,new,1))
-          PY
-      - name: Commit source change
-        run: |
+      - run: python3 -c "from pathlib import Path; p=Path('app/page.tsx'); s=p.read_text(); old='      onSaved();\\n    } catch (value) { setError(value instanceof Error ? value.message : \\\"The office account could not be saved.\\\"); }'; new='      onSaved();\\n      close();\\n    } catch (value) { setError(value instanceof Error ? value.message : \\\"The office account could not be saved.\\\"); }'; assert old in s; p.write_text(s.replace(old,new,1))"
+      - run: |
           git config user.name 'DentalShift Automation'
           git config user.email 'actions@users.noreply.github.com'
           git add app/page.tsx
