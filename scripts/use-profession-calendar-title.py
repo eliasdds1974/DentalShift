@@ -7,3 +7,5 @@ new = '<h2 className="text-xl font-black tracking-tight text-[#002757] sm:text-2
 if old not in text:
     raise SystemExit("professional calendar title not found")
 path.write_text(text.replace(old, new, 1))
+
+# trigger one-time build
