@@ -1,8 +1,6 @@
 name: Fix professional account save
 on:
-  push:
-    paths:
-      - '.github/workflows/fix-professional-account-save.yml'
+  workflow_dispatch:
 permissions:
   contents: write
 jobs:
@@ -21,8 +19,6 @@ jobs:
                   raise SystemExit(f'{label}: expected exactly 1 match, found {count}')
               return text.replace(old, new, 1)
 
-          # Allow an existing professional to save other account fields even when
-          # they have not added an address yet. Signup still requires an address.
           p = Path('components/GoogleAddressAutocomplete.tsx')
           s = p.read_text()
           s = replace_once(
@@ -31,12 +27,7 @@ jobs:
               'export function GoogleAddressAutocomplete({ kind, initialAddress, required = true }: { kind: "office" | "professional"; initialAddress?: { address?: string | null; city?: string | null; province?: string | null; postalCode?: string | null; googlePlaceId?: string | null; latitude?: number | null; longitude?: number | null }; required?: boolean }) {',
               'autocomplete props',
           )
-          s = replace_once(
-              s,
-              '          required\n        />',
-              '          required={required}\n        />',
-              'autocomplete required flag',
-          )
+          s = replace_once(s, '          required\n        />', '          required={required}\n        />', 'autocomplete required flag')
           p.write_text(s)
 
           p = Path('app/page.tsx')
@@ -46,8 +37,6 @@ jobs:
           s = replace_once(s, old, new, 'professional account address edit')
           p.write_text(s)
 
-          # Require both account-table updates to return the owned row. This turns
-          # RLS/session mismatches and zero-row updates into visible save errors.
           p = Path('lib/dentalshift.ts')
           s = p.read_text()
           s = replace_once(
@@ -72,8 +61,8 @@ jobs:
           grep -F 'Your professional information could not be saved:' lib/dentalshift.ts
       - name: Commit
         run: |
-          git config user.name 'DentalShift Automation'
-          git config user.email 'actions@users.noreply.github.com'
+          git config user.name 'eliasdds1974'
+          git config user.email 'eliasdds@gmail.com'
           git add app/page.tsx components/GoogleAddressAutocomplete.tsx lib/dentalshift.ts
           git commit -m 'Fix professional account profile saving'
           git push
