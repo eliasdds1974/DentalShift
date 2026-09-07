@@ -71,14 +71,6 @@ function longDate(value: string) {
   return new Date(`${value}T12:00:00`).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" });
 }
 
-function interestAge(createdAt: string, now: number) {
-  const elapsed = Math.max(0, now - new Date(createdAt).getTime());
-  const day = Math.floor(elapsed / 86400000) + 1;
-  const hours = Math.floor((elapsed % 86400000) / 3600000);
-  const minutes = Math.floor((elapsed % 3600000) / 60000);
-  return `Day ${day} · ${hours}h ${minutes}m`;
-}
-
 function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number }) {
   const [data, setData] = useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [], preferredProfessionals: [] });
   const [loading, setLoading] = useState(true);
@@ -87,7 +79,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
-  const [pairingNow, setPairingNow] = useState(() => Date.now());
 
   const refresh = async () => {
     setLoading(true);
@@ -103,7 +94,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   };
 
   useEffect(() => { void refresh(); }, [office.id, refreshKey]);
-  useEffect(() => { const timer = window.setInterval(() => setPairingNow(Date.now()), 60000); return () => window.clearInterval(timer); }, []);
 
   const openShifts = useMemo(() => data.shifts.filter((shift) => shift.status === "open"), [data.shifts]);
   const upcomingBookings = useMemo(() => data.bookings
@@ -123,7 +113,9 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     .filter((shift) => localDateKey(shift.starts_at) === selectedDate)
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   const selectedBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
+  const interestedIds = new Set(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => application.professional_id)));
   const selectedAvailability = data.availability
+    .filter((slot) => !interestedIds.has(slot.professional_id))
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
@@ -267,11 +259,11 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             {selectedShifts.map((shift) => {
               const role = roleStyles[roleCode(shift.profession)];
               const applicants = (shift.applications || []).filter((application) => application.status === "applied");
-              const pendingPairings = (shift.applications || []).filter((application) => application.status === "applied" || application.status === "invited");
-              const availableMatches = Array.from(new Map(data.availability.filter((slot) => slot.professional_profiles?.profession === shift.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at)).map((slot) => [slot.professional_id, slot])).values());
+              const pendingPairings = applicants;
+              const availableMatches = Array.from(new Map(data.availability.filter((slot) => !interestedIds.has(slot.professional_id) && slot.professional_profiles?.profession === shift.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at)).map((slot) => [slot.professional_id, slot])).values());
               return <article key={shift.id} className="rounded-2xl border border-white/70 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${role.solid}`} /><strong className="text-[#032757]">{shift.profession}</strong></div><p className="mt-1 text-xs font-bold text-slate-500">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-600">{shift.status}</span></div>
-                <div className="mt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Pairings ({pendingPairings.length})</p>{pendingPairings.length === 0 ? <p className="mt-2 text-xs text-slate-500">No interest pairings yet.</p> : <div className="mt-2 space-y-2">{pendingPairings.map((application) => <div key={application.id} className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className="text-xs font-bold text-slate-700">Verified {application.professional_profiles?.profession || "professional"} · {application.professional_profiles?.licence_province || ""}</p><p className="mt-2 text-xs font-black text-amber-900">{application.status === "applied" ? "Professional interested — waiting for you" : "You’re interested — waiting for professional"}</p><p className="mt-1 text-[11px] font-extrabold text-amber-700">Interest open · {interestAge(application.created_at, pairingNow)}</p>{application.status === "applied" && <button disabled={busy === application.id} onClick={() => void act(application.id, () => acceptApplication(application.id))} className="primary-btn mt-2 w-full justify-center"><Check size={15} />{busy === application.id ? "Booking…" : "I’m Interested"}</button>}</div>)}</div>}</div>
+                {pendingPairings.length > 0 && <section className="mt-4 rounded-2xl bg-[#F21C13] p-2 sm:p-3"><h4 className="mb-3 text-center text-lg font-black text-white">Who’s Interested</h4><div className="space-y-3">{pendingPairings.map((application) => { const profile = application.professional_profiles; return <div key={application.id} className="rounded-xl bg-white p-4"><h5 className="font-black text-[#032757]">{profile?.profession || shift.profession}</h5><p className="mt-2 text-xs font-bold text-[#017f27]">{profile?.licence_province ? `Licence province: ${profile.licence_province}` : "Credential status unavailable"}</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600"><span>Rating: <strong>{profile?.rating ? `${profile.rating}★` : "No rating yet"}</strong></span><span>Completed: <strong>{profile?.completed_shifts || 0}</strong></span><span>Reliability: <strong>{profile?.reliability_score != null ? `${profile.reliability_score}%` : "Not enough history"}</strong></span><span>Requested rate: <strong>{application.proposed_rate != null ? `$${Number(application.proposed_rate).toFixed(2)}/hr` : "Not specified"}</strong></span></div><p className="mt-3 text-xs text-slate-500">Identity and contact details are shared after booking confirmation.</p><button disabled={busy === application.id} onClick={() => void act(application.id, () => acceptApplication(application.id))} className="primary-btn mt-3 w-full justify-center"><Check size={15} />{busy === application.id ? "Booking…" : "Book Now"}</button></div>; })}</div></section>}
                 {shift.status === "open" && availableMatches.length > 0 && <div className="mt-4 border-t border-slate-100 pt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Available matches</p><div className="mt-2 space-y-2">{availableMatches.slice(0, 3).map((slot) => <button key={slot.id} disabled={busy === slot.professional_id || shift.applications?.some((item) => item.professional_id === slot.professional_id)} onClick={() => void act(slot.professional_id, () => inviteProfessional(shift.id, slot.professional_id, Number(shift.hourly_rate)))} className="w-full rounded-xl border border-[#04A62F]/25 bg-[#eaf8ee] p-3 text-left disabled:opacity-50"><UsersRound size={15} className="text-[#04A62F]" /><strong className="mt-1 block text-xs text-[#032757]">Available {slot.professional_profiles?.profession || "professional"}</strong><span className="mt-1 block text-[11px] text-slate-500">{slot.professional_profiles?.licence_province} · {slot.professional_profiles?.rating || 0}★</span></button>)}</div></div>}
               </article>;
             })}
