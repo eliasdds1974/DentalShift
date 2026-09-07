@@ -792,6 +792,10 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
       contact_phone: String(form.get("contact_phone") || "") || null,
+      software: [
+        ...form.getAll("software").map(String),
+        ...String(form.get("other_software") || "").split(",").map((value) => value.trim()).filter(Boolean),
+      ],
       search_radius_km: Number(form.get("search_radius_km") || details.office.search_radius_km || 25),
     };
     setBusy(true); setError(""); setNotice("");
@@ -874,6 +878,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field"><span>Main phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone || ""} /></label>
             <label className="field"><span>Staff search radius (km)</span><input name="search_radius_km" min="1" max="250" type="number" defaultValue={details.office.search_radius_km ?? 25} /><small className="mt-1 block text-xs text-slate-500">Available Staff defaults to this distance.</small></label>
             <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={details.office.website || ""} /></label>
+            <fieldset className="rounded-2xl border border-[#04A62F]/25 bg-[#f6fff8] p-4 sm:col-span-2"><legend className="px-1 text-sm font-black text-[#017f27]">Dental software used by this office</legend><p className="mb-3 text-xs leading-5 text-slate-500">Select all systems used at the clinic. These will automatically appear on every Shift(s) Posted card.</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{dentalSoftwareOptions.map((item) => <label key={item} className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#04A62F]/20 bg-white px-3 py-2 text-xs font-bold text-slate-700"><input name="software" type="checkbox" value={item} defaultChecked={(details.office?.software || []).includes(item)} className="h-4 w-4 accent-[#04A62F]" />{item}</label>)}</div><label className="field mt-3"><span>Other software</span><input name="other_software" placeholder="Separate multiple systems with commas" defaultValue={(details.office?.software || []).filter((item) => !dentalSoftwareOptions.includes(item)).join(", ")} /></label></fieldset>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
             <label className="field sm:col-span-2"><span>Primary contact direct phone</span><input name="contact_phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="e.g. 780-555-0123" defaultValue={details.office.contact_phone || ""} /></label>
