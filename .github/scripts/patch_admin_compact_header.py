@@ -1,7 +1,17 @@
 from pathlib import Path
+
 p = Path('components/AdminCommandCenter.tsx')
 s = p.read_text()
-start = s.index('    <div className="rounded-3xl bg-[#002757]')
+
+compact_marker = '    <div className="rounded-2xl bg-[#002757] p-4 text-white shadow-sm sm:p-5">'
+if compact_marker in s:
+    raise SystemExit(0)
+
+start_marker = '    <div className="rounded-3xl bg-[#002757]'
+if start_marker not in s:
+    raise SystemExit('admin command center header not found')
+
+start = s.index(start_marker)
 end = s.index('\n    <div className="mt-5 flex gap-2 overflow-x-auto', start)
 new = '''    <div className="rounded-2xl bg-[#002757] p-4 text-white shadow-sm sm:p-5">
       <h1 className="text-2xl font-black tracking-tight sm:text-3xl">Admin Command Center</h1>
