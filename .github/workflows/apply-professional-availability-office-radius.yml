@@ -19,7 +19,7 @@ jobs:
       - name: Apply professional availability matching patch
         run: python scripts/patch_professional_availability_to_offices.py
       - name: Install dependencies
-        run: npm ci
+        run: npm install
       - name: Build
         run: npm run build
       - name: Commit source changes and remove helpers
