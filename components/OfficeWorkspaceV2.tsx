@@ -100,8 +100,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [postShiftOpen, setPostShiftOpen] = useState(false);
-  const [softwareChoice, setSoftwareChoice] = useState("Any software");
-  const [otherSoftware, setOtherSoftware] = useState("");
   const [officeCoordinates, setOfficeCoordinates] = useState<{ latitude: number; longitude: number } | null>(() =>
     office.latitude != null && office.longitude != null ? { latitude: Number(office.latitude), longitude: Number(office.longitude) } : null
   );
@@ -245,9 +243,11 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     const startTime = String(form.get("start_time") || "08:00");
     const endTime = String(form.get("end_time") || "17:00");
     const hourlyRate = Number(form.get("hourly_rate") || 0);
-    const software = softwareChoice === "Other" ? otherSoftware.trim() : softwareChoice;
+    const selectedSoftware = form.getAll("software").map(String).filter(Boolean);
+    const otherSoftware = String(form.get("other_software") || "").trim();
+    const software = [...selectedSoftware, ...(otherSoftware ? [otherSoftware] : [])].join(", ") || "Any software";
     const notes = String(form.get("notes") || "").trim();
-    const autoInvite = form.get("auto_invite") === "on";
+    const autoInvite = false;
 
     if (!startTime || !endTime || endTime <= startTime) {
       setError("Choose an end time after the start time.");
@@ -255,10 +255,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     }
     if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) {
       setError("Enter a valid hourly rate.");
-      return;
-    }
-    if (softwareChoice === "Other" && !otherSoftware.trim()) {
-      setError("Enter the software name when Other is selected.");
       return;
     }
 
@@ -404,9 +400,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 <label className="field"><span>End</span><input name="end_time" type="time" defaultValue="17:00" required /></label>
               </div>
               <label className="field"><span>Hourly rate</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
-              <label className="field"><span className="text-[#017f27]">Software</span><select name="software" value={softwareChoice} onChange={(event) => setSoftwareChoice(event.target.value)} className="border-[#04A62F]/35 bg-[#f6fff8] focus:border-[#04A62F]"><option>Any software</option>{dentalSoftwareOptions.map((item) => <option key={item}>{item}</option>)}<option>Other</option></select></label>{softwareChoice === "Other" && <label className="field"><span className="text-[#017f27]">Other software</span><input value={otherSoftware} onChange={(event) => setOtherSoftware(event.target.value)} placeholder="Type software name" className="border-[#04A62F]/35 bg-[#f6fff8] focus:border-[#04A62F]" /></label>}
+              <fieldset className="rounded-2xl border border-[#04A62F]/30 bg-[#f6fff8] p-3"><legend className="px-1 text-xs font-black text-[#017f27]">Software</legend><p className="mb-3 text-[11px] font-semibold text-slate-500">Select any software used at this office. Leave all unchecked for any software.</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{dentalSoftwareOptions.map((item) => <label key={item} className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#04A62F]/20 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:border-[#04A62F]/50"><input name="software" type="checkbox" value={item} className="h-4 w-4 accent-[#04A62F]" />{item}</label>)}</div><input name="other_software" type="text" placeholder="Other software" className="mt-3 w-full rounded-xl border border-[#04A62F]/25 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-[#04A62F]" /></fieldset>
               <label className="field"><span>Notes</span><textarea name="notes" rows={2} placeholder="Optional shift details" /></label>
-              <label className="flex items-start gap-2 rounded-xl border border-[#04A62F]/20 bg-[#eaf8ee] p-3 text-xs font-bold text-[#017f27]"><input name="auto_invite" type="checkbox" className="mt-0.5 h-4 w-4 accent-[#04A62F]" /><span>Automatically invite matching available professionals.</span></label>
             </div>
             {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
             <div className="mt-5 flex justify-end gap-2">
