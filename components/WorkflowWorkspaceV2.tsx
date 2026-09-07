@@ -334,7 +334,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
 
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
-        <h1 className="page-title">Find shifts</h1>
+        <h1 className="page-title">{[details?.profile.first_name ?? profile.first_name, details?.profile.last_name ?? profile.last_name].filter(Boolean).join(" ").trim() ? `${[details?.profile.first_name ?? profile.first_name, details?.profile.last_name ?? profile.last_name].filter(Boolean).join(" ").trim()}, let’s find some shifts` : "Let’s find some shifts"}</h1>
         <p className="page-subtitle">Your availability, confirmed bookings and office requests in one calendar.</p>
       </div>
     </div>
