@@ -1,0 +1,32 @@
+name: Fix office professional posts
+
+on:
+  push:
+    branches:
+      - feature/minimal-professional-shifts-to-offices
+    paths:
+      - "scripts/fix-office-professional-posts.py"
+      - ".github/workflows/fix-office-professional-posts.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply office display fix
+        run: python scripts/fix-office-professional-posts.py
+      - name: Commit source change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No source change needed"
+            exit 0
+          fi
+          git commit -m "Show professional availability in office sidebar"
+          git push
