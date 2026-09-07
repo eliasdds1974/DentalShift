@@ -573,6 +573,16 @@ export async function loadOpenShifts() {
   return (data ?? []) as unknown as LiveShift[];
 }
 
+export async function cancelOfficeShift(shiftId: string, officeId: string) {
+  const { error } = await supabase
+    .from("shifts")
+    .update({ status: "cancelled" })
+    .eq("id", shiftId)
+    .eq("office_id", officeId)
+    .eq("status", "open");
+  if (error) throw error;
+}
+
 export async function createShiftSeries(input: {
   officeId: string;
   profession: string;

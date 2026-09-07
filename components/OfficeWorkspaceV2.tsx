@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star, UsersRound } from "lucide-react";
 import {
   acceptApplication,
+  cancelOfficeShift,
   createShiftSeries,
   inviteProfessional,
   loadOfficePreferredProfessionals,
@@ -163,6 +164,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   });
 
   const selectedShifts = data.shifts
+    .filter((shift) => shift.status !== "cancelled")
     .filter((shift) => localDateKey(shift.starts_at) === selectedDate)
     .sort((a, b) => {
       const roleOrder = roleSortRank(a.profession) - roleSortRank(b.profession);
@@ -328,7 +330,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const selected = key === selectedDate;
             const today = key === localDateKey(new Date());
             const inMonth = day.getMonth() === calendarCursor.getMonth();
-            const dayShifts = data.shifts.filter((shift) => localDateKey(shift.starts_at) === key);
+            const dayShifts = data.shifts.filter((shift) => shift.status !== "cancelled" && localDateKey(shift.starts_at) === key);
             const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
             const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && isSlotInProfessionalRadius(slot));
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
@@ -355,7 +357,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
               const pendingPairings = applicants;
               const availableMatches = Array.from(new Map(data.availability.filter((slot) => isSlotInProfessionalRadius(slot) && !interestedIds.has(slot.professional_id) && slot.professional_profiles?.profession === shift.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at)).map((slot) => [slot.professional_id, slot])).values());
               return <article key={shift.id} className="rounded-2xl border border-white/70 bg-white p-4 shadow-sm">
-                <div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${role.solid}`} /><strong className="text-[#032757]">{shift.profession}</strong></div><p className="mt-1 text-xs font-bold text-slate-500">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-600">{shift.status}</span></div>
+                <div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${role.solid}`} /><strong className="text-[#032757]">{shift.profession}</strong></div><p className="mt-1 text-xs font-bold text-slate-500">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p></div><div className="flex flex-col items-end gap-2"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-600">{shift.status}</span>{shift.status === "open" && <button type="button" disabled={busy === `cancel-${shift.id}`} onClick={() => { if (!window.confirm(`Cancel this ${shift.profession} shift?`)) return; void act(`cancel-${shift.id}`, () => cancelOfficeShift(shift.id, office.id)); }} className="rounded-lg border border-rose-200 bg-rose-50 px-2.5 py-1.5 text-[11px] font-black text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">{busy === `cancel-${shift.id}` ? "Cancelling…" : "Cancel shift"}</button>}</div></div>
                 {pendingPairings.length > 0 && <section className="mt-4 rounded-2xl bg-[#F21C13] p-2 sm:p-3"><h4 className="mb-3 text-center text-lg font-black text-white">Who’s Interested</h4><div className="space-y-3">{pendingPairings.map((application) => { const profile = application.professional_profiles; return <div key={application.id} className="rounded-xl bg-white p-4"><h5 className="font-black text-[#032757]">{profile?.profession || shift.profession}</h5><p className="mt-2 text-xs font-bold text-[#017f27]">{profile?.licence_province ? `Licence province: ${profile.licence_province}` : "Credential status unavailable"}</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600"><span>Rating: <strong>{profile?.rating ? `${profile.rating}★` : "No rating yet"}</strong></span><span>Completed: <strong>{profile?.completed_shifts || 0}</strong></span><span>Reliability: <strong>{profile?.reliability_score != null ? `${profile.reliability_score}%` : "Not enough history"}</strong></span><span>Requested rate: <strong>{application.proposed_rate != null ? `$${Number(application.proposed_rate).toFixed(2)}/hr` : "Not specified"}</strong></span></div><p className="mt-3 text-xs text-slate-500">Identity and contact details are shared after booking confirmation.</p><button disabled={busy === application.id} onClick={() => void act(application.id, () => acceptApplication(application.id))} className="primary-btn mt-3 w-full justify-center"><Check size={15} />{busy === application.id ? "Booking…" : "Book Now"}</button></div>; })}</div></section>}
                 {shift.status === "open" && availableMatches.length > 0 && <div className="mt-4 border-t border-slate-100 pt-4"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Available matches</p><div className="mt-2 space-y-2">{availableMatches.slice(0, 3).map((slot) => <button key={slot.id} disabled={busy === slot.professional_id || shift.applications?.some((item) => item.professional_id === slot.professional_id)} onClick={() => void act(slot.professional_id, () => inviteProfessional(shift.id, slot.professional_id, Number(shift.hourly_rate)))} className="w-full rounded-xl border border-[#04A62F]/25 bg-[#eaf8ee] p-3 text-left disabled:opacity-50"><UsersRound size={15} className="text-[#04A62F]" /><strong className="mt-1 block text-xs text-[#032757]">Available {slot.professional_profiles?.profession || "professional"}</strong><span className="mt-1 block text-[11px] text-slate-500">{slot.professional_profiles?.licence_province} · {slot.professional_profiles?.rating || 0}★</span></button>)}</div></div>}
               </article>;
