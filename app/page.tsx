@@ -846,8 +846,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
   return (
     <div className="fixed inset-0 z-[90] grid place-items-center bg-[#002757]/60 p-4">
       <button aria-label="Close" onClick={close} className="absolute inset-0" />
-      <section role="dialog" aria-modal="true" aria-labelledby="account-title" className={`relative z-10 max-h-[94vh] w-full overflow-auto rounded-3xl bg-white shadow-2xl ${session && activeRole === "professional" ? "max-w-3xl" : "max-w-xl"}`}>
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-5">
+      <section role="dialog" aria-modal="true" aria-labelledby="account-title" className={`relative z-10 max-h-[94vh] w-full overflow-auto rounded-3xl bg-white shadow-2xl ${!session && mode === "signup" ? "lg:max-h-[96vh] lg:max-w-2xl" : session && activeRole === "professional" ? "max-w-3xl" : "max-w-xl"}`}>
+        <div className={`flex items-center justify-between border-b border-slate-200 px-6 py-5 ${!session && mode === "signup" ? "lg:px-5 lg:py-3" : ""}`}>
           <div><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-[#01A32E]">DentalShift account</p><h2 id="account-title" className="mt-1 text-2xl font-extrabold text-slate-900">{passwordRecovery ? "Create a new password" : resetEmailSent ? "Check your email" : session && activeRole === "office" ? "Dental office account" : session && activeRole === "admin" ? "Admin account" : session ? "Professional account" : accountCreated ? "Account created" : mode === "signin" && !signInRoleChosen ? "Choose your sign-in" : mode === "signin" ? (role === "admin" ? "Admin email sign in" : `Sign in as a ${role === "office" ? "Dental Office" : "Dental Professional"}`) : "Create your account"}</h2></div>
           <button onClick={close} className="rounded-full p-2 hover:bg-slate-100"><X size={21} /></button>
         </div>
@@ -906,8 +906,8 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
               <div className="flex items-center gap-2"><Star size={19} className="fill-[#FDB605] text-[#FDB605]" /><h3 className="font-black text-[#002757]">Preferred professionals</h3></div>
               <p className="mt-1 text-xs leading-5 text-slate-600">Add professionals your office prefers. DentalShift matches province + licence number, then validates the name and position. The Preferred badge is visible only to your office.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                <label className="field"><span>First name</span><input value={preferredFirstName} onChange={(e) => setPreferredFirstName(e.target.value)} /></label>
-                <label className="field"><span>Last name</span><input value={preferredLastName} onChange={(e) => setPreferredLastName(e.target.value)} /></label>
+                <label className="field lg:[&>input]:py-2"><span>First name</span><input value={preferredFirstName} onChange={(e) => setPreferredFirstName(e.target.value)} /></label>
+                <label className="field lg:[&>input]:py-2"><span>Last name</span><input value={preferredLastName} onChange={(e) => setPreferredLastName(e.target.value)} /></label>
                 <label className="field"><span>Position</span><select value={preferredProfession} onChange={(e) => setPreferredProfession(e.target.value)}><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
                 <label className="field"><span>Province</span><select value={preferredProvince} onChange={(e) => setPreferredProvince(e.target.value)}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
                 <label className="field sm:col-span-2"><span>Licence / registration number</span><input value={preferredLicence} onChange={(e) => setPreferredLicence(e.target.value)} /></label>
@@ -1000,7 +1000,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             </div>
           </div>
         ) : (
-          <form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">
+          <form onSubmit={submit} className={`grid gap-4 p-6 sm:grid-cols-2 ${mode === "signup" ? "lg:gap-2.5 lg:p-4" : ""}`}> 
             {role !== "admin" && <div className="grid grid-cols-2 gap-1 rounded-2xl bg-slate-100 p-1 sm:col-span-2">
               <button type="button" onClick={() => { setMode("signin"); setSignInRoleChosen(false); }} className={"rounded-xl px-3 py-2.5 text-sm font-extrabold " + (mode === "signin" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Sign in</button>
               <button type="button" onClick={() => setMode("signup")} className={"rounded-xl px-3 py-2.5 text-sm font-extrabold " + (mode === "signup" ? "bg-white text-slate-900 shadow-sm" : "text-slate-500")}>Create account</button>
@@ -1009,13 +1009,13 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             {mode === "signup" && <>
               <label className="field"><span>First name</span><input name="first_name" required /></label>
               <label className="field"><span>Last name</span><input name="last_name" required /></label>
-              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#edf3fa] p-1.5 sm:col-span-2">
-                <button type="button" onClick={() => setRole("office")} className={"rounded-xl px-3 py-3 text-sm font-extrabold transition " + (role === "office" ? "bg-[#002757] text-white shadow-sm" : "text-[#002757] hover:bg-white")}>For Dental Clinics</button>
-                <button type="button" onClick={() => setRole("professional")} className={"rounded-xl px-3 py-3 text-sm font-extrabold transition " + (role === "professional" ? "bg-[#002757] text-white shadow-sm" : "text-[#002757] hover:bg-white")}>For Dental Professionals</button>
+              <div className="grid grid-cols-2 gap-2 rounded-2xl bg-[#edf3fa] p-1.5 sm:col-span-2 lg:p-1">
+                <button type="button" onClick={() => setRole("office")} className={"rounded-xl px-3 py-3 text-sm font-extrabold transition lg:py-2 " + (role === "office" ? "bg-[#002757] text-white shadow-sm" : "text-[#002757] hover:bg-white")}>For Dental Clinics</button>
+                <button type="button" onClick={() => setRole("professional")} className={"rounded-xl px-3 py-3 text-sm font-extrabold transition lg:py-2 " + (role === "professional" ? "bg-[#002757] text-white shadow-sm" : "text-[#002757] hover:bg-white")}>For Dental Professionals</button>
               </div>
               {role === "professional" && <>
-                <label className="field sm:col-span-2"><span>Account type</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
-                <label className="field sm:col-span-2"><span>Licence or registration number (if applicable)</span><input name="licence_number" /></label>
+                <label className="field sm:col-span-2 lg:[&>select]:py-2"><span>Account type</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Registered Dental Assistant</option><option>Sterilization Technician</option></select></label>
+                <label className="field sm:col-span-2 lg:[&>input]:py-2"><span>Licence or registration number (if applicable)</span><input name="licence_number" /></label>
               </>}
               <GoogleAddressAutocomplete key={role} kind={role === "office" ? "office" : "professional"} />
             </>}
@@ -1024,7 +1024,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <label className="field sm:col-span-2"><span>Email</span><input name="email" type="email" value={emailValue} onChange={(event) => setEmailValue(event.target.value)} autoComplete="email" required /></label>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
-            <p className="text-xs leading-5 text-slate-500 sm:col-span-2">DentalShift will email you a secure one-time sign-in link. No password is required.</p>
+            <p className="text-xs leading-5 text-slate-500 sm:col-span-2 lg:leading-4">DentalShift will email you a secure one-time sign-in link. No password is required.</p>
             <button disabled={busy} className="primary-btn sm:col-span-2">{busy ? "Sending secure email…" : mode === "signin" ? "Email me a sign-in link" : "Create account & verify email"}</button>
           </form>
         )}
