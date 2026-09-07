@@ -10,98 +10,49 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Make signup modal responsive to desktop viewport
+      - name: Make signup modal compact on desktop
+        shell: bash
         run: |
           python - <<'PY'
           from pathlib import Path
-          p=Path('app/page.tsx')
-          s=p.read_text()
-          old='''<section role="dialog" aria-modal="true" aria-labelledby="auth-title" className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white shadow-2xl">'''
-          new='''<section role="dialog" aria-modal="true" aria-labelledby="auth-title" className="auth-dialog relative z-10 max-h-[92vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white shadow-2xl">'''
+          p = Path('app/page.tsx')
+          s = p.read_text()
+          old = '<section role="dialog" aria-modal="true" aria-labelledby="auth-title" className="relative z-10 max-h-[92vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white shadow-2xl">'
+          new = '<section role="dialog" aria-modal="true" aria-labelledby="auth-title" className="auth-dialog relative z-10 max-h-[92vh] w-full max-w-2xl overflow-auto rounded-3xl bg-white shadow-2xl">'
           if old in s:
-            s=s.replace(old,new,1)
+              s = s.replace(old, new, 1)
           elif 'className="auth-dialog relative z-10' not in s:
-            raise SystemExit('auth dialog marker not found')
+              raise SystemExit('auth dialog marker not found')
           p.write_text(s)
+          css = Path('app/globals.css')
+          c = css.read_text()
+          marker = '/* Compact desktop signup modal */'
+          rules = """
 
-          css=Path('app/globals.css')
-          c=css.read_text()
-          marker='/* Responsive desktop signup modal */'
-          rules=r'''
-
-/* Responsive desktop signup modal */
+/* Compact desktop signup modal */
 @media (min-width: 768px) {
-  .auth-dialog {
-    width: min(760px, calc(100vw - 32px));
-    max-height: calc(100vh - 24px);
-  }
-
-  .auth-dialog form {
-    gap: clamp(0.45rem, 1vh, 1rem);
-    padding: clamp(0.75rem, 1.6vh, 1.5rem);
-  }
-
-  .auth-dialog form .field {
-    gap: clamp(0.2rem, 0.45vh, 0.5rem);
-  }
-
+  .auth-dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 20px); }
+  .auth-dialog form { gap: 0.55rem; padding: 0.8rem 1.1rem 0.9rem; }
+  .auth-dialog form .field { gap: 0.2rem; }
+  .auth-dialog form .field > span { font-size: 0.82rem; line-height: 1rem; }
   .auth-dialog form .field input,
   .auth-dialog form .field select,
-  .auth-dialog form .field textarea {
-    padding-top: clamp(0.48rem, 0.8vh, 0.75rem);
-    padding-bottom: clamp(0.48rem, 0.8vh, 0.75rem);
-  }
+  .auth-dialog form .field textarea { min-height: 2.45rem; padding-top: 0.4rem; padding-bottom: 0.4rem; }
+  .auth-dialog form p { line-height: 1rem; }
 }
-
-@media (min-width: 768px) and (max-height: 900px) {
-  .auth-dialog {
-    max-height: calc(100vh - 16px);
-  }
-
-  .auth-dialog form {
-    gap: 0.45rem;
-    padding: 0.7rem 1rem 0.8rem;
-  }
-
-  .auth-dialog form .field {
-    gap: 0.15rem;
-  }
-
-  .auth-dialog form .field > span {
-    font-size: 0.78rem;
-    line-height: 1rem;
-  }
-
+@media (min-width: 768px) and (max-height: 850px) {
+  .auth-dialog { max-height: calc(100vh - 12px); }
+  .auth-dialog form { gap: 0.35rem; padding: 0.55rem 0.9rem 0.65rem; }
+  .auth-dialog form .field { gap: 0.1rem; }
+  .auth-dialog form .field > span { font-size: 0.76rem; }
   .auth-dialog form .field input,
   .auth-dialog form .field select,
-  .auth-dialog form .field textarea {
-    min-height: 2.45rem;
-    padding-top: 0.4rem;
-    padding-bottom: 0.4rem;
-  }
-
-  .auth-dialog form p {
-    line-height: 1rem;
-  }
+  .auth-dialog form .field textarea { min-height: 2.15rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }
+  .auth-dialog form p { font-size: 0.72rem; line-height: 0.9rem; }
 }
-
-@media (min-width: 768px) and (max-height: 760px) {
-  .auth-dialog form {
-    gap: 0.32rem;
-    padding: 0.55rem 0.9rem 0.65rem;
-  }
-
-  .auth-dialog form .field input,
-  .auth-dialog form .field select,
-  .auth-dialog form .field textarea {
-    min-height: 2.2rem;
-    padding-top: 0.3rem;
-    padding-bottom: 0.3rem;
-  }
-}
-'''
+"""
           if marker not in c:
-            css.write_text(c+rules)
+              css.write_text(c + rules)
           PY
       - name: Commit source update
         run: |
@@ -109,5 +60,5 @@ jobs:
           git config user.email 'actions@users.noreply.github.com'
           git add app/page.tsx app/globals.css
           git diff --cached --quiet && exit 0
-          git commit -m 'Make signup modal responsive to desktop viewport'
+          git commit -m 'Make signup modal compact on desktop'
           git push
