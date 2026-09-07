@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Group all shifts posted for the selected office day inside one DentalShift-green section.
 path = Path("components/OfficeWorkspaceV2.tsx")
 text = path.read_text()
 
@@ -31,9 +32,8 @@ text = text[:start] + wrapped + text[end:]
 anchor = '          <div className="space-y-4">\n            {selectedAvailability.length > 0'
 if anchor not in text:
     raise SystemExit("sidebar list anchor not found")
-text = text.replace('          <div className="space-y-4">\n', '          <div className="space-y-4">\n', 1)
 
-# Move the new grouped shift section to the top of the sidebar list, before available staff.
+# Move the grouped shift section above all other sidebar activity.
 wrapped_start = text.find('            {selectedShifts.length > 0 && <section className="rounded-3xl bg-[#04A62F]')
 wrapped_end = text.find(end_marker, wrapped_start)
 if wrapped_start == -1 or wrapped_end == -1:
