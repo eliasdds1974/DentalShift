@@ -1,6 +1,8 @@
 name: Add account email change
 on:
-  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/add-account-email-change.yml'
 permissions:
   contents: write
 jobs:
@@ -19,7 +21,6 @@ jobs:
           if 'const changeAccountEmail' not in s:
             if anchor not in s: raise SystemExit('handler anchor missing')
             s = s.replace(anchor, code + anchor, 1)
-          # Reusable inline block inserted into office and professional account forms.
           block = '''<div className="rounded-2xl border border-[#002757]/15 bg-white p-4 sm:col-span-2"><h3 className="font-extrabold text-[#002757]">Login email</h3><p className="mt-1 text-xs leading-5 text-slate-500"><strong>This email address is used to log in to this DentalShift account.</strong> Changing it will change the email you use to sign in.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input name="account_new_email" type="email" placeholder={session.user.email || "New email address"} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-[#0078FE]" /><button type="button" disabled={busy} onClick={(event) => { const input = event.currentTarget.parentElement?.querySelector('input[name=account_new_email]') as HTMLInputElement | null; if (input) void changeAccountEmail(input.value); }} className="secondary-btn justify-center">{busy ? "Updating…" : "Change email"}</button></div></div>'''
           office_marker = '<form onSubmit={saveOfficeAccount} className="grid gap-4 p-6 sm:grid-cols-2">'
           pro_marker = '<form onSubmit={saveProfile} className="grid gap-3 bg-[#f8fafc] p-4 sm:grid-cols-2 sm:p-5">'
@@ -27,7 +28,6 @@ jobs:
             if office_marker not in s or pro_marker not in s: raise SystemExit('account form marker missing')
             s = s.replace(office_marker, office_marker + block, 1)
             s = s.replace(pro_marker, pro_marker + block, 1)
-          # Admin account currently routes profile to overview; give signed-in admin a simple email control in the account dialog.
           office_branch = '        ) : session && activeRole === "office" && details?.office ? ('
           admin_branch = '''        ) : session && activeRole === "admin" ? (\n          <div className="grid gap-4 p-6">\n            <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5"><h3 className="font-extrabold text-[#002757]">Administrator login</h3><p className="mt-1 text-sm text-slate-600">{session.user.email}</p></div>\n            <div className="rounded-2xl border border-[#002757]/15 bg-white p-4"><h3 className="font-extrabold text-[#002757]">Change login email</h3><p className="mt-1 text-xs leading-5 text-slate-500"><strong>This email address is used to log in to this DentalShift account.</strong> Changing it will change the email you use to sign in.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input id="admin-new-email" type="email" placeholder="New email address" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-[#0078FE]" /><button type="button" disabled={busy} onClick={() => { const input = document.getElementById("admin-new-email") as HTMLInputElement | null; if (input) void changeAccountEmail(input.value); }} className="primary-btn justify-center">{busy ? "Updating…" : "Change email"}</button></div></div>\n            {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}\n            {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">{notice}</p>}\n          </div>\n'''
           if 'Administrator login</h3>' not in s:
