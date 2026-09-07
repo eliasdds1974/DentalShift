@@ -1,8 +1,8 @@
 name: Responsive desktop signup modal
-on:
+'on':
   push:
     paths:
-      - '.github/workflows/responsive-desktop-signup-modal.yml'
+      - .github/workflows/responsive-desktop-signup-modal.yml
 permissions:
   contents: write
 jobs:
@@ -26,35 +26,13 @@ jobs:
           p.write_text(s)
           css = Path('app/globals.css')
           c = css.read_text()
-          marker = '/* Compact desktop signup modal */'
-          rules = """
-
-/* Compact desktop signup modal */
-@media (min-width: 768px) {
-  .auth-dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 20px); }
-  .auth-dialog form { gap: 0.55rem; padding: 0.8rem 1.1rem 0.9rem; }
-  .auth-dialog form .field { gap: 0.2rem; }
-  .auth-dialog form .field > span { font-size: 0.82rem; line-height: 1rem; }
-  .auth-dialog form .field input,
-  .auth-dialog form .field select,
-  .auth-dialog form .field textarea { min-height: 2.45rem; padding-top: 0.4rem; padding-bottom: 0.4rem; }
-  .auth-dialog form p { line-height: 1rem; }
-}
-@media (min-width: 768px) and (max-height: 850px) {
-  .auth-dialog { max-height: calc(100vh - 12px); }
-  .auth-dialog form { gap: 0.35rem; padding: 0.55rem 0.9rem 0.65rem; }
-  .auth-dialog form .field { gap: 0.1rem; }
-  .auth-dialog form .field > span { font-size: 0.76rem; }
-  .auth-dialog form .field input,
-  .auth-dialog form .field select,
-  .auth-dialog form .field textarea { min-height: 2.15rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }
-  .auth-dialog form p { font-size: 0.72rem; line-height: 0.9rem; }
-}
-"""
+          marker = 'Compact desktop signup modal v2'
+          rules = '\n/* Compact desktop signup modal v2 */\n@media (min-width: 768px) {\n  .auth-dialog { width: min(720px, calc(100vw - 32px)); max-height: calc(100vh - 20px); }\n  .auth-dialog form { gap: 0.55rem; padding: 0.8rem 1.1rem 0.9rem; }\n  .auth-dialog form .field { gap: 0.2rem; }\n  .auth-dialog form .field > span { font-size: 0.82rem; line-height: 1rem; }\n  .auth-dialog form .field input, .auth-dialog form .field select, .auth-dialog form .field textarea { min-height: 2.45rem; padding-top: 0.4rem; padding-bottom: 0.4rem; }\n  .auth-dialog form p { line-height: 1rem; }\n}\n@media (min-width: 768px) and (max-height: 850px) {\n  .auth-dialog { max-height: calc(100vh - 12px); }\n  .auth-dialog form { gap: 0.35rem; padding: 0.55rem 0.9rem 0.65rem; }\n  .auth-dialog form .field { gap: 0.1rem; }\n  .auth-dialog form .field > span { font-size: 0.76rem; }\n  .auth-dialog form .field input, .auth-dialog form .field select, .auth-dialog form .field textarea { min-height: 2.15rem; padding-top: 0.25rem; padding-bottom: 0.25rem; }\n  .auth-dialog form p { font-size: 0.72rem; line-height: 0.9rem; }\n}\n'
           if marker not in c:
               css.write_text(c + rules)
           PY
       - name: Commit source update
+        shell: bash
         run: |
           git config user.name 'DentalShift Automation'
           git config user.email 'actions@users.noreply.github.com'
