@@ -61,3 +61,4 @@ if 'withdrawApplication' not in s or 'Still Looking' not in s or '>Cancel</butto
     raise SystemExit('Professional cancel/still-looking patch did not apply')
 
 p.write_text(s)
+# Trigger workflow after workflow definition is present.
