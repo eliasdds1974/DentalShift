@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Targeted office calendar display update.
 path = Path("components/OfficeWorkspaceV2.tsx")
 text = path.read_text()
 
