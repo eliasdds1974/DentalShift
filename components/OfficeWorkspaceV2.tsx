@@ -284,6 +284,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         <h1 className="page-title">{office.name} schedule</h1>
         <p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>
       </div>
+      <button type="button" onClick={() => setPostShiftOpen(true)} className="primary-btn w-full justify-center sm:w-auto sm:min-w-[180px]"><Plus size={18} />Post a Shift</button>
     </div>
 
     {error && <p className="mt-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
@@ -379,8 +380,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       </div>}
     </section>
     {postShiftOpen && typeof document !== "undefined" && createPortal(
-      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-label="Post a shift">
-        <div className="w-full max-w-lg rounded-3xl border border-[#04A62F]/35 bg-gradient-to-b from-[#f1fff5] via-white to-white p-5 shadow-2xl sm:p-6">
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-2 sm:p-6" role="dialog" aria-modal="true" aria-label="Post a shift">
+        <div className="h-[calc(100dvh-1rem)] w-full max-w-[1100px] overflow-y-auto rounded-3xl border border-[#04A62F]/35 bg-gradient-to-b from-[#f1fff5] via-white to-white p-4 shadow-2xl sm:h-auto sm:max-h-[92vh] sm:p-7 lg:p-8">
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 text-[#04A62F]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eaf8ee] ring-1 ring-[#04A62F]/20"><CalendarDays size={19} /></span><span className="text-xs font-black uppercase tracking-[.12em]">Post a shift</span></div>
@@ -390,7 +391,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             <button type="button" onClick={() => setPostShiftOpen(false)} className="secondary-btn px-3" aria-label="Close"><X size={18} /></button>
           </div>
 
-          <form onSubmit={postSelectedShift} className="mt-5">
+          <form onSubmit={postSelectedShift} className="mt-6">
             <div className="space-y-3">
               <label className="field"><span>Professional needed</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
               <div className="grid gap-3 sm:grid-cols-2">
