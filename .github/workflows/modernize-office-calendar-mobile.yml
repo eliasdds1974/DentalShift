@@ -1,144 +1,112 @@
 name: Modernize office calendar mobile
-
 on:
   push:
     paths:
       - '.github/workflows/modernize-office-calendar-mobile.yml'
-
 permissions:
   contents: write
-
 jobs:
   patch:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.x'
       - name: Patch office calendar
         run: |
           python - <<'PY'
           from pathlib import Path
+          p = Path('components/OfficeWorkspaceV2.tsx')
+          s = p.read_text()
 
-          path = Path('components/OfficeWorkspaceV2.tsx')
-          s = path.read_text()
-
-          def replace_once(old, new, label):
+          def rep(old, new, label):
               global s
               if old not in s:
-                  raise SystemExit(f'Missing expected block: {label}')
+                  raise SystemExit('Missing expected block: ' + label)
               s = s.replace(old, new, 1)
 
-          replace_once(
-              'import { useEffect, useMemo, useState } from "react";',
-              'import { useEffect, useMemo, useRef, useState } from "react";',
-              'React useRef import',
-          )
+          rep('import { useEffect, useMemo, useState } from "react";', 'import { useEffect, useMemo, useRef, useState } from "react";', 'useRef import')
 
-          replace_once(
-'''const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {
-  RDH: { label: "RDH", solid: "bg-[#0078FE]", soft: "bg-blue-50", text: "text-[#0064d8]" },
-  CDA: { label: "CDA", solid: "bg-[#04A62F]", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },
-  DA: { label: "DA", solid: "bg-[#F59E0B]", soft: "bg-orange-50", text: "text-orange-700" },
-  ST: { label: "ST", solid: "bg-[#8B5CF6]", soft: "bg-violet-50", text: "text-violet-700" },
-};''',
-'''const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {
-  RDH: { label: "RDH", solid: "bg-[#4285F4]", soft: "bg-blue-50", text: "text-[#2f6fd0]" },
-  CDA: { label: "CDA", solid: "bg-[#EA4335]", soft: "bg-red-50", text: "text-[#c9342d]" },
-  DA: { label: "DA", solid: "bg-[#FBBC05]", soft: "bg-amber-50", text: "text-amber-700" },
-  ST: { label: "ST", solid: "bg-[#34A853]", soft: "bg-green-50", text: "text-[#278841]" },
-};''',
-              'Google role colours',
-          )
+          old_roles = '\n'.join([
+              'const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {',
+              '  RDH: { label: "RDH", solid: "bg-[#0078FE]", soft: "bg-blue-50", text: "text-[#0064d8]" },',
+              '  CDA: { label: "CDA", solid: "bg-[#04A62F]", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },',
+              '  DA: { label: "DA", solid: "bg-[#F59E0B]", soft: "bg-orange-50", text: "text-orange-700" },',
+              '  ST: { label: "ST", solid: "bg-[#8B5CF6]", soft: "bg-violet-50", text: "text-violet-700" },',
+              '};',
+          ])
+          new_roles = '\n'.join([
+              'const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {',
+              '  RDH: { label: "RDH", solid: "bg-[#4285F4]", soft: "bg-blue-50", text: "text-[#2f6fd0]" },',
+              '  CDA: { label: "CDA", solid: "bg-[#EA4335]", soft: "bg-red-50", text: "text-[#c9342d]" },',
+              '  DA: { label: "DA", solid: "bg-[#FBBC05]", soft: "bg-amber-50", text: "text-amber-700" },',
+              '  ST: { label: "ST", solid: "bg-[#34A853]", soft: "bg-green-50", text: "text-[#278841]" },',
+              '};',
+          ])
+          rep(old_roles, new_roles, 'role colours')
 
-          replace_once(
-              '  const [postShiftOpen, setPostShiftOpen] = useState(false);',
-              '  const [postShiftOpen, setPostShiftOpen] = useState(false);\n  const resultsRef = useRef<HTMLElement | null>(null);',
-              'results ref',
-          )
+          rep('  const [postShiftOpen, setPostShiftOpen] = useState(false);', '  const [postShiftOpen, setPostShiftOpen] = useState(false);\n  const resultsRef = useRef<HTMLElement | null>(null);', 'results ref')
 
-          marker = '''  const moveCalendar = (direction: -1 | 1) => {
-    const next = new Date(calendarCursor);
-    if (calendarView === "month") next.setMonth(next.getMonth() + direction, 1);
-    else next.setDate(next.getDate() + direction * 7);
-    setCalendarCursor(next);
-    setSelectedDate(localDateKey(next));
-  };
-'''
-          replacement = marker + '''
-  const chooseDate = (day: Date) => {
-    const key = localDateKey(day);
-    setSelectedDate(key);
-    setCalendarCursor(day);
-    setError("");
-    window.setTimeout(() => {
-      if (window.matchMedia("(max-width: 1023px)").matches) {
-        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }
-    }, 80);
-  };
-'''
-          replace_once(marker, replacement, 'chooseDate helper')
+          move = '\n'.join([
+              '  const moveCalendar = (direction: -1 | 1) => {',
+              '    const next = new Date(calendarCursor);',
+              '    if (calendarView === "month") next.setMonth(next.getMonth() + direction, 1);',
+              '    else next.setDate(next.getDate() + direction * 7);',
+              '    setCalendarCursor(next);',
+              '    setSelectedDate(localDateKey(next));',
+              '  };',
+          ])
+          choose = '\n'.join([
+              '',
+              '  const chooseDate = (day: Date) => {',
+              '    const key = localDateKey(day);',
+              '    setSelectedDate(key);',
+              '    setCalendarCursor(day);',
+              '    setError("");',
+              '    window.setTimeout(() => {',
+              '      if (window.matchMedia("(max-width: 1023px)").matches) {',
+              '        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });',
+              '      }',
+              '    }, 80);',
+              '  };',
+          ])
+          rep(move, move + choose, 'choose date helper')
 
-          replace_once(
-              'onClick={() => { setSelectedDate(key); setCalendarCursor(day); setError(""); }}',
-              'onClick={() => chooseDate(day)}',
-              'calendar date click',
-          )
+          rep('onClick={() => { setSelectedDate(key); setCalendarCursor(day); setError(""); }}', 'onClick={() => chooseDate(day)}', 'date click')
+          rep('<aside className="bg-white p-4 sm:p-5">', '<aside ref={resultsRef} className="scroll-mt-[92px] border-t border-slate-200 bg-white p-4 sm:p-5 lg:border-t-0">', 'results panel ref')
+          rep('<p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>', '<p className="page-subtitle">Tap a date to see posted shifts, applicants, available professionals and confirmed bookings for that day.</p>', 'subtitle')
 
-          old_cell = '''              <span className={`absolute left-1.5 top-1.5 inline-grid h-6 w-6 place-items-center rounded-full text-xs font-black sm:left-2 sm:top-2 sm:h-7 sm:w-7 sm:text-sm ${today ? "bg-[#032757] text-white" : ""}`}>{day.getDate()}</span>
-              {dayShifts.length > 0 && <div className="absolute left-1 right-1 top-8 truncate rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[9px] font-black text-[#017f27] sm:left-2 sm:right-2 sm:top-9 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="hidden sm:inline"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#04A62F]" />Shift(s) Posted</span><span className="sm:hidden">Shift</span></div>}
-              {interestedCount > 0 && <div className="absolute bottom-[1.55rem] left-1 right-1 truncate rounded-md bg-amber-500 px-1 py-0.5 text-center text-[9px] font-black text-white sm:bottom-8 sm:left-2 sm:right-2 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="sm:hidden">Interested · {interestedCount}</span><span className="hidden sm:inline">{interestedCount} interested · View day</span></div>}
-              {dayAvailability.length > 0 && <div className="absolute bottom-1 left-1 right-1 truncate rounded-md bg-[#F21C13] px-1 py-0.5 text-center text-[9px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="sm:hidden">Staff · {dayAvailability.length}</span><span className="hidden sm:inline">Available Staff · {dayAvailability.length}</span></div>}'''
-          new_cell = '''              <span className={`mx-auto grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
-              <div className="mt-1.5 flex flex-wrap justify-center gap-1 sm:mt-2 sm:gap-1.5">
-                {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}
-              </div>
-              <div className="mt-1 flex flex-wrap justify-center gap-1">
-                {dayShifts.length > 0 && <span className="rounded-full bg-[#4285F4]/10 px-1.5 py-0.5 text-[8px] font-black text-[#2f6fd0] sm:text-[9px]">{dayShifts.length} shift{dayShifts.length === 1 ? "" : "s"}</span>}
-                {interestedCount > 0 && <span className="rounded-full bg-[#FBBC05]/20 px-1.5 py-0.5 text-[8px] font-black text-amber-800 sm:text-[9px]">{interestedCount} applicant{interestedCount === 1 ? "" : "s"}</span>}
-                {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/12 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}
-              </div>'''
-          replace_once(old_cell, new_cell, 'calendar day presentation')
+          desc = '<p className="mt-1 text-xs font-bold text-[#032757]">Manage every shift from posting through confirmation.</p>'
+          legend = desc + '<div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-extrabold text-slate-600"><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />RDH</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />CDA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#FBBC05]" />DA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#34A853]" />ST</span></div>'
+          rep(desc, legend, 'role legend')
 
-          replace_once(
-              '<aside className="bg-white p-4 sm:p-5">',
-              '<aside ref={resultsRef} className="scroll-mt-[92px] border-t border-slate-200 bg-white p-4 sm:p-5 lg:border-t-0">',
-              'results aside',
-          )
+          old_cell = '\n'.join([
+              '              <span className={`absolute left-1.5 top-1.5 inline-grid h-6 w-6 place-items-center rounded-full text-xs font-black sm:left-2 sm:top-2 sm:h-7 sm:w-7 sm:text-sm ${today ? "bg-[#032757] text-white" : ""}`}>{day.getDate()}</span>',
+              '              {dayShifts.length > 0 && <div className="absolute left-1 right-1 top-8 truncate rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[9px] font-black text-[#017f27] sm:left-2 sm:right-2 sm:top-9 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="hidden sm:inline"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#04A62F]" />Shift(s) Posted</span><span className="sm:hidden">Shift</span></div>}',
+              '              {interestedCount > 0 && <div className="absolute bottom-[1.55rem] left-1 right-1 truncate rounded-md bg-amber-500 px-1 py-0.5 text-center text-[9px] font-black text-white sm:bottom-8 sm:left-2 sm:right-2 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="sm:hidden">Interested · {interestedCount}</span><span className="hidden sm:inline">{interestedCount} interested · View day</span></div>}',
+              '              {dayAvailability.length > 0 && <div className="absolute bottom-1 left-1 right-1 truncate rounded-md bg-[#F21C13] px-1 py-0.5 text-center text-[9px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="sm:hidden">Staff · {dayAvailability.length}</span><span className="hidden sm:inline">Available Staff · {dayAvailability.length}</span></div>}',
+          ])
+          new_cell = '\n'.join([
+              '              <span className={`mx-auto grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>',
+              '              <div className="mt-1.5 flex flex-wrap justify-center gap-1 sm:mt-2 sm:gap-1.5">',
+              '                {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}',
+              '              </div>',
+              '              <div className="mt-1 flex flex-wrap justify-center gap-1">',
+              '                {dayShifts.length > 0 && <span className="rounded-full bg-[#4285F4]/10 px-1.5 py-0.5 text-[8px] font-black text-[#2f6fd0] sm:text-[9px]">{dayShifts.length} shift{dayShifts.length === 1 ? "" : "s"}</span>}',
+              '                {interestedCount > 0 && <span className="rounded-full bg-[#FBBC05]/20 px-1.5 py-0.5 text-[8px] font-black text-amber-800 sm:text-[9px]">{interestedCount} applicant{interestedCount === 1 ? "" : "s"}</span>}',
+              '                {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}',
+              '              </div>',
+          ])
+          rep(old_cell, new_cell, 'day tile redesign')
 
-          replace_once(
-              '<p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>',
-              '<p className="page-subtitle">Tap a date to see posted shifts, applicants, available professionals and confirmed bookings for that day.</p>',
-              'office subtitle',
-          )
+          panel = '          <div className="space-y-4">'
+          panel_new = panel + '\n            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="secondary-btn mb-1 w-full justify-center lg:hidden">↑ Back to calendar</button>'
+          rep(panel, panel_new, 'back to calendar')
 
-          # Add the approved role legend directly under the office calendar description.
-          replace_once(
-              '<p className="mt-1 text-xs font-bold text-[#032757]">Manage every shift from posting through confirmation.</p>',
-              '<p className="mt-1 text-xs font-bold text-[#032757]">Manage every shift from posting through confirmation.</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-extrabold text-slate-600"><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />RDH</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />CDA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#FBBC05]" />DA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#34A853]" />ST</span></div>',
-              'role legend',
-          )
-
-          # Add an obvious way back to the calendar after the user is auto-jumped on mobile.
-          needle = '          <div className="space-y-4">'
-          replace_once(
-              needle,
-              '          <div className="space-y-4">\n            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="secondary-btn mb-1 w-full justify-center lg:hidden">↑ Back to calendar</button>',
-              'mobile back to calendar',
-          )
-
-          path.write_text(s)
+          p.write_text(s)
           PY
-      - name: Commit office redesign
+      - name: Commit source change
         run: |
-          if git diff --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
           git add components/OfficeWorkspaceV2.tsx
-          git commit -m "Modernize office calendar for mobile"
+          git commit -m 'Modernize office calendar for mobile'
           git push
