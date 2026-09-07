@@ -1,0 +1,39 @@
+name: Move office post shift button into calendar controls
+on:
+  push:
+    paths:
+      - '.github/workflows/move-office-post-shift-button.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move and restyle Post a Shift button
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/OfficeWorkspaceV2.tsx')
+          s = p.read_text()
+
+          old_header = '''      <button type="button" onClick={() => setPostShiftOpen(true)} className="primary-btn w-full justify-center sm:w-auto sm:min-w-[180px]"><Plus size={18} />Post a Shift</button>\n'''
+          if old_header not in s:
+              raise SystemExit('Header Post a Shift button not found')
+          s = s.replace(old_header, '', 1)
+
+          old_controls = '''          <div className="ml-1 grid grid-cols-3 rounded-xl bg-slate-100 p-1">\n            {(["month", "week", "list"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}>{mode}</button>)}\n          </div>\n'''
+          new_controls = '''          <div className="ml-1 grid grid-cols-3 rounded-xl bg-slate-100 p-1">\n            {(["month", "week", "list"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}>{mode}</button>)}\n          </div>\n          <button type="button" onClick={() => setPostShiftOpen(true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30"><Plus size={18} />Post a Shift</button>\n'''
+          if old_controls not in s:
+              raise SystemExit('Calendar view controls block not found')
+          s = s.replace(old_controls, new_controls, 1)
+
+          p.write_text(s)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m 'Move office post shift button into calendar controls'
+          git push
