@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star, UsersRound } from "lucide-react";
+import { createPortal } from "react-dom";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star, UsersRound, X } from "lucide-react";
 import {
   acceptApplication,
   cancelOfficeShift,
@@ -96,6 +97,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
+  const [postShiftOpen, setPostShiftOpen] = useState(false);
   const [officeCoordinates, setOfficeCoordinates] = useState<{ latitude: number; longitude: number } | null>(() =>
     office.latitude != null && office.longitude != null ? { latitude: Number(office.latitude), longitude: Number(office.longitude) } : null
   );
@@ -223,8 +225,10 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     try {
       await action();
       await refresh();
+      return true;
     } catch (value) {
       setError(value instanceof Error ? value.message : (typeof value === "object" && value && "message" in value ? String((value as { message?: unknown }).message || "The action could not be completed.") : "The action could not be completed."));
+      return false;
     } finally {
       setBusy("");
     }
@@ -250,7 +254,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       return;
     }
 
-    await act(`post-${selectedDate}`, () => createShiftSeries({
+    const posted = await act(`post-${selectedDate}`, () => createShiftSeries({
       officeId: office.id,
       profession,
       dates: [selectedDate],
@@ -261,6 +265,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       notes,
       autoInvite,
     }));
+    if (posted) setPostShiftOpen(false);
   };
 
   const moveCalendar = (direction: -1 | 1) => {
@@ -283,24 +288,12 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     {loading && <p className="mt-4 text-xs font-bold text-slate-500">Updating your live office calendar…</p>}
 
     <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
-      <div className="grid gap-3 border-b border-slate-200 p-3 sm:p-4 md:grid-cols-[minmax(0,1fr)_300px]">
+      <div className="grid gap-3 border-b border-slate-200 p-3 sm:p-4">
         <div className="contents">
           <div className="min-w-0 md:col-start-1 md:row-start-1">
             <h2 className="text-xl font-black tracking-tight text-[#032757] sm:text-2xl">Office calendar</h2>
             <p className="mt-1 text-xs font-bold text-[#032757]">Manage every shift from posting through confirmation.</p>
           </div>
-          <form onSubmit={postSelectedShift} className="w-full rounded-2xl border border-[#0078FE]/25 bg-blue-50/40 p-4 md:col-start-2 md:row-span-2 md:row-start-1 md:w-[300px]">
-  <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
-  <div className="mt-4 space-y-3">
-    <label className="block text-xs font-black text-slate-600">Professional needed<select name="profession" defaultValue="Registered Dental Hygienist" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
-    <div className="grid grid-cols-2 gap-2"><label className="text-xs font-black text-slate-600">Start<input name="start_time" type="time" defaultValue="08:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label><label className="text-xs font-black text-slate-600">End<input name="end_time" type="time" defaultValue="17:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label></div>
-    <label className="block text-xs font-black text-slate-600">Hourly rate<input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label>
-    <label className="block text-xs font-black text-slate-600">Software<select name="software" defaultValue="Any software" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
-    <label className="block text-xs font-black text-slate-600">Notes<textarea name="notes" rows={2} placeholder="Optional shift details" className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#0078FE]" /></label>
-    <label className="flex items-start gap-2 rounded-xl bg-white p-3 text-xs font-bold text-slate-600"><input name="auto_invite" type="checkbox" className="mt-0.5 h-4 w-4" /><span>Automatically invite matching available professionals.</span></label>
-    <button type="submit" disabled={busy === `post-${selectedDate}`} className="primary-btn w-full justify-center"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
-  </div>
-</form>
 <div className="hidden">
             <button type="button" onClick={onPost} className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#0078FE]/35 bg-gradient-to-r from-blue-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#0078FE]/70 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0078FE]/25"><CalendarDays size={15} className="text-[#0078FE]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Open shifts</span><strong className="block text-sm leading-none text-[#002757]">{openShifts.length}</strong></span></button>
             <button type="button" className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-amber-300 bg-gradient-to-r from-amber-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-500 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-amber-300/30"><UsersRound size={15} className="text-amber-700" /><span><span className="block text-[10px] font-extrabold text-slate-500">Applicants</span><strong className="block text-sm leading-none text-[#002757]">{applicantCount}</strong></span></button>
@@ -335,7 +328,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && isSlotInProfessionalRadius(slot));
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
-            return <button type="button" key={key} onClick={() => { setSelectedDate(key); setCalendarCursor(day); }} className={`relative min-h-24 bg-white p-1.5 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
+            return <button type="button" key={key} onClick={() => { setSelectedDate(key); setCalendarCursor(day); setError(""); setPostShiftOpen(true); }} className={`relative min-h-24 bg-white p-1.5 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
               <span className={`absolute left-2 top-2 inline-grid h-7 w-7 place-items-center rounded-full text-sm font-black ${today ? "bg-[#032757] text-white" : ""}`}>{day.getDate()}</span>
               {dayShifts.length > 0 && <div className="absolute left-1.5 right-1.5 top-9 truncate rounded-lg bg-[#eaf8ee] px-1.5 py-1 text-[10px] font-black text-[#017f27] sm:left-2 sm:right-2"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#04A62F]" />Shift(s) Posted</div>}
               {interestedCount > 0 && <div className="absolute bottom-8 left-1.5 right-1.5 truncate rounded-lg bg-amber-500 px-1.5 py-1 text-[10px] font-black text-white sm:left-2 sm:right-2">{interestedCount} interested · View day</div>}
@@ -383,6 +376,40 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         </aside>
       </div>}
     </section>
+    {postShiftOpen && typeof document !== "undefined" && createPortal(
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-label="Post a shift">
+        <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 text-[#0078FE]"><CalendarDays size={20} /><span className="text-xs font-black uppercase tracking-[.12em]">Post a shift</span></div>
+              <h2 className="mt-2 text-2xl font-black text-[#002757]">{longDate(selectedDate)}</h2>
+              <p className="mt-1 text-sm leading-5 text-slate-500">Add an office shift for this date.</p>
+            </div>
+            <button type="button" onClick={() => setPostShiftOpen(false)} className="secondary-btn px-3" aria-label="Close"><X size={18} /></button>
+          </div>
+
+          <form onSubmit={postSelectedShift} className="mt-5">
+            <div className="space-y-3">
+              <label className="field"><span>Professional needed</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="field"><span>Start</span><input name="start_time" type="time" defaultValue="08:00" required /></label>
+                <label className="field"><span>End</span><input name="end_time" type="time" defaultValue="17:00" required /></label>
+              </div>
+              <label className="field"><span>Hourly rate</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
+              <label className="field"><span>Software</span><select name="software" defaultValue="Any software"><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="field"><span>Notes</span><textarea name="notes" rows={2} placeholder="Optional shift details" /></label>
+              <label className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold text-slate-600"><input name="auto_invite" type="checkbox" className="mt-0.5 h-4 w-4" /><span>Automatically invite matching available professionals.</span></label>
+            </div>
+            {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => setPostShiftOpen(false)} className="secondary-btn">Close</button>
+              <button type="submit" disabled={busy === `post-${selectedDate}`} className="primary-btn"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
+            </div>
+          </form>
+        </div>
+      </div>,
+      document.body,
+    )}
   </div>;
 }
 
