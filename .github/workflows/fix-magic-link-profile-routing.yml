@@ -10,10 +10,32 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Route magic links to selected workspace
+      - name: Make explicit portal URL win over stored account role
         shell: bash
         run: |
-          python -c 'from pathlib import Path; p=Path("app/page.tsx"); s=p.read_text(); old="const redirectTo = role === \"admin\"\n      ? `${window.location.origin}/admin/overview`\n      : `${window.location.origin}/?portal_role=${role}`;"; new="const redirectTo = role === \"admin\"\n      ? `${window.location.origin}/admin/overview`\n      : role === \"office\"\n        ? `${window.location.origin}/office/overview?portal_role=office`\n        : `${window.location.origin}/professionals/find-shifts?portal_role=professional`;"; assert old in s, "magic-link redirect block not found"; p.write_text(s.replace(old,new,1))'
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path("app/page.tsx")
+          s = p.read_text()
+
+          old = '''        const nextRole = routeRole && canUseRole(routeRole)
+          ? routeRole
+          : [requestedRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;'''
+
+          new = '''        const nextRole = routeRole === "office"
+          ? "office"
+          : routeRole === "professional"
+            ? "professional"
+            : routeRole === "admin" && account.profile.role === "admin"
+              ? "admin"
+              : [requestedRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;'''
+
+          if old not in s:
+              raise SystemExit("role-resolution block not found")
+
+          p.write_text(s.replace(old, new, 1))
+          PY
       - name: Commit source update
         shell: bash
         run: |
@@ -21,5 +43,5 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add app/page.tsx
           git diff --cached --quiet && exit 0
-          git commit -m "Route magic links to selected workspace"
+          git commit -m "Keep office and professional routes in their selected workspace"
           git push
