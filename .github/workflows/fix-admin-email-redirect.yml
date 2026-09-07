@@ -6,6 +6,7 @@ on:
       - '.github/workflows/fix-admin-email-redirect.yml'
       - '.github/scripts/patch_temp_admin_direct.py'
       - '.github/scripts/patch_admin_sidebar_controls.py'
+      - '.github/scripts/patch_admin_compact_header.py'
   workflow_dispatch:
 
 permissions:
@@ -18,21 +19,18 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
       - name: Route temporary admin directly to admin portal
         run: python .github/scripts/patch_temp_admin_direct.py
-
-      - name: Move admin controls to sidebar
-        run: python .github/scripts/patch_admin_sidebar_controls.py
-
+      - name: Compact admin command center header
+        run: python .github/scripts/patch_admin_compact_header.py
       - name: Commit app changes
         run: |
-          if git diff --quiet -- app/page.tsx app/admin/overview/page.tsx components/AdminCommandCenter.tsx; then
+          if git diff --quiet -- app/page.tsx components/AdminCommandCenter.tsx; then
             echo "No app change needed"
             exit 0
           fi
           git config user.name 'eliasdds1974'
           git config user.email 'eliasdds@gmail.com'
-          git add app/page.tsx app/admin/overview/page.tsx components/AdminCommandCenter.tsx
-          git commit -m 'Move admin controls into left sidebar'
+          git add app/page.tsx components/AdminCommandCenter.tsx
+          git commit -m 'Compact admin command center header'
           git push
