@@ -1,0 +1,32 @@
+name: Move calendar day number upper left
+on:
+  push:
+    paths:
+      - '.github/workflows/move-calendar-day-number-upper-left.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move day number upper left
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/WorkflowWorkspaceV2.tsx')
+          s = p.read_text()
+          old = 'className={`mx-auto grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#002757] text-white" : "text-slate-700"}`}'
+          new = 'className={`ml-1 mt-0.5 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:ml-1 sm:mt-0.5 sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#002757] text-white" : "text-slate-700"}`}'
+          if old not in s:
+              raise SystemExit('Expected day-number class not found; no changes made.')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Move calendar day numbers upper left'
+          git push
