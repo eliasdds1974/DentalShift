@@ -1,0 +1,26 @@
+name: Simplify posted shifts heading
+on:
+  push:
+    paths:
+      - 'scripts/simplify-posted-shifts-heading.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Simplify heading
+        run: python scripts/simplify-posted-shifts-heading.py
+      - name: Commit source change
+        run: |
+          if git diff --quiet -- components/OfficeWorkspaceV2.tsx; then
+            echo "No source change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m "Simplify posted shifts heading"
+          git push
