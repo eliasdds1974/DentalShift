@@ -1,0 +1,54 @@
+name: Pin desktop calendar day numbers
+
+on:
+  push:
+    paths:
+      - '.github/workflows/pin-desktop-calendar-day-number.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Pin desktop day numbers and separate calendar layers
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/OfficeWorkspaceV2.tsx')
+          s = p.read_text()
+          old = '''            return <button type="button" key={key} onClick={() => chooseDate(day)} className={`relative min-h-20 bg-white p-1 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
+              <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
+              <div className="mt-1.5 flex flex-wrap justify-center gap-1 sm:mt-2 sm:gap-1.5">
+                {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}
+              </div>
+              <div className="mt-1 flex flex-wrap justify-center gap-1">
+                {dayShifts.length > 0 && <span className="rounded-full bg-[#4285F4]/10 px-1.5 py-0.5 text-[8px] font-black text-[#2f6fd0] sm:text-[9px]">{dayShifts.length} shift{dayShifts.length === 1 ? "" : "s"}</span>}
+                {interestedCount > 0 && <span className="rounded-full bg-[#FBBC05]/20 px-1.5 py-0.5 text-[8px] font-black text-amber-800 sm:text-[9px]">{interestedCount} applicant{interestedCount === 1 ? "" : "s"}</span>}
+                {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}
+              </div>
+            </button>;'''
+          new = '''            return <button type="button" key={key} onClick={() => chooseDate(day)} className={`relative min-h-20 bg-white p-1 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 lg:min-h-32 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
+              <span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm lg:absolute lg:left-2 lg:top-2 ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
+              <div className="mt-1.5 flex flex-wrap justify-center gap-1 sm:mt-2 sm:gap-1.5 lg:absolute lg:left-2 lg:right-2 lg:top-11 lg:mt-0 lg:min-h-7 lg:items-center lg:justify-center">
+                {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}
+              </div>
+              <div className="mt-1 flex flex-wrap justify-center gap-1 lg:absolute lg:bottom-2 lg:left-1.5 lg:right-1.5 lg:mt-0 lg:items-end lg:justify-center">
+                {dayShifts.length > 0 && <span className="rounded-full bg-[#4285F4]/10 px-1.5 py-0.5 text-[8px] font-black text-[#2f6fd0] sm:text-[9px]">{dayShifts.length} shift{dayShifts.length === 1 ? "" : "s"}</span>}
+                {interestedCount > 0 && <span className="rounded-full bg-[#FBBC05]/20 px-1.5 py-0.5 text-[8px] font-black text-amber-800 sm:text-[9px]">{interestedCount} applicant{interestedCount === 1 ? "" : "s"}</span>}
+                {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}
+              </div>
+            </button>;'''
+          if old not in s:
+            raise SystemExit('Calendar day block not found')
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Commit source update
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m 'Pin desktop calendar day numbers'
+          git push
