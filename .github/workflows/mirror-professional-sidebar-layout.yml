@@ -1,0 +1,26 @@
+name: Mirror professional sidebar layout
+on:
+  push:
+    paths:
+      - 'scripts/mirror-professional-sidebar-layout.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional sidebar layout
+        run: python scripts/mirror-professional-sidebar-layout.py
+      - name: Commit source change
+        run: |
+          if git diff --quiet -- components/WorkflowWorkspaceV2.tsx; then
+            echo "No source change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m "Mirror office card layout in professional sidebar"
+          git push
