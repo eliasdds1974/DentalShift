@@ -5,7 +5,7 @@ on:
     branches:
       - polish/office-post-shift-modal-green-software
     paths:
-      - '.github/scripts/patch_office_post_shift_modal_green_software.py'
+      - '.github/scripts/patch_software_other_and_modal_polish.py'
       - '.github/workflows/apply-office-post-shift-modal-green-software.yml'
   workflow_dispatch:
 
@@ -20,19 +20,19 @@ jobs:
         with:
           ref: polish/office-post-shift-modal-green-software
       - name: Apply patch
-        run: python .github/scripts/patch_office_post_shift_modal_green_software.py
+        run: python .github/scripts/patch_software_other_and_modal_polish.py
       - name: Install dependencies
-        run: npm install --no-audit --no-fund
+        run: npm install
       - name: Build
         run: npm run build
       - name: Commit source changes
         run: |
-          if git diff --quiet -- components/OfficeWorkspaceV2.tsx; then
+          if git diff --quiet -- app/page.tsx components/OfficeWorkspaceV2.tsx; then
             echo 'No source changes to commit.'
             exit 0
           fi
           git config user.name 'DentalShift automation'
           git config user.email 'actions@users.noreply.github.com'
-          git add components/OfficeWorkspaceV2.tsx
-          git commit -m 'Polish office post shift modal and software list'
+          git add app/page.tsx components/OfficeWorkspaceV2.tsx
+          git commit -m 'Update software options and office shift modal'
           git push origin HEAD:polish/office-post-shift-modal-green-software
