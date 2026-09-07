@@ -295,8 +295,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     setSelection({ type: "day" });
     if (promptAvailability) {
       const hasAvailability = workflow.availability.some((slot) => slot.available && localDateKey(slot.starts_at) === key);
-      const hasOfficeRequest = professionShifts.some((shift) => localDateKey(shift.starts_at) === key);
-      setAvailabilityModalOpen(!hasAvailability && !hasOfficeRequest);
+      setAvailabilityModalOpen(!hasAvailability);
     }
   };
 
