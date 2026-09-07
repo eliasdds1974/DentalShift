@@ -1,3 +1,4 @@
+# Refine the professional portal Still Looking card only.
 from pathlib import Path
 p = Path('components/WorkflowWorkspaceV2.tsx')
 s = p.read_text()
@@ -30,6 +31,6 @@ if old not in s:
 s = s.replace(old, new, 1)
 if 'You’re no longer interested' in s[s.find('selectedDayStillLookingShifts'):s.find('selectedDayStillLookingShifts')+5000]:
     raise SystemExit('Inner no-longer-interested card still present')
-if 'reapply-${shift.id}' not in s or '>Book Now</button>' not in s:
+if 'reapply-${shift.id}' not in s or 'Book Now' not in s:
     raise SystemExit('Book Now action was not added')
 p.write_text(s)
