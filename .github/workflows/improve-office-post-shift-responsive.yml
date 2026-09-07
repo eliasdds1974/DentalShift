@@ -1,0 +1,51 @@
+name: Improve office post shift responsive UI
+on:
+  push:
+    paths:
+      - '.github/workflows/improve-office-post-shift-responsive.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Improve office post shift responsive UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/OfficeWorkspaceV2.tsx')
+          s = p.read_text()
+
+          old_header = '''        <p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>\n      </div>\n    </div>'''
+          new_header = '''        <p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>\n      </div>\n      <button type="button" onClick={() => setPostShiftOpen(true)} className="primary-btn w-full justify-center sm:w-auto sm:min-w-[180px]"><Plus size={18} />Post a Shift</button>\n    </div>'''
+          if old_header not in s:
+              raise SystemExit('Office calendar header target not found')
+          s = s.replace(old_header, new_header, 1)
+
+          old_overlay = '''<div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-label="Post a shift">'''
+          new_overlay = '''<div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-2 sm:p-6" role="dialog" aria-modal="true" aria-label="Post a shift">'''
+          if old_overlay not in s:
+              raise SystemExit('Post shift overlay target not found')
+          s = s.replace(old_overlay, new_overlay, 1)
+
+          old_modal = '''<div className="w-full max-w-lg rounded-3xl border border-[#04A62F]/35 bg-gradient-to-b from-[#f1fff5] via-white to-white p-5 shadow-2xl sm:p-6">'''
+          new_modal = '''<div className="h-[calc(100dvh-1rem)] w-full max-w-[1100px] overflow-y-auto rounded-3xl border border-[#04A62F]/35 bg-gradient-to-b from-[#f1fff5] via-white to-white p-4 shadow-2xl sm:h-auto sm:max-h-[92vh] sm:p-7 lg:p-8">'''
+          if old_modal not in s:
+              raise SystemExit('Post shift modal target not found')
+          s = s.replace(old_modal, new_modal, 1)
+
+          old_form = '''<form onSubmit={postSelectedShift} className="mt-5">'''
+          new_form = '''<form onSubmit={postSelectedShift} className="mt-6">'''
+          if old_form in s:
+              s = s.replace(old_form, new_form, 1)
+
+          p.write_text(s)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m 'Improve office post shift responsive UI'
+          git push
