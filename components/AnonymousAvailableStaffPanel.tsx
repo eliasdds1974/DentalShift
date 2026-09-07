@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { MapPin, ShieldCheck, Star, UsersRound } from "lucide-react";
 
 export type AvailableStaffRole = "RDH" | "CDA" | "DA" | "ST";
@@ -25,7 +26,7 @@ export type AnonymousAvailableStaff = {
 
 const roleStyles: Record<AvailableStaffRole, { title: string; badge: string; border: string; soft: string; text: string }> = {
   RDH: { title: "Registered Dental Hygienist", badge: "bg-[#0078FE]", border: "border-blue-200", soft: "bg-blue-50", text: "text-[#0064d8]" },
-  CDA: { title: "Certified Dental Assistant", badge: "bg-[#F21C13]", border: "border-red-200", soft: "bg-red-50", text: "text-[#d9160f]" },
+  CDA: { title: "Certified Dental Assistant", badge: "bg-[#04A62F]", border: "border-emerald-200", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },
   DA: { title: "Dental Assistant", badge: "bg-[#F59E0B]", border: "border-orange-200", soft: "bg-orange-50", text: "text-orange-700" },
   ST: { title: "Sterilization Technician", badge: "bg-[#8B5CF6]", border: "border-violet-200", soft: "bg-violet-50", text: "text-violet-700" },
 };
@@ -50,6 +51,7 @@ export function AnonymousAvailableStaffPanel({
   onRadiusChange?: (radiusKm: number) => void;
   onViewProfile?: (professionalId: string) => void;
 }) {
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const groups = (["RDH", "CDA", "DA", "ST"] as AvailableStaffRole[])
     .map((role) => ({ role, items: staff.filter((item) => item.role === role) }))
     .filter((group) => group.items.length > 0);
@@ -79,27 +81,33 @@ export function AnonymousAvailableStaffPanel({
           <div className="flex items-center gap-2"><span className={`rounded-lg px-2.5 py-1 text-xs font-black text-white ${style.badge}`}>{role}</span><strong className={`text-sm ${style.text}`}>{style.title} ({items.length})</strong></div>
         </header>
         <div className="divide-y divide-slate-100">
-          {items.map((item) => <article key={item.id} className="p-3">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <div className="flex flex-wrap items-center gap-2"><strong className="text-sm text-[#032757]">{anonymousId(item)}</strong>{item.preferred && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">Preferred</span>}</div>
-                <p className="mt-1 text-xs font-bold text-slate-500">{item.distanceKm == null ? "Distance unavailable" : `${item.distanceKm.toFixed(1)} km away`} · {shortTime(item.startsAt)}–{shortTime(item.endsAt)}</p>
+          {items.map((item) => {
+            const expanded = expandedId === item.id;
+            return <article key={item.id} className="p-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2"><strong className="text-sm text-[#032757]">{anonymousId(item)}</strong>{item.preferred && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black text-amber-700">Preferred</span>}</div>
+                  <p className="mt-1 text-xs font-bold text-slate-500">{item.distanceKm == null ? "Distance unavailable" : `${item.distanceKm.toFixed(1)} km away`} · {shortTime(item.startsAt)}–{shortTime(item.endsAt)}</p>
+                </div>
+                <button type="button" onClick={() => { setExpandedId(expanded ? null : item.id); onViewProfile?.(item.id); }} className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-black text-[#032757] hover:bg-slate-50">{expanded ? "Hide Profile" : "View Anonymous Profile"}</button>
               </div>
-              {onViewProfile && <button type="button" onClick={() => onViewProfile(item.id)} className="rounded-xl border border-slate-200 px-3 py-2 text-[11px] font-black text-[#032757] hover:bg-slate-50">View Anonymous Profile</button>}
-            </div>
 
-            <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] font-bold text-slate-600">
-              <span>Reliability: <strong className="text-[#032757]">{item.reliabilityScore == null ? "Not enough history" : `${item.reliabilityScore}%`}</strong></span>
-              <span>Completed: <strong className="text-[#032757]">{item.completedShifts == null ? "—" : item.completedShifts}</strong></span>
-              <span>Cancellations: <strong className="text-[#032757]">{item.cancellations == null ? "—" : item.cancellations}</strong></span>
-              <span>Experience: <strong className="text-[#032757]">{item.yearsExperience == null ? "—" : `${item.yearsExperience} yr${item.yearsExperience === 1 ? "" : "s"}`}</strong></span>
-              <span className="col-span-2 flex items-center gap-1">Rating: <Star size={12} className="fill-current text-amber-500" /><strong className="text-[#032757]">{item.rating == null ? "No rating yet" : `${item.rating.toFixed(1)}${item.reviewCount ? ` (${item.reviewCount})` : ""}`}</strong></span>
-            </div>
+              <div className="mt-3 grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] font-bold text-slate-600">
+                <span>Reliability: <strong className="text-[#032757]">{item.reliabilityScore == null ? "Not enough history" : `${item.reliabilityScore}%`}</strong></span>
+                <span>Completed: <strong className="text-[#032757]">{item.completedShifts == null ? "—" : item.completedShifts}</strong></span>
+                <span>Cancellations: <strong className="text-[#032757]">{item.cancellations == null ? "—" : item.cancellations}</strong></span>
+                <span>Experience: <strong className="text-[#032757]">{item.yearsExperience == null ? "—" : `${item.yearsExperience} yr${item.yearsExperience === 1 ? "" : "s"}`}</strong></span>
+                <span className="col-span-2 flex items-center gap-1">Rating: <Star size={12} className="fill-current text-amber-500" /><strong className="text-[#032757]">{item.rating == null ? "No rating yet" : `${item.rating.toFixed(1)}${item.reviewCount ? ` (${item.reviewCount})` : ""}`}</strong></span>
+              </div>
 
-            {!!item.qualifications?.length && <div className="mt-3 flex flex-wrap gap-1.5">{item.qualifications.map((qualification) => <span key={qualification.label} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${qualification.verified ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600"}`}>{qualification.verified && <ShieldCheck size={11} />}{qualification.label}{qualification.verified ? " · Verified" : " · Self-declared"}</span>)}</div>}
-            {!!item.skills?.length && <p className="mt-2 text-[11px] text-slate-500"><strong>Skills:</strong> {item.skills.slice(0, 4).join(" · ")}</p>}
-            {!!item.software?.length && <p className="mt-1 text-[11px] text-slate-500"><strong>Software:</strong> {item.software.slice(0, 4).join(" · ")}</p>}
-          </article>)}
+              {expanded && <div className="mt-3 rounded-xl bg-slate-50 p-3">
+                {!!item.qualifications?.length ? <div className="flex flex-wrap gap-1.5">{item.qualifications.map((qualification) => <span key={qualification.label} className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[10px] font-black ${qualification.verified ? "bg-emerald-50 text-emerald-700" : "bg-white text-slate-600"}`}>{qualification.verified && <ShieldCheck size={11} />}{qualification.label}{qualification.verified ? " · Verified" : " · Self-declared"}</span>)}</div> : <p className="text-[11px] text-slate-500">No additional qualifications listed.</p>}
+                {!!item.skills?.length && <p className="mt-2 text-[11px] text-slate-500"><strong>Skills:</strong> {item.skills.slice(0, 6).join(" · ")}</p>}
+                {!!item.software?.length && <p className="mt-1 text-[11px] text-slate-500"><strong>Software:</strong> {item.software.slice(0, 6).join(" · ")}</p>}
+                <p className="mt-2 text-[10px] font-bold text-slate-400">Identity and contact details stay hidden until booking or authorized disclosure.</p>
+              </div>}
+            </article>;
+          })}
         </div>
       </section>;
     })}
