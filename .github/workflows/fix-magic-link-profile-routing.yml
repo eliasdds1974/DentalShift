@@ -13,7 +13,7 @@ jobs:
       - name: Route magic links to selected workspace
         shell: bash
         run: |
-          python -c "from pathlib import Path; p=Path('app/page.tsx'); s=p.read_text(); old='''const redirectTo = role === \"admin\"\n      ? `${window.location.origin}/admin/overview`\n      : `${window.location.origin}/?portal_role=${role}`;'''; new='''const redirectTo = role === \"admin\"\n      ? `${window.location.origin}/admin/overview`\n      : role === \"office\"\n        ? `${window.location.origin}/office/overview?portal_role=office`\n        : `${window.location.origin}/professionals/find-shifts?portal_role=professional`;'''; assert old in s, 'magic-link redirect block not found'; p.write_text(s.replace(old,new,1))"
+          python -c 'from pathlib import Path; p=Path("app/page.tsx"); s=p.read_text(); old="const redirectTo = role === \"admin\"\n      ? `${window.location.origin}/admin/overview`\n      : `${window.location.origin}/?portal_role=${role}`;"; new="const redirectTo = role === \"admin\"\n      ? `${window.location.origin}/admin/overview`\n      : role === \"office\"\n        ? `${window.location.origin}/office/overview?portal_role=office`\n        : `${window.location.origin}/professionals/find-shifts?portal_role=professional`;"; assert old in s, "magic-link redirect block not found"; p.write_text(s.replace(old,new,1))'
       - name: Commit source update
         shell: bash
         run: |
