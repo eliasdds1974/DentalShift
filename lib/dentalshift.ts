@@ -30,6 +30,8 @@ export type ProfessionalDetails = {
   skills: string[] | null;
   resume_path: string | null;
   available_for_work: boolean;
+  local_anesthetic?: boolean;
+  local_anesthetic_status?: string;
 };
 
 export type OfficeDetails = {
@@ -59,6 +61,7 @@ export type OfficeDetails = {
   authorization_confirmed: boolean;
   submitted_for_verification_at: string | null;
   logo_url: string | null;
+  search_radius_km?: number | null;
 };
 
 export type AccountDetails = {
@@ -175,12 +178,12 @@ async function loadAccountDetailsOnce(userId: string): Promise<AccountDetails> {
   const [{ data: professionalData, error: professionalError }, { data: officeData, error: officeError }] = await Promise.all([
     supabase
       .from("professional_profiles")
-      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,resume_path,available_for_work")
+      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
       .from("offices")
-      .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+      .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url,search_radius_km")
       .eq("owner_id", userId)
       .order("created_at", { ascending: true })
       .limit(1)
@@ -243,7 +246,7 @@ export async function createOfficeWorkspace(input: Pick<OfficeDetails, "owner_id
       description: input.description,
       verification_status: "pending",
     })
-    .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+    .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url,search_radius_km")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -261,7 +264,7 @@ export async function createProfessionalWorkspace(input: Pick<ProfessionalDetail
       travel_radius_km: 25,
       available_for_work: false,
     })
-    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,resume_path,available_for_work")
+    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
     .single();
   if (error) throw error;
   return data as ProfessionalDetails;
@@ -293,10 +296,11 @@ export async function updateOfficeProfile(office: OfficeDetails) {
       benefits: office.benefits,
       authorization_confirmed: office.authorization_confirmed,
       logo_url: office.logo_url,
+      search_radius_km: office.search_radius_km ?? 25,
     })
     .eq("id", office.id)
     .eq("owner_id", office.owner_id)
-    .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url")
+    .select("id,owner_id,name,address,city,province,postal_code,google_place_id,latitude,longitude,phone,website,software,description,verification_status,contact_name,contact_title,contact_phone,office_hours,operatories,parking_info,languages,benefits,authorization_confirmed,submitted_for_verification_at,logo_url,search_radius_km")
     .single();
   if (error) throw error;
   return data as OfficeDetails;
@@ -403,6 +407,10 @@ export async function saveAccountDetails(input: AccountDetails) {
         skills: input.professional.skills,
         resume_path: input.professional.resume_path,
         available_for_work: input.professional.available_for_work,
+        local_anesthetic: Boolean(input.professional.local_anesthetic),
+        local_anesthetic_status: input.professional.local_anesthetic
+          ? (input.professional.local_anesthetic_status === "verified" ? "verified" : "self_declared")
+          : "not_declared",
       })
       .eq("user_id", input.professional.user_id)
       .limit(1)
@@ -682,7 +690,7 @@ export type AvailableProfessionalSlot = {
   professional_id: string;
   starts_at: string;
   ends_at: string;
-  professional_profiles: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; years_experience: number | null } | null;
+  professional_profiles: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; years_experience: number | null; skills: string[] | null; local_anesthetic: boolean; local_anesthetic_status: string; profiles: { latitude: number | null; longitude: number | null } | null } | null;
 };
 
 export type OfficeShift = LiveShift & { applications: WorkflowApplication[] };
@@ -742,7 +750,7 @@ export async function loadOfficeWorkflow(officeId: string) {
     supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,google_place_id,latitude,longitude),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,google_place_id,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
     supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").eq("available_for_work", true).order("rating", { ascending: false }).limit(12),
-    supabase.from("availability").select("id,professional_id,starts_at,ends_at,professional_profiles!availability_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,hourly_rate,years_experience)").eq("available", true).gte("ends_at", new Date().toISOString()),
+    supabase.from("availability").select("id,professional_id,starts_at,ends_at,professional_profiles!availability_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,hourly_rate,years_experience,skills,local_anesthetic,local_anesthetic_status,profiles!professional_profiles_user_id_fkey(latitude,longitude))").eq("available", true).gte("ends_at", new Date().toISOString()),
   ]);
   if (shiftsResult.error) throw shiftsResult.error;
   if (bookingsResult.error) throw bookingsResult.error;
