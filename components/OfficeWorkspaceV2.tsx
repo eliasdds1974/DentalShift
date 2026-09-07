@@ -284,7 +284,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         <h1 className="page-title">{office.name} schedule</h1>
         <p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>
       </div>
-      <button type="button" onClick={() => setPostShiftOpen(true)} className="primary-btn w-full justify-center sm:w-auto sm:min-w-[180px]"><Plus size={18} />Post a Shift</button>
     </div>
 
     {error && <p className="mt-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
@@ -311,6 +310,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
           <div className="ml-1 grid grid-cols-3 rounded-xl bg-slate-100 p-1">
             {(["month", "week", "list"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}>{mode}</button>)}
           </div>
+          <button type="button" onClick={() => setPostShiftOpen(true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30"><Plus size={18} />Post a Shift</button>
         </div>
       </div>
 
