@@ -1,0 +1,40 @@
+name: Adjust desktop calendar day position
+
+on:
+  push:
+    paths:
+      - '.github/workflows/adjust-desktop-calendar-day-position.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Move desktop calendar date up and left
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/OfficeWorkspaceV2.tsx')
+          s = p.read_text()
+          old = '<span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>'
+          new = '<span className={`grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm lg:absolute lg:left-1 lg:top-0.5 ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>'
+          if old not in s:
+              raise SystemExit('day number span not found')
+          s = s.replace(old, new, 1)
+          old2 = '<div className="mt-1.5 flex flex-wrap justify-center gap-1 sm:mt-2 sm:gap-1.5">'
+          new2 = '<div className="mt-1.5 flex flex-wrap justify-center gap-1 sm:mt-2 sm:gap-1.5 lg:mt-9">'
+          if old2 not in s:
+              raise SystemExit('availability row not found')
+          s = s.replace(old2, new2, 1)
+          p.write_text(s)
+          PY
+      - name: Commit source update
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m 'Move desktop calendar dates up and left'
+          git push
