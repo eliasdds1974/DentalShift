@@ -1,13 +1,21 @@
 from pathlib import Path
 p = Path('components/WorkflowWorkspaceV2.tsx')
 s = p.read_text()
-old = 'onClick={() => chooseDate(day)} title={`${matchingOfficeRequests.length} office request'
-new = 'onClick={() => chooseDate(day, true)} title={`${matchingOfficeRequests.length} office request'
+old = '''    if (promptAvailability) {
+      const hasAvailability = workflow.availability.some((slot) => slot.available && localDateKey(slot.starts_at) === key);
+      const hasOfficeRequest = professionShifts.some((shift) => localDateKey(shift.starts_at) === key);
+      setAvailabilityModalOpen(!hasAvailability && !hasOfficeRequest);
+    }'''
+new = '''    if (promptAvailability) {
+      const hasAvailability = workflow.availability.some((slot) => slot.available && localDateKey(slot.starts_at) === key);
+      setAvailabilityModalOpen(!hasAvailability);
+    }'''
 if old in s:
     s = s.replace(old, new, 1)
 elif new not in s:
-    raise SystemExit('Office Request click handler not found')
-# The existing chooseDate(..., true) flow already suppresses the availability modal when that date has availability.
-if 'onClick={() => chooseDate(day, true)} title={`${matchingOfficeRequests.length} office request' not in s:
-    raise SystemExit('Office Request click handler verification failed')
+    raise SystemExit('Expected availability prompt logic not found')
+if 'onClick={() => chooseDate(day, true)}' not in s:
+    raise SystemExit('Office Request button is not wired to availability prompt')
+if 'setAvailabilityModalOpen(!hasAvailability);' not in s:
+    raise SystemExit('Availability modal condition was not updated')
 p.write_text(s)
