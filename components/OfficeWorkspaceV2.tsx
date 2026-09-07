@@ -140,7 +140,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const selectedAvailability = data.availability
     .filter((slot) => !interestedIds.has(slot.professional_id))
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
-    .filter(isSlotInRadius)
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
       if (roleCompare) return roleCompare;
@@ -284,14 +283,14 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const inMonth = day.getMonth() === calendarCursor.getMonth();
             const dayShifts = data.shifts.filter((shift) => localDateKey(shift.starts_at) === key);
             const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
-            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && isSlotInRadius(slot));
+            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key);
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
             return <button type="button" key={key} onClick={() => { setSelectedDate(key); setCalendarCursor(day); }} className={`relative min-h-24 bg-white p-1.5 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
               <span className={`absolute left-2 top-2 inline-grid h-7 w-7 place-items-center rounded-full text-sm font-black ${today ? "bg-[#032757] text-white" : ""}`}>{day.getDate()}</span>
               {dayShifts.length > 0 && <div className="absolute left-1.5 right-1.5 top-9 truncate rounded-lg bg-[#eaf8ee] px-1.5 py-1 text-[10px] font-black text-[#017f27] sm:left-2 sm:right-2"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#04A62F]" />Shift(s) Posted</div>}
               {interestedCount > 0 && <div className="absolute bottom-8 left-1.5 right-1.5 truncate rounded-lg bg-amber-500 px-1.5 py-1 text-[10px] font-black text-white sm:left-2 sm:right-2">{interestedCount} interested · View day</div>}
-              {dayAvailability.length > 0 && <div className="absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-lg bg-[#F21C13] px-1.5 py-1 text-[10px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2">Available Staff · {dayAvailability.length} · ≤ {radiusKm} km</div>}
+              {dayAvailability.length > 0 && <div className="absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-lg bg-[#F21C13] px-1.5 py-1 text-[10px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2">Available Staff · {dayAvailability.length}</div>}
             </button>;
           })}</div>
         </div>
