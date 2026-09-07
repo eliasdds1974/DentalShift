@@ -1343,9 +1343,13 @@ export default function Home() {
           return;
         }
 
-        const nextRole = routeRole && canUseRole(routeRole)
-          ? routeRole
-          : [requestedRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;
+        const nextRole = routeRole === "office"
+          ? "office"
+          : routeRole === "professional"
+            ? "professional"
+            : routeRole === "admin" && account.profile.role === "admin"
+              ? "admin"
+              : [requestedRole, savedRole, account.profile.role].find(canUseRole) ?? account.profile.role;
         setRole(nextRole);
         if (routeState) setView(routeState.view);
         window.localStorage.setItem("dentalshift_portal_role", nextRole);
