@@ -5,6 +5,7 @@ on:
     paths:
       - '.github/workflows/fix-admin-email-redirect.yml'
       - '.github/scripts/patch_temp_admin_direct.py'
+      - '.github/scripts/patch_admin_sidebar_controls.py'
   workflow_dispatch:
 
 permissions:
@@ -21,14 +22,17 @@ jobs:
       - name: Route temporary admin directly to admin portal
         run: python .github/scripts/patch_temp_admin_direct.py
 
-      - name: Commit app change
+      - name: Move admin controls to sidebar
+        run: python .github/scripts/patch_admin_sidebar_controls.py
+
+      - name: Commit app changes
         run: |
-          if git diff --quiet -- app/page.tsx; then
+          if git diff --quiet -- app/page.tsx app/admin/overview/page.tsx components/AdminCommandCenter.tsx; then
             echo "No app change needed"
             exit 0
           fi
           git config user.name 'eliasdds1974'
           git config user.email 'eliasdds@gmail.com'
-          git add app/page.tsx
-          git commit -m 'Route temporary admin directly to admin page'
+          git add app/page.tsx app/admin/overview/page.tsx components/AdminCommandCenter.tsx
+          git commit -m 'Move admin controls into left sidebar'
           git push
