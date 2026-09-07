@@ -1,0 +1,32 @@
+name: Shorten office calendar labels
+
+on:
+  push:
+    paths:
+      - "scripts/shorten-office-calendar-labels.py"
+      - ".github/workflows/shorten-office-calendar-labels.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply shorter calendar labels
+        run: python scripts/shorten-office-calendar-labels.py
+      - name: Commit source change
+        run: |
+          if git diff --quiet -- components/OfficeWorkspaceV2.tsx; then
+            echo "No source change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m "Shorten office calendar labels"
+          git push
