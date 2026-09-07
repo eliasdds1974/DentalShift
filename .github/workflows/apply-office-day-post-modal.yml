@@ -1,0 +1,38 @@
+name: Apply office day post modal
+
+on:
+  push:
+    branches:
+      - fix/office-day-post-modal
+    paths:
+      - .github/scripts/patch_office_day_post_modal.py
+      - .github/workflows/apply-office-day-post-modal.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/office-day-post-modal
+      - name: Apply patch
+        run: python .github/scripts/patch_office_day_post_modal.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit source changes
+        run: |
+          rm -f .github/scripts/patch_office_day_post_modal.py .github/workflows/apply-office-day-post-modal.yml
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add components/OfficeWorkspaceV2.tsx .github/scripts/patch_office_day_post_modal.py .github/workflows/apply-office-day-post-modal.yml
+          if git diff --cached --quiet; then
+            echo "No source changes to commit"
+            exit 0
+          fi
+          git commit -m "Move office shift posting into calendar day modal"
+          git push origin HEAD:fix/office-day-post-modal
