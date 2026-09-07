@@ -65,14 +65,6 @@ function longDate(value: string) {
   return new Date(`${value}T12:00:00`).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" });
 }
 
-function interestAge(createdAt: string, now: number) {
-  const elapsed = Math.max(0, now - new Date(createdAt).getTime());
-  const day = Math.floor(elapsed / 86400000) + 1;
-  const hours = Math.floor((elapsed % 86400000) / 3600000);
-  const minutes = Math.floor((elapsed % 3600000) / 60000);
-  return `Day ${day} · ${hours}h ${minutes}m`;
-}
-
 function shiftDateLabel(shift: LiveShift) {
   return `${new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · ${shortTime(shift.starts_at)}–${shortTime(shift.ends_at)}`;
 }
@@ -113,7 +105,6 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const [googleOfficeLocations, setGoogleOfficeLocations] = useState<Record<string, { latitude: number; longitude: number }>>({});
   const [editingAvailabilityId, setEditingAvailabilityId] = useState<string | null>(null);
   const [availabilityModalOpen, setAvailabilityModalOpen] = useState(false);
-  const [pairingNow, setPairingNow] = useState(() => Date.now());
 
   const refresh = async () => {
     setLoading(true);
@@ -141,7 +132,6 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   };
 
   useEffect(() => { void refresh(); }, [userId, refreshKey]);
-  useEffect(() => { const timer = window.setInterval(() => setPairingNow(Date.now()), 60000); return () => window.clearInterval(timer); }, []);
 
   useEffect(() => {
     const placeIds = Array.from(new Set(workflow.open
@@ -224,6 +214,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const selectedDayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
   const selectedDayRequests = officeRequests.filter((application) => application.shifts && localDateKey(application.shifts.starts_at) === selectedDate);
   const selectedDayShifts = professionShifts.filter((shift) => localDateKey(shift.starts_at) === selectedDate);
+  const selectedDayInterestedShifts = selectedDayShifts.filter((shift) => workflow.applications.some((application) => application.shifts?.id === shift.id && application.status === "applied"));
 
   const act = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -419,20 +410,28 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             <div className="flex flex-wrap items-center gap-2"><Chip tone="amber">Office request</Chip><strong className="text-[#002757]">{selectedRequest.shifts.offices?.name || "Dental office"}</strong></div>
             <p className="mt-2 text-sm font-extrabold text-slate-700">{selectedRequest.shifts.profession}</p><p className="mt-1 text-sm text-slate-600">{shiftDateLabel(selectedRequest.shifts)}</p><p className="mt-2 text-sm font-black text-[#002757]">${Number(selectedRequest.proposed_rate || selectedRequest.shifts.hourly_rate)}/hr</p>
             <div className="mt-4 flex flex-wrap gap-2"><button type="button" disabled={busy === selectedRequest.id} onClick={() => void act(selectedRequest.id, () => respondToInvitation(selectedRequest.id, false))} className="secondary-btn">Decline</button><button type="button" disabled={busy === selectedRequest.id} onClick={() => void act(selectedRequest.id, () => respondToInvitation(selectedRequest.id, true))} className="primary-btn">{busy === selectedRequest.id ? "Saving…" : "Accept request"}</button></div>
-          </div> : <div className="space-y-5">
-            <section>
-              <div className="flex items-center justify-between gap-2"><h4 className="font-black text-[#002757]">Availability</h4><Chip tone={selectedDayAvailability.length ? "green" : "gray"}>{selectedDayAvailability.length ? `${selectedDayAvailability.length} posted` : "Not posted"}</Chip></div>
-              {selectedDayAvailability.length ? <div className="mt-3 space-y-2">{selectedDayAvailability.map((slot) => <div key={slot.id} className="w-full rounded-xl border border-[#04A62F]/35 bg-[#eaf8ee] p-3"><span className="whitespace-nowrap text-sm font-extrabold text-[#017f27]">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</span>{editingAvailabilityId === slot.id ? <form onSubmit={(event) => void changeAvailability(event, slot)} className="mt-3 rounded-xl border border-[#0078FE]/25 bg-white p-3"><div className="grid grid-cols-2 gap-2"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue={new Date(slot.starts_at).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false })} required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue={new Date(slot.ends_at).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false })} required /></label></div><div className="mt-3 flex gap-2"><button type="submit" disabled={busy === `availability-change-${slot.id}`} className="primary-btn flex-1 justify-center">{busy === `availability-change-${slot.id}` ? "Saving…" : "Save time"}</button><button type="button" onClick={() => setEditingAvailabilityId(null)} className="secondary-btn">Cancel</button></div></form> : <div className="mt-3 grid grid-cols-2 gap-2"><button type="button" onClick={() => setEditingAvailabilityId(slot.id)} className="secondary-btn justify-center">Change time</button><button type="button" disabled={busy === slot.id} onClick={() => void act(slot.id, () => removeProfessionalAvailability(slot.id))} className="inline-flex min-h-11 items-center justify-center rounded-xl border-2 border-rose-500 bg-rose-50 px-3 py-2 text-sm font-extrabold text-rose-700">{busy === slot.id ? "Deleting…" : "Delete"}</button></div>}</div>)}</div> : <form onSubmit={addAvailability} className={selectedDayShifts.length > 0 ? "mt-3 rounded-2xl border-2 border-[#04A62F] bg-[#eaf8ee] p-4 shadow-sm ring-4 ring-[#04A62F]/10" : "hidden"}><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[.1em] text-[#017f27]">Availability</p><p className="mt-1 text-sm font-extrabold text-[#002757]">Set your hours for this date</p><p className="mt-1 text-xs leading-5 text-slate-600">Choose a start and end time so nearby offices can match you with shifts.</p></div><span className="mt-0.5 h-3 w-3 shrink-0 rounded-full bg-[#04A62F] ring-4 ring-[#04A62F]/15" /></div><div className="mt-3 grid grid-cols-2 gap-2"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div><button type="submit" disabled={busy === "availability-add"} className="primary-btn mt-3 w-full justify-center">{busy === "availability-add" ? "Saving…" : "I’m Available"}</button></form>}
-            </section>
+          </div> : <div className="space-y-4">
+            {selectedDayAvailability.length > 0 && <section className="rounded-3xl bg-[#04A62F] p-3 shadow-sm sm:p-4">
+              <h3 className="mb-4 text-center text-xl font-black text-white sm:text-2xl">Available</h3>
+              <div className="space-y-3">{selectedDayAvailability.map((slot) => <article key={slot.id} className="rounded-2xl border border-white/70 bg-white p-4 shadow-sm">
+                <p className="whitespace-nowrap text-lg font-black text-[#017f27]">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p>
+                {editingAvailabilityId === slot.id ? <form onSubmit={(event) => void changeAvailability(event, slot)} className="mt-4 rounded-xl border border-[#0078FE]/25 bg-white p-3"><div className="grid grid-cols-2 gap-2"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue={new Date(slot.starts_at).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false })} required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue={new Date(slot.ends_at).toLocaleTimeString("en-CA", { hour: "2-digit", minute: "2-digit", hour12: false })} required /></label></div><div className="mt-3 flex gap-2"><button type="submit" disabled={busy === `availability-change-${slot.id}`} className="primary-btn flex-1 justify-center">{busy === `availability-change-${slot.id}` ? "Saving…" : "Save time"}</button><button type="button" onClick={() => setEditingAvailabilityId(null)} className="secondary-btn">Cancel</button></div></form> : <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => setEditingAvailabilityId(slot.id)} className="secondary-btn justify-center">Change time</button><button type="button" disabled={busy === slot.id} onClick={() => void act(slot.id, () => removeProfessionalAvailability(slot.id))} className="inline-flex min-h-11 items-center justify-center rounded-xl border-2 border-rose-500 bg-rose-50 px-3 py-2 text-sm font-extrabold text-rose-700">{busy === slot.id ? "Deleting…" : "Delete"}</button></div>}
+              </article>)}</div>
+            </section>}
 
-            {selectedDayShifts.length > 0 && <section>
-              <div className="flex items-center justify-between gap-2"><h4 className="font-black text-[#002757]">Office Requests</h4><span className="rounded-full bg-[#F21C13] px-2.5 py-1 text-xs font-black text-white">{selectedDayShifts.length}</span></div>
-              <div className="mt-3 space-y-2">{selectedDayShifts.map((shift) => {
-                const application = workflow.applications.find((item) => item.shifts?.id === shift.id);
+            {selectedDayAvailability.length === 0 && selectedDayShifts.length > 0 && <form onSubmit={addAvailability} className="rounded-3xl bg-[#04A62F] p-3 shadow-sm sm:p-4">
+              <h3 className="mb-4 text-center text-xl font-black text-white sm:text-2xl">Available</h3>
+              <div className="rounded-2xl border border-white/70 bg-white p-4 shadow-sm"><p className="text-sm font-extrabold text-[#002757]">Set your hours for this date</p><p className="mt-1 text-xs leading-5 text-slate-600">Choose a start and end time so nearby offices can match you with shifts.</p><div className="mt-3 grid grid-cols-2 gap-2"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div><button type="submit" disabled={busy === "availability-add"} className="primary-btn mt-3 w-full justify-center">{busy === "availability-add" ? "Saving…" : "I’m Available"}</button></div>
+            </form>}
+
+            {selectedDayInterestedShifts.length > 0 && <section className="rounded-3xl bg-[#F21C13] p-3 shadow-sm sm:p-4">
+              <h3 className="mb-4 text-center text-xl font-black text-white sm:text-2xl">I’m Interested</h3>
+              <div className="space-y-3">{selectedDayInterestedShifts.map((shift) => {
+                const application = workflow.applications.find((item) => item.shifts?.id === shift.id && item.status === "applied");
                 const officeDistance = distanceForShift(shift);
-                return <article key={shift.id} className="rounded-xl border border-[#F21C13]/25 bg-red-50/60 p-3">
+                return <article key={shift.id} className="rounded-2xl border border-white/70 bg-white p-4 shadow-sm">
                   <div className="flex items-start justify-between gap-2"><div className="min-w-0"><strong className="block truncate text-sm text-[#002757]">{shift.offices?.name || "Dental office"}</strong><p className="mt-1 text-xs font-bold text-slate-600">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p><p className="mt-1 text-[11px] font-bold text-slate-500"><MapPin size={11} className="mr-1 inline" />{officeDistance == null ? "Office location not verified yet" : `${officeDistance.toFixed(1)} km away`}</p></div>{isPreferredOffice(shift) && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={10} className="fill-white" />Preferred office</span>}</div>
-                  <div className="mt-3">{application ? <div className="rounded-xl border border-amber-200 bg-amber-50 p-3"><p className="text-xs font-black text-amber-900">{application.status === "invited" ? "Office interested — waiting for you" : "You’re interested — waiting for office"}</p><p className="mt-1 text-[11px] font-extrabold text-amber-700">Interest open · {interestAge(application.created_at, pairingNow)}</p>{application.status === "invited" && <button type="button" disabled={!professionalVerified || busy === application.id} onClick={() => void act(application.id, () => respondToInvitation(application.id, true))} className="primary-btn mt-2 w-full justify-center">{!professionalVerified ? "Verification required" : busy === application.id ? "Booking…" : "I’m Interested"}</button>}</div> : <button type="button" disabled={!professionalVerified || busy === `apply-${shift.id}`} onClick={() => void act(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center">{!professionalVerified ? "Verification required" : busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>}</div>
+                  <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3"><p className="text-xs font-black text-amber-900">You’re interested — waiting for office</p><p className="mt-1 text-xs text-slate-600">You’ll be notified if the office books you for this shift.</p></div>
                 </article>;
               })}</div>
             </section>}
