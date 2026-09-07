@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star, UsersRound, X } from "lucide-react";
 import {
@@ -43,10 +43,10 @@ type OfficeWorkflow = {
 const dentalSoftwareOptions = ["Tracker", "ClearDent", "Dentrix", "Open Dental", "ABELDent", "Power Practice", "Curve Dental", "Maxident", "Gold Dental", "RecallMax", "Carestream"];
 
 const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {
-  RDH: { label: "RDH", solid: "bg-[#0078FE]", soft: "bg-blue-50", text: "text-[#0064d8]" },
-  CDA: { label: "CDA", solid: "bg-[#04A62F]", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },
-  DA: { label: "DA", solid: "bg-[#F59E0B]", soft: "bg-orange-50", text: "text-orange-700" },
-  ST: { label: "ST", solid: "bg-[#8B5CF6]", soft: "bg-violet-50", text: "text-violet-700" },
+  RDH: { label: "RDH", solid: "bg-[#4285F4]", soft: "bg-blue-50", text: "text-[#2f6fd0]" },
+  CDA: { label: "CDA", solid: "bg-[#EA4335]", soft: "bg-red-50", text: "text-[#c9342d]" },
+  DA: { label: "DA", solid: "bg-[#FBBC05]", soft: "bg-amber-50", text: "text-amber-700" },
+  ST: { label: "ST", solid: "bg-[#34A853]", soft: "bg-green-50", text: "text-[#278841]" },
 };
 
 function roleCode(profession?: string | null): RoleCode {
@@ -100,6 +100,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [postShiftOpen, setPostShiftOpen] = useState(false);
+  const resultsRef = useRef<HTMLElement | null>(null);
   const [officeCoordinates, setOfficeCoordinates] = useState<{ latitude: number; longitude: number } | null>(() =>
     office.latitude != null && office.longitude != null ? { latitude: Number(office.latitude), longitude: Number(office.longitude) } : null
   );
@@ -277,12 +278,23 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     setCalendarCursor(next);
     setSelectedDate(localDateKey(next));
   };
+  const chooseDate = (day: Date) => {
+    const key = localDateKey(day);
+    setSelectedDate(key);
+    setCalendarCursor(day);
+    setError("");
+    window.setTimeout(() => {
+      if (window.matchMedia("(max-width: 1023px)").matches) {
+        resultsRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 80);
+  };
 
   return <div className="page-wrap">
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
         <h1 className="page-title">{office.name} schedule</h1>
-        <p className="page-subtitle">Your posted shifts, applicants and confirmed bookings in one calendar.</p>
+        <p className="page-subtitle">Tap a date to see posted shifts, applicants, available professionals and confirmed bookings for that day.</p>
       </div>
     </div>
 
@@ -294,7 +306,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         <div className="contents">
           <div className="min-w-0 md:col-start-1 md:row-start-1">
             <h2 className="text-xl font-black tracking-tight text-[#032757] sm:text-2xl">Office calendar</h2>
-            <p className="mt-1 text-xs font-bold text-[#032757]">Manage every shift from posting through confirmation.</p>
+            <p className="mt-1 text-xs font-bold text-[#032757]">Manage every shift from posting through confirmation.</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-extrabold text-slate-600"><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />RDH</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />CDA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#FBBC05]" />DA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#34A853]" />ST</span></div>
           </div>
 <div className="hidden">
             <button type="button" onClick={onPost} className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#0078FE]/35 bg-gradient-to-r from-blue-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#0078FE]/70 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0078FE]/25"><CalendarDays size={15} className="text-[#0078FE]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Open shifts</span><strong className="block text-sm leading-none text-[#002757]">{openShifts.length}</strong></span></button>
@@ -331,19 +343,25 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && isSlotInProfessionalRadius(slot));
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
-            return <button type="button" key={key} onClick={() => { setSelectedDate(key); setCalendarCursor(day); setError(""); }} className={`relative min-h-20 bg-white p-1 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
-              <span className={`absolute left-1.5 top-1.5 inline-grid h-6 w-6 place-items-center rounded-full text-xs font-black sm:left-2 sm:top-2 sm:h-7 sm:w-7 sm:text-sm ${today ? "bg-[#032757] text-white" : ""}`}>{day.getDate()}</span>
-              {dayShifts.length > 0 && <div className="absolute left-1 right-1 top-8 truncate rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[9px] font-black text-[#017f27] sm:left-2 sm:right-2 sm:top-9 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="hidden sm:inline"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#04A62F]" />Shift(s) Posted</span><span className="sm:hidden">Shift</span></div>}
-              {interestedCount > 0 && <div className="absolute bottom-[1.55rem] left-1 right-1 truncate rounded-md bg-amber-500 px-1 py-0.5 text-center text-[9px] font-black text-white sm:bottom-8 sm:left-2 sm:right-2 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="sm:hidden">Interested · {interestedCount}</span><span className="hidden sm:inline">{interestedCount} interested · View day</span></div>}
-              {dayAvailability.length > 0 && <div className="absolute bottom-1 left-1 right-1 truncate rounded-md bg-[#F21C13] px-1 py-0.5 text-center text-[9px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="sm:hidden">Staff · {dayAvailability.length}</span><span className="hidden sm:inline">Available Staff · {dayAvailability.length}</span></div>}
+            return <button type="button" key={key} onClick={() => chooseDate(day)} className={`relative min-h-20 bg-white p-1 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
+              <span className={`mx-auto grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
+              <div className="mt-1.5 flex flex-wrap justify-center gap-1 sm:mt-2 sm:gap-1.5">
+                {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}
+              </div>
+              <div className="mt-1 flex flex-wrap justify-center gap-1">
+                {dayShifts.length > 0 && <span className="rounded-full bg-[#4285F4]/10 px-1.5 py-0.5 text-[8px] font-black text-[#2f6fd0] sm:text-[9px]">{dayShifts.length} shift{dayShifts.length === 1 ? "" : "s"}</span>}
+                {interestedCount > 0 && <span className="rounded-full bg-[#FBBC05]/20 px-1.5 py-0.5 text-[8px] font-black text-amber-800 sm:text-[9px]">{interestedCount} applicant{interestedCount === 1 ? "" : "s"}</span>}
+                {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}
+              </div>
             </button>;
           })}</div>
         </div>
 
-        <aside className="bg-white p-4 sm:p-5">
+        <aside ref={resultsRef} className="scroll-mt-[92px] border-t border-slate-200 bg-white p-4 sm:p-5 lg:border-t-0">
           <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[.12em] text-[#0078FE]">Selected date</p><h3 className="mt-1 text-xl font-black text-[#0f172a]">{longDate(selectedDate)}</h3></div><span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-black text-slate-600">Office</span></div>
           <div className="my-5 border-t border-slate-200" />
           <div className="space-y-4">
+            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="secondary-btn mb-1 w-full justify-center lg:hidden">↑ Back to calendar</button>
             {selectedShifts.length > 0 && <section className="rounded-3xl bg-[#04A62F] p-3 shadow-sm sm:p-4">
               <h3 className="mb-4 text-center text-xl font-black text-white sm:text-2xl">Shift(s) Posted</h3>
               <div className="space-y-3">
