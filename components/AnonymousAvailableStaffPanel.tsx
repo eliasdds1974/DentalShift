@@ -8,6 +8,7 @@ export type AnonymousAvailableStaff = {
   id: string;
   role: AvailableStaffRole;
   profession: string;
+  minimumHourlyRate?: number | null;
   distanceKm: number | null;
   startsAt: string;
   endsAt: string;
@@ -38,9 +39,6 @@ export function AnonymousAvailableStaffPanel({
   staff,
 }: {
   staff: AnonymousAvailableStaff[];
-  radiusKm: number;
-  onRadiusChange?: (radiusKm: number) => void;
-  onViewProfile?: (professionalId: string) => void;
 }) {
   const groups = (["RDH", "CDA", "DA", "ST"] as AvailableStaffRole[])
     .map((role) => ({ role, items: staff.filter((item) => item.role === role) }))
@@ -60,8 +58,8 @@ export function AnonymousAvailableStaffPanel({
           {items.map((item) => <article key={item.id} className="p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
-                <strong className="text-sm text-[#032757]">Shift posted</strong>
-                <p className="mt-1 text-xs font-bold text-slate-500">{shortTime(item.startsAt)}–{shortTime(item.endsAt)}</p>
+                <strong className="text-sm text-[#032757]">{item.role} available</strong>
+                <p className="mt-1 text-xs font-bold text-slate-500">{shortTime(item.startsAt)}–{shortTime(item.endsAt)}{item.minimumHourlyRate != null ? ` · Min $${item.minimumHourlyRate.toFixed(2)}/hr` : ""}</p>
               </div>
               <span className="flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
                 <MapPin size={12} />{item.distanceKm == null ? "Distance unavailable" : `${item.distanceKm.toFixed(1)} km`}

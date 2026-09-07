@@ -90,10 +90,12 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
-  const [radiusKm, setRadiusKm] = useState(() => Number(office.search_radius_km || 25));
+  const [officeCoordinates, setOfficeCoordinates] = useState<{ latitude: number; longitude: number } | null>(() =>
+    office.latitude != null && office.longitude != null ? { latitude: Number(office.latitude), longitude: Number(office.longitude) } : null
+  );
 
-  const refresh = async () => {
-    setLoading(true);
+  const refresh = async (showLoading = true) => {
+    if (showLoading) setLoading(true);
     setError("");
     try {
       const [workflow, preferredProfessionals] = await Promise.all([loadOfficeWorkflow(office.id), loadOfficePreferredProfessionals(office.id)]);
@@ -101,12 +103,45 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     } catch (value) {
       setError(value instanceof Error ? value.message : "DentalShift could not load your office calendar.");
     } finally {
-      setLoading(false);
+      if (showLoading) setLoading(false);
     }
   };
 
   useEffect(() => { void refresh(); }, [office.id, refreshKey]);
-  useEffect(() => { setRadiusKm(Number(office.search_radius_km || 25)); }, [office.id, office.search_radius_km]);
+
+  useEffect(() => {
+    if (office.latitude != null && office.longitude != null) {
+      setOfficeCoordinates({ latitude: Number(office.latitude), longitude: Number(office.longitude) });
+      return;
+    }
+    if (!office.google_place_id) {
+      setOfficeCoordinates(null);
+      return;
+    }
+    let cancelled = false;
+    void fetch("/api/google/places/details", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ placeId: office.google_place_id }),
+    }).then(async (response) => {
+      if (!response.ok) return null;
+      return response.json() as Promise<{ latitude?: number | null; longitude?: number | null }>;
+    }).then((place) => {
+      if (cancelled || !place || place.latitude == null || place.longitude == null) return;
+      setOfficeCoordinates({ latitude: Number(place.latitude), longitude: Number(place.longitude) });
+    }).catch(() => { if (!cancelled) setOfficeCoordinates(null); });
+    return () => { cancelled = true; };
+  }, [office.id, office.latitude, office.longitude, office.google_place_id]);
+
+  useEffect(() => {
+    const refreshSilently = () => { void refresh(false); };
+    const interval = window.setInterval(refreshSilently, 30000);
+    window.addEventListener("focus", refreshSilently);
+    return () => {
+      window.clearInterval(interval);
+      window.removeEventListener("focus", refreshSilently);
+    };
+  }, [office.id]);
 
   const openShifts = useMemo(() => data.shifts.filter((shift) => shift.status === "open"), [data.shifts]);
   const upcomingBookings = useMemo(() => data.bookings
@@ -128,18 +163,20 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const selectedBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
   const interestedIds = new Set(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => application.professional_id)));
   const distanceForSlot = (slot: AvailableProfessionalSlot) => distanceKm(
-    office.latitude,
-    office.longitude,
+    officeCoordinates?.latitude,
+    officeCoordinates?.longitude,
     slot.professional_profiles?.profiles?.latitude,
     slot.professional_profiles?.profiles?.longitude,
   );
-  const isSlotInRadius = (slot: AvailableProfessionalSlot) => {
+  const isSlotInProfessionalRadius = (slot: AvailableProfessionalSlot) => {
     const distance = distanceForSlot(slot);
-    return distance != null && distance <= radiusKm;
+    const travelRadiusKm = Number(slot.professional_profiles?.travel_radius_km || 0);
+    return distance != null && travelRadiusKm > 0 && distance <= travelRadiusKm;
   };
   const selectedAvailability = data.availability
     .filter((slot) => !interestedIds.has(slot.professional_id))
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
+    .filter(isSlotInProfessionalRadius)
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
       if (roleCompare) return roleCompare;
@@ -153,6 +190,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       id: slot.professional_id,
       role: roleCode(profile?.profession),
       profession: profile?.profession || "Dental professional",
+      minimumHourlyRate: profile?.hourly_rate != null ? Number(profile.hourly_rate) : null,
       distanceKm: distanceForSlot(slot),
       startsAt: slot.starts_at,
       endsAt: slot.ends_at,
@@ -283,7 +321,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const inMonth = day.getMonth() === calendarCursor.getMonth();
             const dayShifts = data.shifts.filter((shift) => localDateKey(shift.starts_at) === key);
             const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
-            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key);
+            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && isSlotInProfessionalRadius(slot));
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
             return <button type="button" key={key} onClick={() => { setSelectedDate(key); setCalendarCursor(day); }} className={`relative min-h-24 bg-white p-1.5 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
@@ -306,7 +344,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
               const role = roleStyles[roleCode(shift.profession)];
               const applicants = (shift.applications || []).filter((application) => application.status === "applied");
               const pendingPairings = applicants;
-              const availableMatches = Array.from(new Map(data.availability.filter((slot) => !interestedIds.has(slot.professional_id) && slot.professional_profiles?.profession === shift.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at)).map((slot) => [slot.professional_id, slot])).values());
+              const availableMatches = Array.from(new Map(data.availability.filter((slot) => isSlotInProfessionalRadius(slot) && !interestedIds.has(slot.professional_id) && slot.professional_profiles?.profession === shift.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at)).map((slot) => [slot.professional_id, slot])).values());
               return <article key={shift.id} className="rounded-2xl border border-white/70 bg-white p-4 shadow-sm">
                 <div className="flex items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${role.solid}`} /><strong className="text-[#032757]">{shift.profession}</strong></div><p className="mt-1 text-xs font-bold text-slate-500">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p></div><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-600">{shift.status}</span></div>
                 {pendingPairings.length > 0 && <section className="mt-4 rounded-2xl bg-[#F21C13] p-2 sm:p-3"><h4 className="mb-3 text-center text-lg font-black text-white">Who’s Interested</h4><div className="space-y-3">{pendingPairings.map((application) => { const profile = application.professional_profiles; return <div key={application.id} className="rounded-xl bg-white p-4"><h5 className="font-black text-[#032757]">{profile?.profession || shift.profession}</h5><p className="mt-2 text-xs font-bold text-[#017f27]">{profile?.licence_province ? `Licence province: ${profile.licence_province}` : "Credential status unavailable"}</p><div className="mt-3 grid grid-cols-2 gap-2 text-xs text-slate-600"><span>Rating: <strong>{profile?.rating ? `${profile.rating}★` : "No rating yet"}</strong></span><span>Completed: <strong>{profile?.completed_shifts || 0}</strong></span><span>Reliability: <strong>{profile?.reliability_score != null ? `${profile.reliability_score}%` : "Not enough history"}</strong></span><span>Requested rate: <strong>{application.proposed_rate != null ? `$${Number(application.proposed_rate).toFixed(2)}/hr` : "Not specified"}</strong></span></div><p className="mt-3 text-xs text-slate-500">Identity and contact details are shared after booking confirmation.</p><button disabled={busy === application.id} onClick={() => void act(application.id, () => acceptApplication(application.id))} className="primary-btn mt-3 w-full justify-center"><Check size={15} />{busy === application.id ? "Booking…" : "Book Now"}</button></div>; })}</div></section>}
@@ -315,7 +353,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             })}
               </div>
             </section>}
-            {selectedAvailability.length > 0 && <AnonymousAvailableStaffPanel staff={anonymousStaff} radiusKm={radiusKm} onRadiusChange={setRadiusKm} />}
+            {selectedAvailability.length > 0 && <AnonymousAvailableStaffPanel staff={anonymousStaff} />}
             <form onSubmit={postSelectedShift} className="hidden">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
               <div className="mt-4 space-y-3">
