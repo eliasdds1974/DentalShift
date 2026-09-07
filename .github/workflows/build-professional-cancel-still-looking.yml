@@ -1,0 +1,26 @@
+name: Build professional cancel and still looking
+on:
+  push:
+    paths:
+      - 'scripts/build-professional-cancel-still-looking.py'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional interest cancellation UI
+        run: python scripts/build-professional-cancel-still-looking.py
+      - name: Commit source change
+        run: |
+          if git diff --quiet -- components/WorkflowWorkspaceV2.tsx; then
+            echo "No source change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m "Add professional cancel and still looking state"
+          git push
