@@ -40,6 +40,8 @@ type OfficeWorkflow = {
   preferredProfessionals: OfficePreferredProfessional[];
 };
 
+const dentalSoftwareOptions = ["Tracker", "ClearDent", "Dentrix", "Open Dental", "ABELDent", "Power Practice", "Curve Dental", "Maxident", "Gold Dental", "Progident", "RecallMax", "Carestream"];
+
 const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {
   RDH: { label: "RDH", solid: "bg-[#0078FE]", soft: "bg-blue-50", text: "text-[#0064d8]" },
   CDA: { label: "CDA", solid: "bg-[#04A62F]", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },
@@ -364,7 +366,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 <label className="block text-xs font-black text-slate-600">Professional needed<select name="profession" defaultValue="Registered Dental Hygienist" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
                 <div className="grid grid-cols-2 gap-2"><label className="text-xs font-black text-slate-600">Start<input name="start_time" type="time" defaultValue="08:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label><label className="text-xs font-black text-slate-600">End<input name="end_time" type="time" defaultValue="17:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label></div>
                 <label className="block text-xs font-black text-slate-600">Hourly rate<input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label>
-                <label className="block text-xs font-black text-slate-600">Software<select name="software" defaultValue="Any software" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
+                <label className="block text-xs font-black text-slate-600">Software<select name="software" defaultValue="Any software" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Any software</option>{dentalSoftwareOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
                 <label className="block text-xs font-black text-slate-600">Notes<textarea name="notes" rows={2} placeholder="Optional shift details" className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#0078FE]" /></label>
                 <label className="flex items-start gap-2 rounded-xl bg-white p-3 text-xs font-bold text-slate-600"><input name="auto_invite" type="checkbox" className="mt-0.5 h-4 w-4" /><span>Automatically invite matching available professionals.</span></label>
                 <button type="submit" disabled={busy === `post-${selectedDate}`} className="primary-btn w-full justify-center"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
@@ -378,12 +380,12 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     </section>
     {postShiftOpen && typeof document !== "undefined" && createPortal(
       <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-label="Post a shift">
-        <div className="w-full max-w-lg rounded-3xl bg-white p-5 shadow-2xl sm:p-6">
+        <div className="w-full max-w-lg rounded-3xl border border-[#04A62F]/35 bg-gradient-to-b from-[#f1fff5] via-white to-white p-5 shadow-2xl sm:p-6">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 text-[#0078FE]"><CalendarDays size={20} /><span className="text-xs font-black uppercase tracking-[.12em]">Post a shift</span></div>
+              <div className="flex items-center gap-2 text-[#04A62F]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eaf8ee] ring-1 ring-[#04A62F]/20"><CalendarDays size={19} /></span><span className="text-xs font-black uppercase tracking-[.12em]">Post a shift</span></div>
               <h2 className="mt-2 text-2xl font-black text-[#002757]">{longDate(selectedDate)}</h2>
-              <p className="mt-1 text-sm leading-5 text-slate-500">Add an office shift for this date.</p>
+              <p className="mt-1 text-sm leading-5 text-slate-500">Add an office shift for this date.</p><div className="mt-4 h-1.5 w-20 rounded-full bg-[#04A62F]" />
             </div>
             <button type="button" onClick={() => setPostShiftOpen(false)} className="secondary-btn px-3" aria-label="Close"><X size={18} /></button>
           </div>
@@ -396,14 +398,14 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 <label className="field"><span>End</span><input name="end_time" type="time" defaultValue="17:00" required /></label>
               </div>
               <label className="field"><span>Hourly rate</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
-              <label className="field"><span>Software</span><select name="software" defaultValue="Any software"><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="field"><span className="text-[#017f27]">Software</span><select name="software" defaultValue="Any software" className="border-[#04A62F]/35 bg-[#f6fff8] focus:border-[#04A62F]"><option>Any software</option>{dentalSoftwareOptions.map((item) => <option key={item}>{item}</option>)}</select><small className="mt-1 block text-[11px] font-semibold text-[#017f27]">Uses the same DentalShift software list as the professional account.</small></label>
               <label className="field"><span>Notes</span><textarea name="notes" rows={2} placeholder="Optional shift details" /></label>
-              <label className="flex items-start gap-2 rounded-xl bg-slate-50 p-3 text-xs font-bold text-slate-600"><input name="auto_invite" type="checkbox" className="mt-0.5 h-4 w-4" /><span>Automatically invite matching available professionals.</span></label>
+              <label className="flex items-start gap-2 rounded-xl border border-[#04A62F]/20 bg-[#eaf8ee] p-3 text-xs font-bold text-[#017f27]"><input name="auto_invite" type="checkbox" className="mt-0.5 h-4 w-4 accent-[#04A62F]" /><span>Automatically invite matching available professionals.</span></label>
             </div>
             {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
             <div className="mt-5 flex justify-end gap-2">
               <button type="button" onClick={() => setPostShiftOpen(false)} className="secondary-btn">Close</button>
-              <button type="submit" disabled={busy === `post-${selectedDate}`} className="primary-btn"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
+              <button type="submit" disabled={busy === `post-${selectedDate}`} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#04A62F] bg-[#04A62F] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#038827] disabled:opacity-50"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
             </div>
           </form>
         </div>
