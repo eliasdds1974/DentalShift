@@ -703,6 +703,19 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
     setBusy(false);
   };
 
+  const changeAccountEmail = async (nextEmail: string) => {
+    if (!session) return;
+    const email = nextEmail.trim().toLowerCase();
+    setError(""); setNotice("");
+    if (!email || !email.includes("@")) { setError("Enter a valid email address."); return; }
+    if (email === (session.user.email || "").toLowerCase()) { setError("Enter a different email address."); return; }
+    setBusy(true);
+    const { error: emailError } = await supabase.auth.updateUser({ email });
+    if (emailError) setError(emailError.message);
+    else setNotice(`Email change requested for ${email}. Please complete any confirmation email sent to you.`);
+    setBusy(false);
+  };
+
   const signOut = async () => {
     setBusy(true);
     await supabase.auth.signOut();
@@ -864,8 +877,15 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <div className="mx-auto mt-7 flex max-w-md flex-col gap-3 sm:flex-row sm:justify-center"><button type="button" onClick={() => { setResetEmailSent(false); setError(""); setNotice(""); }} className="primary-btn justify-center">Back to sign in</button><button type="button" onClick={close} className="secondary-btn justify-center">Close</button></div>
             <p className="mt-5 text-xs leading-5 text-slate-500">For security, DentalShift does not reveal whether an email address is registered.</p>
           </div>
+        ) : session && activeRole === "admin" ? (
+          <div className="grid gap-4 p-6">
+            <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5"><h3 className="font-extrabold text-[#002757]">Administrator login</h3><p className="mt-1 text-sm text-slate-600">{session.user.email}</p></div>
+            <div className="rounded-2xl border border-[#002757]/15 bg-white p-4"><h3 className="font-extrabold text-[#002757]">Change login email</h3><p className="mt-1 text-xs leading-5 text-slate-500"><strong>This email address is used to log in to this DentalShift account.</strong> Changing it will change the email you use to sign in.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input id="admin-new-email" type="email" placeholder="New email address" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-[#0078FE]" /><button type="button" disabled={busy} onClick={() => { const input = document.getElementById("admin-new-email") as HTMLInputElement | null; if (input) void changeAccountEmail(input.value); }} className="primary-btn justify-center">{busy ? "Updating…" : "Change email"}</button></div></div>
+            {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+            {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">{notice}</p>}
+          </div>
         ) : session && activeRole === "office" && details?.office ? (
-          <form onSubmit={saveOfficeAccount} className="grid gap-4 p-6 sm:grid-cols-2">
+          <form onSubmit={saveOfficeAccount} className="grid gap-4 p-6 sm:grid-cols-2"><div className="rounded-2xl border border-[#002757]/15 bg-white p-4 sm:col-span-2"><h3 className="font-extrabold text-[#002757]">Login email</h3><p className="mt-1 text-xs leading-5 text-slate-500"><strong>This email address is used to log in to this DentalShift account.</strong> Changing it will change the email you use to sign in.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input name="account_new_email" type="email" placeholder={session.user.email || "New email address"} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-[#0078FE]" /><button type="button" disabled={busy} onClick={(event) => { const input = event.currentTarget.parentElement?.querySelector('input[name=account_new_email]') as HTMLInputElement | null; if (input) void changeAccountEmail(input.value); }} className="secondary-btn justify-center">{busy ? "Updating…" : "Change email"}</button></div></div>
             <div className="flex flex-col gap-4 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2 sm:flex-row sm:items-center">
               <div role="img" aria-label={`${details.office.name} logo`} className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white bg-contain bg-center bg-no-repeat text-2xl font-black text-[#002757] shadow-sm" style={details.office.logo_url ? { backgroundImage: `url(${details.office.logo_url})` } : undefined}>{details.office.logo_url ? null : details.office.name.slice(0, 2).toUpperCase()}</div>
               <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black text-[#002757]">{details.office.name}</h3><StatusPill tone={details.office.verification_status === "verified" ? "green" : "amber"}>Office {details.office.verification_status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{session.user.email}</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy ? "Please wait…" : details.office.logo_url ? "Replace office logo" : "Upload office logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy} onChange={(event) => void uploadAccountLogo(event.target.files?.[0])} /></label><p className="mt-2 text-xs leading-5 text-slate-500"><strong className="text-[#002757]">Best result:</strong> square PNG with a transparent background, 600 × 600 px. JPG or WebP also accepted; maximum 5 MB.</p></div>
@@ -906,7 +926,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
           </form>
         ) : session ? (
-          <form onSubmit={saveProfile} className="grid gap-3 bg-[#f8fafc] p-4 sm:grid-cols-2 sm:p-5">
+          <form onSubmit={saveProfile} className="grid gap-3 bg-[#f8fafc] p-4 sm:grid-cols-2 sm:p-5"><div className="rounded-2xl border border-[#002757]/15 bg-white p-4 sm:col-span-2"><h3 className="font-extrabold text-[#002757]">Login email</h3><p className="mt-1 text-xs leading-5 text-slate-500"><strong>This email address is used to log in to this DentalShift account.</strong> Changing it will change the email you use to sign in.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input name="account_new_email" type="email" placeholder={session.user.email || "New email address"} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-[#0078FE]" /><button type="button" disabled={busy} onClick={(event) => { const input = event.currentTarget.parentElement?.querySelector('input[name=account_new_email]') as HTMLInputElement | null; if (input) void changeAccountEmail(input.value); }} className="secondary-btn justify-center">{busy ? "Updating…" : "Change email"}</button></div></div>
             <div className="rounded-2xl bg-gradient-to-br from-[#002757] to-[#0078FE] p-5 text-white shadow-sm sm:col-span-2"><div className="flex flex-wrap items-center justify-between gap-2"><StatusPill><Check size={13} /> Email confirmed</StatusPill>{details?.professional && <StatusPill tone={details.professional.licence_status === "verified" ? "green" : "amber"}>Licence: {details.professional.licence_status.replace("_", " ")}</StatusPill>}</div><p className="mt-4 text-xl font-black">{profile?.first_name || session.user.email}</p><p className="mt-1 text-sm text-white/75">{session.user.email}</p><p className="mt-3 text-xs font-bold text-white/70">Keep your information current so verified offices can confidently book you.</p></div>
             {!details ? <p className="py-8 text-center text-sm text-slate-500 sm:col-span-2">Loading your account details…</p> : <>
               {details.verificationRequest && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-5 sm:col-span-2"><div className="flex items-center gap-2 font-extrabold text-amber-900"><FileCheck2 size={18} /> Action needed to verify your account</div><p className="mt-2 text-sm leading-6 text-amber-900">{details.verificationRequest.notes}</p><p className="mt-3 text-xs font-semibold text-amber-800">Update the relevant details below, then save your profile.</p></div>}
