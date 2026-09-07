@@ -36,3 +36,5 @@ jobs:
           git add components/OfficeWorkspaceV2.tsx
           git commit -m 'Polish office post shift modal and software list'
           git push origin HEAD:polish/office-post-shift-modal-green-software
+
+# Retry after correcting the modal patch pattern.
