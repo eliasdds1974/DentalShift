@@ -1,0 +1,43 @@
+name: Improve office calendar mobile
+on:
+  push:
+    paths:
+      - '.github/workflows/improve-office-calendar-mobile.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Improve office calendar mobile layout
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/OfficeWorkspaceV2.tsx')
+          s = p.read_text()
+          replacements = {
+            'onClick={() => { setSelectedDate(key); setCalendarCursor(day); setError(""); setPostShiftOpen(true); }} className={`relative min-h-24 bg-white p-1.5 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2':
+            'onClick={() => { setSelectedDate(key); setCalendarCursor(day); setError(""); }} className={`relative min-h-20 bg-white p-1 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2',
+            'className={`absolute left-2 top-2 inline-grid h-7 w-7 place-items-center rounded-full text-sm font-black ${today ? "bg-[#032757] text-white" : ""}`}':
+            'className={`absolute left-1.5 top-1.5 inline-grid h-6 w-6 place-items-center rounded-full text-xs font-black sm:left-2 sm:top-2 sm:h-7 sm:w-7 sm:text-sm ${today ? "bg-[#032757] text-white" : ""}`}',
+            '<div className="absolute left-1.5 right-1.5 top-9 truncate rounded-lg bg-[#eaf8ee] px-1.5 py-1 text-[10px] font-black text-[#017f27] sm:left-2 sm:right-2"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#04A62F]" />Shift(s) Posted</div>':
+            '<div className="absolute left-1 right-1 top-8 truncate rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[9px] font-black text-[#017f27] sm:left-2 sm:right-2 sm:top-9 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="hidden sm:inline"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#04A62F]" />Shift(s) Posted</span><span className="sm:hidden">Shift</span></div>',
+            '<div className="absolute bottom-8 left-1.5 right-1.5 truncate rounded-lg bg-amber-500 px-1.5 py-1 text-[10px] font-black text-white sm:left-2 sm:right-2">{interestedCount} interested · View day</div>':
+            '<div className="absolute bottom-[1.55rem] left-1 right-1 truncate rounded-md bg-amber-500 px-1 py-0.5 text-center text-[9px] font-black text-white sm:bottom-8 sm:left-2 sm:right-2 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="sm:hidden">Interested · {interestedCount}</span><span className="hidden sm:inline">{interestedCount} interested · View day</span></div>',
+            '<div className="absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-lg bg-[#F21C13] px-1.5 py-1 text-[10px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2">Available Staff · {dayAvailability.length}</div>':
+            '<div className="absolute bottom-1 left-1 right-1 truncate rounded-md bg-[#F21C13] px-1 py-0.5 text-center text-[9px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2 sm:rounded-lg sm:px-1.5 sm:py-1 sm:text-[10px]"><span className="sm:hidden">Staff · {dayAvailability.length}</span><span className="hidden sm:inline">Available Staff · {dayAvailability.length}</span></div>'
+          }
+          for old, new in replacements.items():
+            if old not in s:
+              raise SystemExit(f'Expected source not found: {old[:100]}')
+            s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit mobile calendar improvements
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m 'Improve office calendar mobile layout'
+          git push
