@@ -1,0 +1,29 @@
+name: Group office posted shifts
+
+on:
+  push:
+    paths:
+      - "scripts/group-office-posted-shifts.py"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Group posted shifts in green sidebar section
+        run: python scripts/group-office-posted-shifts.py
+      - name: Commit source change
+        run: |
+          if git diff --quiet -- components/OfficeWorkspaceV2.tsx; then
+            echo "No source change needed"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m "Group office posted shifts in green sidebar"
+          git push
