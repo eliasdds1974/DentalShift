@@ -1,0 +1,53 @@
+name: Compact desktop signup modal
+on:
+  push:
+    paths:
+      - '.github/workflows/compact-desktop-signup-modal.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compact signup modal on desktop
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('app/page.tsx')
+          s=p.read_text()
+          old='<form onSubmit={submit} className="grid gap-4 p-6 sm:grid-cols-2">'
+          new='<form onSubmit={submit} className={`grid gap-4 p-6 sm:grid-cols-2 ${mode === "signup" ? "lg:gap-2.5 lg:p-4" : ""}`}> '
+          if old not in s: raise SystemExit('signup form marker not found')
+          s=s.replace(old,new,1)
+          replacements={
+            'className="field"><span>First name</span>':'className="field lg:[&>input]:py-2"><span>First name</span>',
+            'className="field"><span>Last name</span>':'className="field lg:[&>input]:py-2"><span>Last name</span>',
+            'className="grid grid-cols-2 gap-2 rounded-2xl bg-[#edf3fa] p-1.5 sm:col-span-2"':'className="grid grid-cols-2 gap-2 rounded-2xl bg-[#edf3fa] p-1.5 sm:col-span-2 lg:p-1"',
+            'className={"rounded-xl px-3 py-3 text-sm font-extrabold transition " + (role === "office"':'className={"rounded-xl px-3 py-3 text-sm font-extrabold transition lg:py-2 " + (role === "office"',
+            'className={"rounded-xl px-3 py-3 text-sm font-extrabold transition " + (role === "professional"':'className={"rounded-xl px-3 py-3 text-sm font-extrabold transition lg:py-2 " + (role === "professional"',
+            'className="field sm:col-span-2"><span>Account type</span>':'className="field sm:col-span-2 lg:[&>select]:py-2"><span>Account type</span>',
+            'className="field sm:col-span-2"><span>Licence or registration number (if applicable)</span>':'className="field sm:col-span-2 lg:[&>input]:py-2"><span>Licence or registration number (if applicable)</span>',
+            '<p className="text-xs leading-5 text-slate-500 sm:col-span-2">DentalShift will email you a secure one-time sign-in link. No password is required.</p>':'<p className="text-xs leading-5 text-slate-500 sm:col-span-2 lg:leading-4">DentalShift will email you a secure one-time sign-in link. No password is required.</p>',
+          }
+          for a,b in replacements.items():
+            if a not in s: raise SystemExit('expected signup UI marker missing: '+a[:60])
+            s=s.replace(a,b,1)
+          # Make the modal itself fit typical desktop viewport while leaving mobile unchanged.
+          modal='className={`relative z-10 max-h-[94vh] w-full overflow-auto rounded-3xl bg-white shadow-2xl ${session && activeRole === "professional" ? "max-w-3xl" : "max-w-xl"}`}'
+          compact='className={`relative z-10 max-h-[94vh] w-full overflow-auto rounded-3xl bg-white shadow-2xl ${!session && mode === "signup" ? "lg:max-h-[96vh] lg:max-w-2xl" : session && activeRole === "professional" ? "max-w-3xl" : "max-w-xl"}`}'
+          if modal not in s: raise SystemExit('modal marker missing')
+          s=s.replace(modal,compact,1)
+          # Reduce account-dialog header only during desktop signup.
+          header='className="flex items-center justify-between border-b border-slate-200 px-6 py-5"'
+          header_new='className={`flex items-center justify-between border-b border-slate-200 px-6 py-5 ${!session && mode === "signup" ? "lg:px-5 lg:py-3" : ""}`}'
+          s=s.replace(header,header_new,1)
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name "DentalShift Automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/page.tsx
+          git diff --cached --quiet || git commit -m "Make desktop account signup modal compact"
+          git push
