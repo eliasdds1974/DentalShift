@@ -1,0 +1,34 @@
+name: Pin professional calendar day numbers
+on:
+  push:
+    paths:
+      - '.github/workflows/pin-professional-calendar-day-numbers.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Relocate professional calendar day numbers only
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('components/WorkflowWorkspaceV2.tsx')
+          s=p.read_text()
+          old='className={`min-h-[78px] rounded-2xl border p-1.5 text-center transition sm:min-h-[108px] sm:p-2 ${selected ? "border-[#4285F4] bg-blue-50 ring-2 ring-[#4285F4]/20" : "border-slate-200 bg-white hover:border-slate-300"} ${!inMonth ? "opacity-35" : ""}`}'
+          new='className={`relative min-h-[78px] rounded-2xl border p-1.5 pt-9 text-center transition sm:min-h-[108px] sm:p-2 sm:pt-11 ${selected ? "border-[#4285F4] bg-blue-50 ring-2 ring-[#4285F4]/20" : "border-slate-200 bg-white hover:border-slate-300"} ${!inMonth ? "opacity-35" : ""}`}'
+          old2='className={`ml-1 mt-0.5 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:ml-1 sm:mt-0.5 sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#002757] text-white" : "text-slate-700"}`}'
+          new2='className={`absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:left-1 sm:top-1 sm:h-8 sm:w-8 sm:text-sm lg:left-0.5 lg:top-0.5 ${today ? "bg-[#002757] text-white" : "text-slate-700"}`}'
+          if old not in s or old2 not in s: raise SystemExit('Professional calendar target not found')
+          s=s.replace(old,new,1).replace(old2,new2,1)
+          p.write_text(s)
+          PY
+      - name: Commit change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m 'Pin professional calendar day numbers upper left'
+          git push
