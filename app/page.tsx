@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, FileText, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { addGoogleFavouriteOffice, addOfficePreferredProfessional, addVerificationInternalNote, applyForShift, cancelAdminShift, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadOfficePreferredProfessionals, loadProfessionalWorkflow, loadVerificationCase, loadVerificationQueue, openProfessionalResume, removeFavouriteOffice, removeOfficePreferredProfessional, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, uploadProfessionalResume, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type FavouriteOffice, type OfficePreferredProfessional, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
-import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspace";
+import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspaceV2";
 import { GoogleAddressAutocomplete, GoogleOfficeFavouriteSearch, type GoogleOfficeSelection } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
 import { AdminCommandCenter } from "@/components/AdminCommandCenter";
@@ -741,6 +741,10 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
         years_experience: form.get("years_experience") ? Number(form.get("years_experience")) : null,
         bio: details.professional.bio,
         skills: form.getAll("software").map(String),
+        local_anesthetic: form.get("local_anesthetic") === "on",
+        local_anesthetic_status: form.get("local_anesthetic") === "on"
+          ? (details.professional.local_anesthetic_status === "verified" ? "verified" : "self_declared")
+          : "not_declared",
         available_for_work: form.get("available_for_work") === "on",
       } : null,
       office: null,
@@ -785,6 +789,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
       contact_phone: String(form.get("contact_phone") || "") || null,
+      search_radius_km: Number(form.get("search_radius_km") || details.office.search_radius_km || 25),
     };
     setBusy(true); setError(""); setNotice("");
     try {
@@ -864,6 +869,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
               <GoogleAddressAutocomplete kind="office" initialAddress={{ name: details.office.name, address: details.office.address, city: details.office.city, province: details.office.province, postalCode: details.office.postal_code, googlePlaceId: details.office.google_place_id, latitude: details.office.latitude, longitude: details.office.longitude }} />
             </div>
             <label className="field"><span>Main phone</span><input name="office_phone" type="tel" defaultValue={details.office.phone || ""} /></label>
+            <label className="field"><span>Staff search radius (km)</span><input name="search_radius_km" min="1" max="250" type="number" defaultValue={details.office.search_radius_km ?? 25} /><small className="mt-1 block text-xs text-slate-500">Available Staff defaults to this distance.</small></label>
             <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={details.office.website || ""} /></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={details.office.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={details.office.contact_title || ""} /></label>
@@ -908,6 +914,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
                 <label className="field"><span>Minimum hourly rate desired</span><input name="hourly_rate" min="0" step="1" type="number" defaultValue={details.professional.hourly_rate ?? ""} placeholder="e.g. 55" /></label>
                 <label className="field"><span>Travel radius (km)</span><input name="travel_radius_km" min="1" max="500" type="number" defaultValue={details.professional.travel_radius_km} /></label>
                 <label className="field"><span>Years of experience</span><input name="years_experience" min="0" type="number" defaultValue={details.professional.years_experience ?? ""} /></label>
+                {details.professional.profession.toLowerCase().includes("hygien") && <label className="flex items-start gap-3 rounded-2xl border border-blue-200 bg-blue-50 p-4 sm:col-span-2"><input name="local_anesthetic" type="checkbox" defaultChecked={Boolean(details.professional.local_anesthetic)} className="mt-0.5 h-4 w-4 accent-[#0078FE]" /><span><strong className="block text-sm text-[#002757]">Local Anesthetic</strong><span className="mt-1 block text-xs text-slate-600">RDH qualification. {details.professional.local_anesthetic_status === "verified" ? "Verified by DentalShift." : details.professional.local_anesthetic ? "Self-declared until verified." : "Select if this qualification applies to you."}</span></span></label>}
                 <fieldset className="rounded-xl border border-slate-200 bg-white p-3 sm:col-span-2"><legend className="px-1 text-sm font-extrabold text-[#002757]">Dental software experience</legend><p className="mb-3 text-xs text-slate-500">Select every system you are comfortable using.</p><div className="grid gap-2 sm:grid-cols-3">{dentalSoftwareOptions.map((software) => <label key={software} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700 hover:border-[#0078FE]/40 hover:bg-[#edf3fa]"><input name="software" type="checkbox" value={software} defaultChecked={details.professional?.skills?.includes(software)} className="h-4 w-4 accent-[#0078FE]" />{software}</label>)}</div></fieldset>
                 <div className="rounded-2xl border border-dashed border-[#0078FE]/40 bg-[#edf3fa] p-5 sm:col-span-2"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-white text-[#0078FE] shadow-sm"><FileText size={23} /></span><div className="min-w-0 flex-1"><h3 className="font-extrabold text-[#002757]">Professional résumé/CV</h3><p className="mt-1 text-xs leading-5 text-slate-500">Upload a PDF, DOC or DOCX file. Maximum size 5 MB. Your document is stored privately.</p>{details.professional.resume_path && <p className="mt-2 text-xs font-extrabold text-[#017f27]"><Check size={14} className="mr-1 inline" />Résumé/CV on file</p>}</div><div className="flex flex-wrap gap-2"><label className="primary-btn cursor-pointer justify-center"><Upload size={16} />{busy ? "Please wait…" : details.professional.resume_path ? "Replace CV" : "Upload CV"}<input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={busy} onChange={(event) => void uploadResume(event.target.files?.[0])} /></label>{details.professional.resume_path && <button type="button" onClick={() => void viewResume()} className="secondary-btn">View CV</button>}</div></div></div>
                 <label className="flex items-center gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2"><input name="available_for_work" type="checkbox" defaultChecked={details.professional.available_for_work} className="h-4 w-4 accent-[#01A32E]" /><span className="text-sm font-bold text-slate-700">Available for new shifts</span></label>

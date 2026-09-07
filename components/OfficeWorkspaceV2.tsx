@@ -15,6 +15,7 @@ import {
   type WorkflowBooking,
 } from "@/lib/dentalshift";
 import { OfficeWorkspace as LegacyOfficeWorkspace } from "./WorkflowWorkspace";
+import { AnonymousAvailableStaffPanel, type AnonymousAvailableStaff } from "./AnonymousAvailableStaffPanel";
 
 type OfficeView = "overview" | "shifts" | "bookings" | "talent" | "profile";
 type CalendarView = "month" | "week" | "list";
@@ -39,9 +40,9 @@ type OfficeWorkflow = {
 
 const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string; text: string }> = {
   RDH: { label: "RDH", solid: "bg-[#0078FE]", soft: "bg-blue-50", text: "text-[#0064d8]" },
-  CDA: { label: "CDA", solid: "bg-[#F21C13]", soft: "bg-red-50", text: "text-[#d9160f]" },
-  DA: { label: "DA", solid: "bg-amber-400", soft: "bg-amber-50", text: "text-amber-700" },
-  ST: { label: "ST", solid: "bg-[#04A62F]", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },
+  CDA: { label: "CDA", solid: "bg-[#04A62F]", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },
+  DA: { label: "DA", solid: "bg-[#F59E0B]", soft: "bg-orange-50", text: "text-orange-700" },
+  ST: { label: "ST", solid: "bg-[#8B5CF6]", soft: "bg-violet-50", text: "text-violet-700" },
 };
 
 function roleCode(profession?: string | null): RoleCode {
@@ -71,6 +72,16 @@ function longDate(value: string) {
   return new Date(`${value}T12:00:00`).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" });
 }
 
+function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null) {
+  if ([lat1, lon1, lat2, lon2].some((value) => value == null || !Number.isFinite(Number(value)))) return null;
+  const toRad = (value: number) => value * Math.PI / 180;
+  const earthKm = 6371;
+  const dLat = toRad(Number(lat2) - Number(lat1));
+  const dLon = toRad(Number(lon2) - Number(lon1));
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(Number(lat1))) * Math.cos(toRad(Number(lat2))) * Math.sin(dLon / 2) ** 2;
+  return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number }) {
   const [data, setData] = useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [], preferredProfessionals: [] });
   const [loading, setLoading] = useState(true);
@@ -79,6 +90,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
+  const [radiusKm, setRadiusKm] = useState(() => Number(office.search_radius_km || 25));
 
   const refresh = async () => {
     setLoading(true);
@@ -94,6 +106,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   };
 
   useEffect(() => { void refresh(); }, [office.id, refreshKey]);
+  useEffect(() => { setRadiusKm(Number(office.search_radius_km || 25)); }, [office.id, office.search_radius_km]);
 
   const openShifts = useMemo(() => data.shifts.filter((shift) => shift.status === "open"), [data.shifts]);
   const upcomingBookings = useMemo(() => data.bookings
@@ -114,14 +127,47 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
   const selectedBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
   const interestedIds = new Set(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => application.professional_id)));
+  const distanceForSlot = (slot: AvailableProfessionalSlot) => distanceKm(
+    office.latitude,
+    office.longitude,
+    slot.professional_profiles?.profiles?.latitude,
+    slot.professional_profiles?.profiles?.longitude,
+  );
+  const isSlotInRadius = (slot: AvailableProfessionalSlot) => {
+    const distance = distanceForSlot(slot);
+    return distance != null && distance <= radiusKm;
+  };
   const selectedAvailability = data.availability
     .filter((slot) => !interestedIds.has(slot.professional_id))
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
+    .filter(isSlotInRadius)
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
       if (roleCompare) return roleCompare;
       return (b.professional_profiles?.rating || 0) - (a.professional_profiles?.rating || 0);
     });
+  const anonymousStaff: AnonymousAvailableStaff[] = selectedAvailability.map((slot) => {
+    const profile = slot.professional_profiles;
+    const completed = Number(profile?.completed_shifts || 0);
+    const localAnesthetic = Boolean(profile?.local_anesthetic) && roleCode(profile?.profession) === "RDH";
+    return {
+      id: slot.professional_id,
+      role: roleCode(profile?.profession),
+      profession: profile?.profession || "Dental professional",
+      distanceKm: distanceForSlot(slot),
+      startsAt: slot.starts_at,
+      endsAt: slot.ends_at,
+      yearsExperience: profile?.years_experience ?? null,
+      rating: Number(profile?.rating || 0) > 0 ? Number(profile?.rating) : null,
+      completedShifts: completed,
+      reliabilityScore: completed > 0 && profile?.reliability_score != null ? Number(profile.reliability_score) : null,
+      cancellations: null,
+      skills: profile?.skills || null,
+      software: profile?.skills || null,
+      qualifications: localAnesthetic ? [{ label: "Local Anesthetic", verified: profile?.local_anesthetic_status === "verified" }] : [],
+      preferred: data.preferredProfessionals.some((person) => person.matched_professional_id === slot.professional_id),
+    };
+  });
 
   const act = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -238,13 +284,14 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const inMonth = day.getMonth() === calendarCursor.getMonth();
             const dayShifts = data.shifts.filter((shift) => localDateKey(shift.starts_at) === key);
             const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
-            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key);
+            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && isSlotInRadius(slot));
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
             return <button type="button" key={key} onClick={() => { setSelectedDate(key); setCalendarCursor(day); }} className={`relative min-h-24 bg-white p-1.5 text-left transition hover:bg-blue-50 sm:min-h-28 sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
               <span className={`absolute left-2 top-2 inline-grid h-7 w-7 place-items-center rounded-full text-sm font-black ${today ? "bg-[#032757] text-white" : ""}`}>{day.getDate()}</span>
               {dayShifts.length > 0 && <div className="absolute left-1.5 right-1.5 top-9 truncate rounded-lg bg-[#eaf8ee] px-1.5 py-1 text-[10px] font-black text-[#017f27] sm:left-2 sm:right-2"><span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-[#04A62F]" />Shift(s) Posted</div>}
-              {interestedCount > 0 && <div className="absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-lg bg-[#F21C13] px-1.5 py-1 text-[10px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2">{interestedCount} interested · View day</div>}
+              {interestedCount > 0 && <div className="absolute bottom-8 left-1.5 right-1.5 truncate rounded-lg bg-amber-500 px-1.5 py-1 text-[10px] font-black text-white sm:left-2 sm:right-2">{interestedCount} interested · View day</div>}
+              {dayAvailability.length > 0 && <div className="absolute bottom-1.5 left-1.5 right-1.5 truncate rounded-lg bg-[#F21C13] px-1.5 py-1 text-[10px] font-black text-white sm:bottom-2 sm:left-2 sm:right-2">Available Staff · {dayAvailability.length} · ≤ {radiusKm} km</div>}
             </button>;
           })}</div>
         </div>
@@ -269,35 +316,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             })}
               </div>
             </section>}
-            {selectedAvailability.length > 0 && <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-              <div className="flex items-center justify-between gap-3">
-                <div><p className="text-xs font-black uppercase tracking-wide text-[#04A62F]">Available staff</p><p className="mt-1 text-sm font-extrabold text-[#032757]">{selectedAvailability.length} professional{selectedAvailability.length === 1 ? "" : "s"} available</p></div>
-                <UsersRound size={20} className="text-[#04A62F]" />
-              </div>
-              <div className="mt-3 space-y-2">
-                {selectedAvailability.map((slot) => {
-                  const profile = slot.professional_profiles;
-                  const code = roleCode(profile?.profession);
-                  const role = roleStyles[code];
-                  return <article key={slot.id} className="rounded-xl border-2 border-[#04A62F]/35 bg-[#eaf8ee] p-3">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex flex-wrap items-center gap-2"><strong className={`${role.text}`}>{role.label} · {profile?.profession || "Dental professional"}</strong>{data.preferredProfessionals.some((person) => person.matched_professional_id === slot.professional_id) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FDB605] px-2 py-1 text-[10px] font-black text-white"><Star size={11} className="fill-white" />Preferred</span>}</div>
-                        <span className="mt-2 inline-block rounded-lg bg-[#04A62F] px-3 py-2 text-xs font-black text-white">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</span>
-                      </div>
-                      <span className="shrink-0 rounded-lg bg-[#04A62F] px-3 py-2 text-xs font-black uppercase tracking-wide text-white">Available</span>
-                    </div>
-                    <div className="mt-3 grid grid-cols-2 gap-2 text-xs font-bold leading-tight text-slate-600">
-                      <span>Experience: <strong className="text-[#032757]">{profile?.years_experience != null ? `${profile.years_experience} ${profile.years_experience === 1 ? "yr" : "yrs"}` : "—"}</strong></span>
-                      <span>Rating: <strong className="text-[#032757]">{profile?.rating || 0}★</strong></span>
-                      <span>Completed: <strong className="text-[#032757]">{profile?.completed_shifts || 0}</strong></span>
-                      <span>Reliability: <strong className="text-[#032757]">{profile?.reliability_score || 0}%</strong></span>
-                      <span className="col-span-2">Requested wage: <strong className="text-[#032757]">{profile?.hourly_rate ? `$${Number(profile.hourly_rate).toFixed(2)}/hr` : "Not set"}</strong></span>
-                    </div>
-                  </article>;
-                })}
-              </div>
-            </section>}
+            {selectedAvailability.length > 0 && <AnonymousAvailableStaffPanel staff={anonymousStaff} radiusKm={radiusKm} onRadiusChange={setRadiusKm} />}
             <form onSubmit={postSelectedShift} className="hidden">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
               <div className="mt-4 space-y-3">
