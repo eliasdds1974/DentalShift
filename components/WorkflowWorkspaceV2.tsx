@@ -421,11 +421,6 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               </article>)}</div>
             </section>}
 
-            {selectedDayAvailability.length === 0 && selectedDayShifts.length > 0 && <form onSubmit={addAvailability} className="rounded-3xl bg-[#04A62F] p-3 shadow-sm sm:p-4">
-              <h3 className="mb-4 text-center text-xl font-black text-white sm:text-2xl">Available</h3>
-              <div className="rounded-2xl border border-white/70 bg-white p-4 shadow-sm"><p className="text-sm font-extrabold text-[#002757]">Set your hours for this date</p><p className="mt-1 text-xs leading-5 text-slate-600">Choose a start and end time so nearby offices can match you with shifts.</p><div className="mt-3 grid grid-cols-2 gap-2"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div><button type="submit" disabled={busy === "availability-add"} className="primary-btn mt-3 w-full justify-center">{busy === "availability-add" ? "Saving…" : "I’m Available"}</button></div>
-            </form>}
-
             {selectedDayInterestedShifts.length > 0 && <section className="rounded-3xl bg-[#F21C13] p-3 shadow-sm sm:p-4">
               <h3 className="mb-4 text-center text-xl font-black text-white sm:text-2xl">I’m Interested</h3>
               <div className="space-y-3">{selectedDayInterestedShifts.map((shift) => {
