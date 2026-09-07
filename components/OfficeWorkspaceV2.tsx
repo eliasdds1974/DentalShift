@@ -381,30 +381,30 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       </div>}
     </section>
     {postShiftOpen && typeof document !== "undefined" && createPortal(
-      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-4" role="dialog" aria-modal="true" aria-label="Post a shift">
-        <div className="w-full max-w-lg rounded-3xl border border-[#04A62F]/35 bg-gradient-to-b from-[#f1fff5] via-white to-white p-5 shadow-2xl sm:p-6">
-          <div className="flex items-start justify-between gap-4">
+      <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-2 sm:p-3" role="dialog" aria-modal="true" aria-label="Post a shift">
+        <div className="w-full max-w-2xl max-h-[calc(100dvh-1rem)] overflow-y-auto rounded-2xl border border-[#04A62F]/35 bg-gradient-to-b from-[#f1fff5] via-white to-white p-3 shadow-2xl sm:p-4">
+          <div className="flex items-start justify-between gap-2">
             <div>
-              <div className="flex items-center gap-2 text-[#04A62F]"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#eaf8ee] ring-1 ring-[#04A62F]/20"><CalendarDays size={19} /></span><span className="text-xs font-black uppercase tracking-[.12em]">Post a shift</span></div>
-              <h2 className="mt-2 text-2xl font-black text-[#002757]">{longDate(selectedDate)}</h2>
-              <p className="mt-1 text-sm leading-5 text-slate-500">Add an office shift for this date.</p><div className="mt-4 h-1.5 w-20 rounded-full bg-[#04A62F]" />
+              <div className="flex items-center gap-2 text-[#04A62F]"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#eaf8ee] ring-1 ring-[#04A62F]/20"><CalendarDays size={16} /></span><span className="text-xs font-black uppercase tracking-[.12em]">Post a shift</span></div>
+              <h2 className="mt-1 text-xl font-black text-[#002757]">{longDate(selectedDate)}</h2>
+              
             </div>
             <button type="button" onClick={() => setPostShiftOpen(false)} className="secondary-btn px-3" aria-label="Close"><X size={18} /></button>
           </div>
 
-          <form onSubmit={postSelectedShift} className="mt-5">
-            <div className="space-y-3">
-              <label className="field"><span>Professional needed</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <label className="field"><span>Start</span><input name="start_time" type="time" defaultValue="08:00" required /></label>
-                <label className="field"><span>End</span><input name="end_time" type="time" defaultValue="17:00" required /></label>
+          <form onSubmit={postSelectedShift} className="mt-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <label className="field gap-1 sm:col-span-2"><span>Professional needed</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+              <div className="grid grid-cols-2 gap-2">
+                <label className="field gap-1 [&_input]:py-1.5 [&_select]:py-1.5 [&_textarea]:py-1.5"><span>Start</span><input name="start_time" type="time" defaultValue="08:00" required /></label>
+                <label className="field gap-1 [&_input]:py-1.5 [&_select]:py-1.5 [&_textarea]:py-1.5"><span>End</span><input name="end_time" type="time" defaultValue="17:00" required /></label>
               </div>
-              <label className="field"><span>Hourly rate</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
-              <fieldset className="rounded-2xl border border-[#04A62F]/30 bg-[#f6fff8] p-3"><legend className="px-1 text-xs font-black text-[#017f27]">Software</legend><p className="mb-3 text-[11px] font-semibold text-slate-500">Select any software used at this office. Leave all unchecked for any software.</p><div className="grid grid-cols-2 gap-2 sm:grid-cols-3">{dentalSoftwareOptions.map((item) => <label key={item} className="flex cursor-pointer items-center gap-2 rounded-xl border border-[#04A62F]/20 bg-white px-3 py-2 text-xs font-bold text-slate-700 hover:border-[#04A62F]/50"><input name="software" type="checkbox" value={item} className="h-4 w-4 accent-[#04A62F]" />{item}</label>)}</div><input name="other_software" type="text" placeholder="Other software" className="mt-3 w-full rounded-xl border border-[#04A62F]/25 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-[#04A62F]" /></fieldset>
-              <label className="field"><span>Notes</span><textarea name="notes" rows={2} placeholder="Optional shift details" /></label>
+              <label className="field gap-1 [&_input]:py-1.5 [&_select]:py-1.5 [&_textarea]:py-1.5"><span>Hourly rate</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
+              <fieldset className="rounded-xl border border-[#04A62F]/30 bg-[#f6fff8] p-2 sm:col-span-2"><legend className="px-1 text-xs font-black text-[#017f27]">Software</legend><p className="mb-2 text-[11px] font-semibold text-slate-500">Select any software used at this office. Leave all unchecked for any software.</p><div className="grid grid-cols-2 gap-1.5 sm:grid-cols-4">{dentalSoftwareOptions.map((item) => <label key={item} className="flex cursor-pointer items-center gap-1.5 rounded-lg border border-[#04A62F]/20 bg-white px-2 py-1.5 text-xs font-bold text-slate-700 hover:border-[#04A62F]/50"><input name="software" type="checkbox" value={item} className="h-4 w-4 accent-[#04A62F]" />{item}</label>)}</div><input name="other_software" type="text" placeholder="Other software" className="mt-2 w-full rounded-lg border border-[#04A62F]/25 bg-white px-2 py-1.5 text-sm font-bold text-slate-700 outline-none focus:border-[#04A62F]" /></fieldset>
+              <label className="field gap-1 sm:col-span-2"><span>Notes</span><textarea name="notes" rows={1} placeholder="Optional shift details" /></label>
             </div>
             {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
-            <div className="mt-5 flex justify-end gap-2">
+            <div className="mt-3 flex justify-end gap-2">
               <button type="button" onClick={() => setPostShiftOpen(false)} className="secondary-btn">Close</button>
               <button type="submit" disabled={busy === `post-${selectedDate}`} className="inline-flex items-center justify-center gap-2 rounded-xl border border-[#04A62F] bg-[#04A62F] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#038827] disabled:opacity-50"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
             </div>
