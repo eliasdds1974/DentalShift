@@ -1,0 +1,27 @@
+name: Sync professional day rate
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/sync-professional-day-rate.py'
+      - '.github/workflows/sync-professional-day-rate.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Sync selected-day professional rate
+        run: python .github/scripts/sync-professional-day-rate.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx components/AnonymousAvailableStaffPanel.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Sync professional selected-day rate across portals"
+            git push
+          fi
