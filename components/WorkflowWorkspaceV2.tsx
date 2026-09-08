@@ -213,6 +213,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     <div className="flex flex-col gap-2">
       <h1 className="page-title">{profile.first_name ? `${profile.first_name}, find your next shift` : "Find your next shift"}</h1>
       <p className="page-subtitle">Tap a date to see matching offices, invitations, applications and booked shifts.</p>
+      <button type="button" onClick={() => setAvailabilityOpen(true)} className="mt-2 inline-flex w-fit items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30"><CalendarDays size={18} />Post Availability</button>
     </div>
 
     {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
