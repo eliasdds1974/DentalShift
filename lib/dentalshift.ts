@@ -613,13 +613,16 @@ export async function createShiftSeries(input: {
 }
 
 export async function applyForShift(input: { shiftId: string; professionalId: string; proposedRate?: number }) {
-  const { data, error } = await supabase.rpc("apply_to_shift", {
-    p_shift_id: input.shiftId,
-    p_proposed_rate: input.proposedRate ?? null,
-    p_message: null,
-  });
+  void input.professionalId;
+  void input.proposedRate;
+  const { data, error } = await supabase.rpc("professional_express_interest", { p_shift_id: input.shiftId });
   if (error) throw error;
   return data;
+}
+
+export async function cancelShiftInterest(applicationId: string) {
+  const { error } = await supabase.rpc("professional_cancel_interest", { p_application_id: applicationId });
+  if (error) throw error;
 }
 
 export async function updateAttendance(bookingId: string, action: "check_in" | "check_out", userId: string) {

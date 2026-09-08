@@ -5,6 +5,7 @@ import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, MapPin, ShieldC
 import {
   addProfessionalAvailability,
   applyForShift,
+  cancelShiftInterest,
   loadAccountDetails,
   loadProfessionalWorkflow,
   removeProfessionalAvailability,
@@ -193,6 +194,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const selectedAvailability = workflow.availability.filter((slot) => slot.available && localDateKey(slot.starts_at) === selectedDate);
 
   const openShiftIdsAlreadyApplied = new Set(workflow.applications.filter((item) => item.shifts).map((item) => item.shifts!.id));
+  const selectedInterest = selectedApplied.find((item) => item.application_kind === "application" && item.shifts) ?? null;
   const visibleOpen = selectedOpen.filter((shift) => !openShiftIdsAlreadyApplied.has(shift.id));
 
   const run = async (key: string, action: () => Promise<unknown>) => {
@@ -319,6 +321,15 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
           </div>
 
           <div className="mt-4 space-y-5">
+            {selectedInterest?.shifts && <section className="rounded-3xl border-2 border-[#34A853]/40 bg-[#eaf8ee] p-2.5 shadow-sm">
+              <div className="mb-2 flex items-center justify-between gap-2 px-1">
+                <h4 className="flex items-center gap-2 font-black text-[#017f27]"><span className="grid h-5 w-5 place-items-center rounded-full bg-[#34A853] text-[11px] text-white">✓</span>I’m Interested</h4>
+                <span className="text-[10px] font-black uppercase tracking-wide text-[#017f27]">Selected office</span>
+              </div>
+              <div className="rounded-2xl border border-[#34A853]/30 bg-white p-1 shadow-sm">
+                <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={selectedInterest.shifts} tone="green" status="I’m Interested" action={<button type="button" disabled={busy === `cancel-interest-${selectedInterest.id}`} onClick={() => void run(`cancel-interest-${selectedInterest.id}`, () => cancelShiftInterest(selectedInterest.id))} className="secondary-btn w-full justify-center border-[#EA4335]/30 text-[#c9342d]">{busy === `cancel-interest-${selectedInterest.id}` ? "Cancelling…" : "Cancel Interest"}</button>} />
+              </div>
+            </section>}
             {selectedAvailability.length > 0 ? <section className="rounded-2xl border border-[#34A853]/25 bg-green-50 p-4">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#34A853]">I’m Available</p>{selectedAvailability.map((slot) => <div key={slot.id}><p className="mt-1 text-sm font-black text-[#002757]">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p><p className="mt-0.5 text-xs font-extrabold text-[#017f27]">${Number(slot.hourly_rate)}/hr</p></div>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id)).then((removed) => { if (removed) setAvailabilityOpen(true); })} className="secondary-btn">Cancel / Repost</button></div>
             </section> : <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button>}
@@ -335,12 +346,12 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
 
             {visibleOpen.length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#4285F4]"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />Open shifts</h4>
-              <div className="space-y-3">{visibleOpen.map((shift) => <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={shift.id} shift={shift} tone="blue" action={<button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center">{busy === `apply-${shift.id}` ? "Saving…" : "View & Apply"}</button>} />)}</div>
+              <div className="space-y-3">{visibleOpen.map((shift) => <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={shift.id} shift={shift} tone="blue" action={<button type="button" disabled={Boolean(selectedInterest) || busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : selectedInterest ? "Cancel current interest first" : "I’m Interested"}</button>} />)}</div>
             </section>}
 
-            {selectedApplied.length > 0 && <section>
+            {selectedApplied.filter((item) => item.id !== selectedInterest?.id).length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#34A853]"><span className="h-3 w-3 rounded-full bg-[#34A853]" />Applied</h4>
-              <div className="space-y-3">{selectedApplied.map((application) => application.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={application.id} shift={application.shifts} tone="green" status="Applied" /> : null)}</div>
+              <div className="space-y-3">{selectedApplied.filter((item) => item.id !== selectedInterest?.id).map((application) => application.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={application.id} shift={application.shifts} tone="green" status="Applied" /> : null)}</div>
             </section>}
 
             {selectedInvitations.length === 0 && selectedBooked.length === 0 && visibleOpen.length === 0 && selectedApplied.length === 0 && <div className="rounded-2xl bg-slate-50 p-6 text-center"><p className="font-black text-[#002757]">No shift activity on this date</p><p className="mt-1 text-sm text-slate-500">Try another day or add your availability so offices can find you.</p></div>}
