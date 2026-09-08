@@ -1,0 +1,30 @@
+name: Rename professional availability card
+on:
+  push:
+    paths:
+      - '.github/workflows/rename-professional-availability-card.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rename availability card
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/WorkflowWorkspaceV2.tsx')
+          s = p.read_text()
+          old = 'Your availability'
+          new = "I’m Available"
+          assert old in s, 'availability card label not found'
+          p.write_text(s.replace(old, new, 1))
+          PY
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m "Rename professional availability card"
+          git push
