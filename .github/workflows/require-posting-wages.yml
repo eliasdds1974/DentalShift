@@ -18,16 +18,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.x'
-      - name: Patch source
-        run: python .github/scripts/require_posting_wages.py
+      - name: Finalize wage and repost behavior
+        run: python .github/scripts/finalize_availability_wage.py
       - name: Commit source changes
         run: |
           git config user.name "DentalShift automation"
           git config user.email "actions@users.noreply.github.com"
-          git add lib/dentalshift.ts components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx
+          git add components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx
           if git diff --cached --quiet; then
             echo "No changes needed"
           else
-            git commit -m "Require wages for shift and availability posts"
+            git commit -m "Finalize availability wage and repost behavior"
             git push
           fi
