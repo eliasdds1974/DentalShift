@@ -174,12 +174,14 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const applied = workflow.applications.filter((application) => application.status === "applied" && application.shifts && roleCode(application.shifts.profession) === signedRole);
   const booked = workflow.bookings.filter((booking) => booking.shifts && !booking.cancelled_at && new Date(booking.shifts.ends_at).getTime() >= Date.now());
 
-  const gridStart = weekStart(cursor);
+  const calendarStart = new Date();
+  calendarStart.setHours(12, 0, 0, 0);
   const calendarDays = Array.from({ length: 35 }, (_, index) => {
-    const date = new Date(gridStart);
-    date.setDate(gridStart.getDate() + index);
+    const date = new Date(calendarStart);
+    date.setDate(calendarStart.getDate() + index);
     return date;
   });
+  const calendarWeekdays = calendarDays.slice(0, 7).map((day) => day.toLocaleDateString("en-CA", { weekday: "short" }));
 
   // Interest no longer changes availability or hides other qualifying office postings.
   const countsByDate = useMemo(() => {
@@ -289,12 +291,10 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-black uppercase tracking-[.12em] text-slate-400">{signedRole} opportunities</p>
-            <h2 className="mt-1 text-2xl font-black text-[#002757]">{monthTitle(cursor)}</h2>
+            <h2 className="mt-1 text-2xl font-black text-[#002757]">Next 35 days</h2>
           </div>
           <div className="flex items-center gap-2">
-            <button type="button" aria-label="Previous month" onClick={() => moveMonth(-1)} className="secondary-btn px-3"><ChevronLeft size={19} /></button>
-            <button type="button" onClick={() => { const today = new Date(); setCursor(new Date(today.getFullYear(), today.getMonth(), 1)); chooseDate(today); }} className="secondary-btn">Today</button>
-            <button type="button" aria-label="Next month" onClick={() => moveMonth(1)} className="secondary-btn px-3"><ChevronRight size={19} /></button>
+            <button type="button" onClick={() => { const today = new Date(); chooseDate(today); }} className="secondary-btn">Today</button>
           </div>
         </div>
 
@@ -307,16 +307,15 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
 
       <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,.75fr)]">
         <div className="p-2.5 sm:p-5 lg:border-r lg:border-slate-200">
-          <div className="grid grid-cols-7">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="pb-2 text-center text-[10px] font-black uppercase tracking-wide text-slate-400 sm:text-xs">{day}</div>)}</div>
+          <div className="grid grid-cols-7">{calendarWeekdays.map((day) => <div key={day} className="pb-2 text-center text-[10px] font-black uppercase tracking-wide text-slate-400 sm:text-xs">{day}</div>)}</div>
           <div className="grid grid-cols-7 gap-1 sm:gap-2">{calendarDays.map((day) => {
             const key = localDateKey(day);
             const isPast = key < localDateKey(new Date());
             const count = countsByDate.get(key) || { open: 0, invited: 0, applied: 0, booked: 0 };
             const selected = key === selectedDate;
-            const inMonth = day.getMonth() === cursor.getMonth();
             const today = key === localDateKey(new Date());
             const availableOnDate = workflow.availability.some((slot) => slot.available && localDateKey(slot.starts_at) === key);
-            return <button key={key} type="button" disabled={isPast} aria-disabled={isPast} title={isPast ? "Past dates are read-only" : undefined} onClick={() => { if (!isPast) chooseDate(day); }} aria-label={`${longDate(key)}: ${count.open} open shifts, ${count.invited} invitations, ${count.applied} applied, ${count.booked} booked`} className={`relative min-h-[92px] rounded-2xl border p-1.5 text-center transition sm:min-h-[122px] sm:p-2 ${isPast ? "cursor-not-allowed bg-slate-50 opacity-45 grayscale" : selected ? "border-[#4285F4] bg-blue-50 ring-2 ring-[#4285F4]/20" : "border-slate-200 bg-white hover:border-slate-300"} ${!inMonth ? "opacity-35" : ""}`}>
+            return <button key={key} type="button" disabled={isPast} aria-disabled={isPast} title={isPast ? "Past dates are read-only" : undefined} onClick={() => { if (!isPast) chooseDate(day); }} aria-label={`${longDate(key)}: ${count.open} open shifts, ${count.invited} invitations, ${count.applied} applied, ${count.booked} booked`} className={`relative min-h-[92px] rounded-2xl border p-1.5 text-center transition sm:min-h-[122px] sm:p-2 ${isPast ? "cursor-not-allowed bg-slate-50 opacity-45 grayscale" : selected ? "border-[#4285F4] bg-blue-50 ring-2 ring-[#4285F4]/20" : "border-slate-200 bg-white hover:border-slate-300"}`}>
               {count.booked > 0 ? <span className="absolute inset-0 grid place-items-center rounded-2xl bg-[#002757] text-sm font-black tracking-wide text-white sm:text-base">BOOKED</span> : <><span className={`absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#002757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
               <span className="absolute left-1 right-1 top-9 flex min-h-6 flex-wrap items-start justify-center gap-1 sm:left-2 sm:right-2 sm:top-11 sm:min-h-7 sm:gap-1.5">
                 {count.open > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#4285F4] px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px]">{count.open}</span>}
