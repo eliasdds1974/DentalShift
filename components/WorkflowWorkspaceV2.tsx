@@ -107,7 +107,7 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
       </div>
       <div className="shrink-0 text-right">
         <p className="text-base font-black text-[#002757]">${Number(shift.hourly_rate)}/hr</p>
-        {status && <span className="mt-1 inline-flex rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm">{status}</span>}
+        {status && !status.toLowerCase().includes("interested") && <span className="mt-1 inline-flex rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm">{status}</span>}
       </div>
     </div>
     <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-3"><div className="flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">{shift.offices?.software?.length ? <span className="rounded-full bg-white/80 px-2 py-1">Office software: {shift.offices.software.join(", ")}</span> : null}{shift.notes && <span className="rounded-full bg-white/80 px-2 py-1">Shift notes available</span>}</div><button type="button" onClick={() => setExpanded((value) => !value)} className="secondary-btn px-3 py-1.5 text-xs">{expanded ? "Hide details" : "Details"}</button></div>
@@ -345,8 +345,8 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             </section>}
 
             {visibleOpen.length > 0 && <section>
-              <h4 className="mb-2 flex items-center gap-2 font-black text-[#4285F4]"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />Open shifts</h4>
-              <div className="space-y-3">{visibleOpen.map((shift) => <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={shift.id} shift={shift} tone="blue" action={<button type="button" disabled={Boolean(selectedInterest) || busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : selectedInterest ? "Cancel current interest first" : "I’m Interested"}</button>} />)}</div>
+              <h4 className="mb-2 flex items-center gap-2 font-black text-[#EA4335]"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />Dental Office Shifts</h4>
+              <div className="space-y-3">{visibleOpen.map((shift) => <div key={shift.id} className="rounded-[20px] border-2 border-[#EA4335]/65 bg-[#fff5f4] p-1 shadow-[0_8px_22px_rgba(234,67,53,0.10)]"><ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={shift} tone="red" action={<button type="button" disabled={Boolean(selectedInterest) || busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : selectedInterest ? "Cancel current interest first" : "I’m Interested"}</button>} /></div>)}</div>
             </section>}
 
             {selectedApplied.filter((item) => item.id !== selectedInterest?.id).length > 0 && <section>
