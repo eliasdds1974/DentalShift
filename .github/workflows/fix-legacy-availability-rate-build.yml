@@ -1,0 +1,42 @@
+name: Fix legacy availability rate build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/fix-legacy-availability-rate-build.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix legacy availability function call
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('components/WorkflowWorkspace.tsx')
+          text = path.read_text()
+          old = 'addProfessionalAvailability(userId, startsAt, endsAt)'
+          new = 'addProfessionalAvailability(userId, startsAt, endsAt, Number(accountDetails?.professional?.hourly_rate || 0))'
+
+          if old not in text:
+              raise SystemExit('Legacy availability call target not found')
+
+          path.write_text(text.replace(old, new, 1))
+          PY
+      - name: Commit fix
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspace.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Fix legacy availability wage build error"
+            git push
+          fi
