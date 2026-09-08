@@ -1,0 +1,28 @@
+name: Refine professional sidebar cards
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/refine_professional_sidebar_cards.py'
+      - '.github/workflows/refine-professional-sidebar-cards.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python .github/scripts/refine_professional_sidebar_cards.py
+      - run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Refine professional sidebar cards"
+            git push
+          fi
