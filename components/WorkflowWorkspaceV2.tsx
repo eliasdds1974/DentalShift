@@ -105,7 +105,7 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
   return <article className={`rounded-2xl border p-4 ${tones[tone]}`}>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        {officeHeader ? <div className="mb-2 inline-flex rounded-lg bg-[#EA4335] px-3 py-1.5 shadow-sm">
+        {officeHeader ? <div className="mb-2 inline-flex rounded-lg bg-[#0078FE] px-3 py-1.5 shadow-sm">
           <strong className="truncate text-sm font-black text-white sm:text-base">{officeName(shift)}</strong>
         </div> : <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
@@ -333,7 +333,6 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             <p className="text-xs font-black uppercase tracking-[.12em] text-[#4285F4]">Selected date</p>
             <h3 className="mt-1 text-xl font-black text-[#002757]">{longDate(selectedDate)}</h3>
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
-              {selectedOpen.length > 0 && <span className="rounded-full bg-[#4285F4] px-2.5 py-1 text-white">{selectedOpen.length} Open</span>}
               {selectedInvitations.length > 0 && <span className="rounded-full bg-[#EA4335] px-2.5 py-1 text-white">{selectedInvitations.length} Invitations</span>}
               {selectedApplied.length > 0 && <span className="rounded-full bg-[#34A853] px-2.5 py-1 text-white">{selectedApplied.length} Applied</span>}
               {selectedBooked.length > 0 && <span className="rounded-full bg-[#002757] px-2.5 py-1 text-white">✓ Booked</span>}
@@ -341,8 +340,8 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
           </div>
 
           <div className="mt-4 space-y-5">
-            {selectedAvailability.length > 0 ? <section className="rounded-2xl border border-[#34A853]/25 bg-green-50 p-4">
-              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#34A853]">I’m Available</p>{selectedAvailability.map((slot) => <div key={slot.id}><p className="mt-1 text-sm font-black text-[#002757]">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p><p className="mt-0.5 text-xs font-extrabold text-[#017f27]">${Number(slot.hourly_rate)}/hr</p></div>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id)).then((removed) => { if (removed) setAvailabilityOpen(true); })} className="secondary-btn">Cancel / Repost</button></div>
+            {selectedAvailability.length > 0 ? <section className="rounded-2xl border border-[#01A32E] bg-[#01A32E] p-4 shadow-sm">
+              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-white">I’m Available</p>{selectedAvailability.map((slot) => <div key={slot.id}><p className="mt-1 text-sm font-black text-white">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p><p className="mt-0.5 text-xs font-extrabold text-white/90">${Number(slot.hourly_rate)}/hr</p></div>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id)).then((removed) => { if (removed) setAvailabilityOpen(true); })} className="secondary-btn">Cancel / Repost</button></div>
             </section> : <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button>}
 
             {selectedInterests.map((interest) => interest.shifts ? <section key={interest.id} className="overflow-hidden rounded-3xl border-2 border-[#19a93b] bg-[#19a93b] shadow-[0_10px_28px_rgba(25,169,59,0.20)]">
@@ -366,8 +365,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             </section>}
 
             {visibleOpen.length > 0 && <section>
-              <h4 className="mb-2 flex items-center gap-2 font-black text-[#EA4335]"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />Dental Office Shifts</h4>
-              <div className="space-y-3">{visibleOpen.map((shift) => <div key={shift.id} className="rounded-[20px] border-2 border-[#EA4335]/65 bg-[#fff5f4] p-1 shadow-[0_8px_22px_rgba(234,67,53,0.10)]"><ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={shift} tone="red" action={<button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>} /></div>)}</div>
+              <div className="space-y-3">{visibleOpen.map((shift) => <div key={shift.id} className="rounded-[20px] border-2 border-[#0078FE] bg-[#0078FE] p-1 shadow-[0_8px_22px_rgba(0,120,254,0.16)]"><ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={shift} tone="blue" officeHeader action={<button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>} /></div>)}</div>
             </section>}
 
             {selectedApplied.filter((item) => item.application_kind !== "application").length > 0 && <section>
