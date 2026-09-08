@@ -15,44 +15,43 @@ def patch_calendar(path: str) -> None:
     if 'Past dates are unavailable. Choose today or a future date.' not in s and old in s:
         s = s.replace(old, new, 1)
 
-    map_match = re.search(r'calendarDays\.map\(\((\w+)\)\s*=>\s*\{', s)
-    if not map_match:
-        map_match = re.search(r'calendarDays\.map\((\w+)\s*=>\s*\{', s)
-    if not map_match:
-        raise SystemExit(f'{path}: calendarDays map not found')
-    day_var = map_match.group(1)
-    map_index = map_match.start()
-    next_map = s.find('calendarDays.map', map_match.end())
-    region_end = next_map if next_map >= 0 else len(s)
-    region = s[map_index:region_end]
+    # Find the calendar day-local key used by a rendered date cell, regardless of the iterator/map variable name.
+    candidates = list(re.finditer(r'const key = localDateKey\((\w+)\);', s))
+    chosen = None
+    for candidate in candidates:
+        after = s[candidate.end():candidate.end()+7000]
+        if 'key={key}' in after and ('<button' in after or 'return <button' in after):
+            chosen = candidate
+            break
+    if not chosen:
+        raise SystemExit(f'{path}: rendered calendar date key not found')
 
-    key_pattern = rf'const key = localDateKey\({re.escape(day_var)}\);'
-    key_match = re.search(key_pattern, region)
-    if not key_match:
-        raise SystemExit(f'{path}: calendar day key not found for {day_var}')
-    if 'const isPast = key < localDateKey(new Date());' not in region:
-        insert_at = key_match.end()
-        region = region[:insert_at] + '\n            const isPast = key < localDateKey(new Date());' + region[insert_at:]
+    insert_at = chosen.end()
+    lookahead = s[insert_at:insert_at+300]
+    if 'const isPast = key < localDateKey(new Date());' not in lookahead:
+        s = s[:insert_at] + '\n            const isPast = key < localDateKey(new Date());' + s[insert_at:]
 
-    button_match = re.search(r'return <button type="button" key=\{key\}', region)
+    # Find the first calendar cell button keyed by that date and make it non-interactive when past.
+    button_search_start = insert_at
+    button_match = re.search(r'(?:return )?<button type="button" key=\{key\}', s[button_search_start:button_search_start+9000])
     if not button_match:
-        button_match = re.search(r'<button type="button" key=\{key\}', region)
-    if not button_match:
-        raise SystemExit(f'{path}: calendar day button not found')
-    nearby = region[button_match.start():button_match.start()+500]
+        raise SystemExit(f'{path}: calendar date button not found')
+    absolute_start = button_search_start + button_match.start()
+    absolute_end = button_search_start + button_match.end()
+    nearby = s[absolute_start:absolute_start+700]
     if 'disabled={isPast}' not in nearby:
         token = button_match.group(0)
-        region = region[:button_match.start()] + token + ' disabled={isPast} aria-disabled={isPast} title={isPast ? "Past dates are unavailable" : undefined}' + region[button_match.end():]
+        replacement = token + ' disabled={isPast} aria-disabled={isPast} title={isPast ? "Past dates are unavailable" : undefined}'
+        s = s[:absolute_start] + replacement + s[absolute_end:]
 
-    button_match = re.search(r'(?:return )?<button type="button" key=\{key\}[^>]*', region)
-    if button_match and 'cursor-not-allowed opacity-45 grayscale' not in region[button_match.start():button_match.start()+1200]:
-        class_pos = region.find('className={`', button_match.start(), button_match.start()+1200)
-        if class_pos >= 0:
-            insert_at = class_pos + len('className={`')
-            region = region[:insert_at] + '${isPast ? "cursor-not-allowed opacity-45 grayscale" : ""} ' + region[insert_at:]
+    # Add a visible read-only treatment to the same calendar cell.
+    class_pos = s.find('className={`', absolute_start, absolute_start + 1500)
+    visual = '${isPast ? "cursor-not-allowed opacity-45 grayscale" : ""} '
+    if class_pos >= 0 and visual not in s[absolute_start:absolute_start+1800]:
+        add_at = class_pos + len('className={`')
+        s = s[:add_at] + visual + s[add_at:]
 
-    s = s[:map_index] + region + s[region_end:]
-
+    # Guard chooseDate itself if present.
     choose = '''  const chooseDate = (day: Date) => {\n    const key = localDateKey(day);\n'''
     guarded = '''  const chooseDate = (day: Date) => {\n    const key = localDateKey(day);\n    if (key < localDateKey(new Date())) return;\n'''
     if choose in s and guarded not in s:
@@ -64,6 +63,7 @@ def patch_calendar(path: str) -> None:
 patch_calendar('components/WorkflowWorkspaceV2.tsx')
 patch_calendar('components/OfficeWorkspaceV2.tsx')
 
+# Shared client-side write guards.
 p = Path('lib/dentalshift.ts')
 s = p.read_text()
 helper = '''function localTodayKey() {\n  const now = new Date();\n  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;\n}\n\n'''
@@ -85,6 +85,7 @@ if 'Availability can only be posted for today or a future date.' not in s:
     s = s.replace(avail_anchor, avail_guard, 1)
 p.write_text(s)
 
+# Legacy office date inputs also only offer current/future dates.
 p = Path('app/page.tsx')
 s = p.read_text()
 for field in ('date_1', 'date_2', 'date_3'):
