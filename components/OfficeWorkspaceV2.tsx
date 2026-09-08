@@ -337,7 +337,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const inMonth = day.getMonth() === calendarCursor.getMonth();
             const dayShifts = data.shifts.filter((shift) => shift.status !== "cancelled" && localDateKey(shift.starts_at) === key);
             const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
-            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && isSlotInProfessionalRadius(slot));
+            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key);
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
             return <button type="button" key={key} onClick={() => chooseDate(day)} className={`relative min-h-[132px] bg-white p-1 text-left transition hover:bg-blue-50 sm:min-h-[148px] sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
