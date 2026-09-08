@@ -16,46 +16,18 @@ jobs:
           from pathlib import Path
           p = Path('components/WorkflowWorkspaceV2.tsx')
           s = p.read_text()
-
-          s = s.replace(
-            'const map = new Map<string, { open: number; invited: number; applied: number; booked: number }>();',
-            'const map = new Map<string, { open: number; invited: number; applied: number; booked: number; available: number }>();',
-            1,
-          )
-          s = s.replace(
-            'if (!map.has(key)) map.set(key, { open: 0, invited: 0, applied: 0, booked: 0 });',
-            'if (!map.has(key)) map.set(key, { open: 0, invited: 0, applied: 0, booked: 0, available: 0 });',
-            1,
-          )
-          needle = 'booked.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).booked += 1; });\n    return map;'
-          replacement = 'booked.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).booked += 1; });\n    workflow.availability.filter((slot) => slot.available).forEach((slot) => { ensure(localDateKey(slot.starts_at)).available += 1; });\n    return map;'
-          assert needle in s, 'counts block not found'
-          s = s.replace(needle, replacement, 1)
-          s = s.replace(
-            '}, [matchingOpen, invitations, applied, booked]);',
-            '}, [matchingOpen, invitations, applied, booked, workflow.availability]);',
-            1,
-          )
-          s = s.replace(
-            'const count = countsByDate.get(key) || { open: 0, invited: 0, applied: 0, booked: 0 };',
-            'const count = countsByDate.get(key) || { open: 0, invited: 0, applied: 0, booked: 0, available: 0 };',
-            1,
-          )
-          s = s.replace(
-            'aria-label={`${longDate(key)}: ${count.open} open shifts, ${count.invited} invitations, ${count.applied} applied, ${count.booked} booked`}',
-            'aria-label={`${longDate(key)}: ${count.open} open shifts, ${count.invited} invitations, ${count.applied} applied, ${count.booked} booked${count.available > 0 ? ", I’m available" : ""}`}',
-            1,
-          )
-          marker_needle = '''                {count.booked > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#002757] px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px]">✓{count.booked > 1 ? count.booked : ""}</span>}
-              </span>'''
-          marker_replacement = '''                {count.booked > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#002757] px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px]">✓{count.booked > 1 ? count.booked : ""}</span>}
-              </span>
-              {count.available > 0 && <span className="absolute bottom-1 left-1 right-1 rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[8px] font-black leading-tight text-[#017f27] sm:bottom-2 sm:left-2 sm:right-2 sm:py-1 sm:text-[10px]"><span className="sm:hidden">✓</span><span className="hidden sm:inline">✓ I’m Available</span></span>}'''
-          assert marker_needle in s, 'calendar marker insertion point not found'
-          s = s.replace(marker_needle, marker_replacement, 1)
-
+          anchor = '            const today = key === localDateKey(new Date());\n'
+          addition = '            const availableOnDate = workflow.availability.some((slot) => slot.available && localDateKey(slot.starts_at) === key);\n'
+          assert anchor in s, 'calendar day anchor not found'
+          if addition not in s:
+              s = s.replace(anchor, anchor + addition, 1)
+          start = s.index(addition)
+          close = '            </button>;'
+          end = s.index(close, start)
+          marker = '              {availableOnDate && <span className="absolute bottom-1 left-1 right-1 rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[8px] font-black leading-tight text-[#017f27] sm:bottom-2 sm:left-2 sm:right-2 sm:py-1 sm:text-[10px]"><span className="sm:hidden">✓</span><span className="hidden sm:inline">✓ I’m Available</span></span>}\n'
+          if marker not in s[start:end]:
+              s = s[:end] + marker + s[end:]
           s = s.replace('>Your availability</p>', '>✓ I’m Available</p>', 1)
-
           p.write_text(s)
           PY
       - name: Commit change
