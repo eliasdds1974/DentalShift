@@ -243,7 +243,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
     const startsAt = new Date(`${date}T${start}:00`).toISOString();
     const endsAt = new Date(`${date}T${end}:00`).toISOString();
     if (!date || !start || !end || new Date(endsAt) <= new Date(startsAt)) { setError("Choose a valid availability window."); return; }
-    void act("availability", () => addProfessionalAvailability(userId, startsAt, endsAt));
+    void act("availability", () => addProfessionalAvailability(userId, startsAt, endsAt, Number(accountDetails?.professional?.hourly_rate || 0)));
     event.currentTarget.reset();
   };
 
