@@ -1,0 +1,28 @@
+name: Extend office right sidebar height
+
+on:
+  push:
+    paths:
+      - '.github/workflows/extend-office-right-sidebar-height.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply sidebar height patch
+        run: python .github/scripts/extend_office_right_sidebar_height.py
+      - name: Commit changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Extend office right sidebar to calendar height"
+            git push
+          fi
