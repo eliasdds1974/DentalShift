@@ -103,6 +103,7 @@ function ShiftCard({ shift, action, tone = "blue", status }: { shift: LiveShift;
 function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate }: { userId: string; profile: AccountProfile; refreshKey: number; onNavigate: (view: ProfessionalView) => void }) {
   const [workflow, setWorkflow] = useState<WorkflowState>({ open: [], applications: [], bookings: [], availability: [] });
   const [profession, setProfession] = useState("Dental Professional");
+  const [profileHourlyRate, setProfileHourlyRate] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -120,6 +121,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         loadProfessionalWorkflow(userId),
       ]);
       setProfession(account.professional?.profession || "Dental Professional");
+      setProfileHourlyRate(account.professional?.hourly_rate != null ? Number(account.professional.hourly_rate) : null);
       setWorkflow({
         open: nextWorkflow.open,
         applications: nextWorkflow.applications,
@@ -327,7 +329,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         <p className="text-xs font-black uppercase tracking-[.12em] text-[#34A853]">Availability</p>
         <h3 className="mt-1 text-xl font-black text-[#002757]">{longDate(selectedDate)}</h3>
         <p className="mt-1 text-sm text-slate-500">Tell offices what hours you can work.</p>
-        <div className="mt-4 grid grid-cols-2 gap-3"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div><label className="field mt-3"><span>Hourly rate *</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
+        <div className="mt-4 grid grid-cols-2 gap-3"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div><label className="field mt-3"><span>Hourly rate *</span><input key={profileHourlyRate ?? "no-rate"} name="hourly_rate" type="number" min="1" step="0.50" defaultValue={profileHourlyRate ?? undefined} placeholder="$ / hr" required /></label>
         <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => setAvailabilityOpen(false)} className="secondary-btn justify-center">Cancel</button><button type="submit" disabled={busy === "availability-add"} className="primary-btn justify-center">{busy === "availability-add" ? "Saving…" : "I’m Available"}</button></div>
       </form>
     </div>}
