@@ -1,0 +1,31 @@
+name: Block and dim past dates
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/block_and_dim_past_dates.py'
+      - '.github/workflows/block-and-dim-past-dates.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch calendars
+        run: python .github/scripts/block_and_dim_past_dates.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Dim and block past calendar dates"
+            git push
+          fi
