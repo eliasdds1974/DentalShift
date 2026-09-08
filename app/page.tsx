@@ -770,7 +770,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
     };
     try {
       await saveAccountDetails(next);
-      if (!details.professional && String(form.get("new_profession") || "").trim()) {
+      if (!details?.professional && String(form.get("new_profession") || "").trim()) {
         await createProfessionalWorkspace({
           user_id: session!.user.id,
           profession: String(form.get("new_profession") || "").trim(),
@@ -790,18 +790,22 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
 
   const saveOfficeAccount = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (!details?.office) return;
+    const currentOffice = details?.office || officeFallback;
+    if (!currentOffice) {
+      setError("DentalShift is still loading your office information. Please try again in a moment.");
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const nextOffice: OfficeDetails = {
-      ...details.office,
-      name: String(form.get("office_name") || details.office.name || ""),
-      address: String(form.get("address") || details.office.address || ""),
-      city: String(form.get("city") || details.office.city || ""),
-      province: String(form.get("province") || details.office.province || ""),
-      postal_code: String(form.get("postal_code") || details.office.postal_code || ""),
-      google_place_id: String(form.get("google_place_id") || details.office.google_place_id || "") || null,
-      latitude: String(form.get("latitude") || "") ? Number(form.get("latitude")) : details.office.latitude,
-      longitude: String(form.get("longitude") || "") ? Number(form.get("longitude")) : details.office.longitude,
+      ...currentOffice,
+      name: String(form.get("office_name") || currentOffice.name || ""),
+      address: String(form.get("address") || currentOffice.address || ""),
+      city: String(form.get("city") || currentOffice.city || ""),
+      province: String(form.get("province") || currentOffice.province || ""),
+      postal_code: String(form.get("postal_code") || currentOffice.postal_code || ""),
+      google_place_id: String(form.get("google_place_id") || currentOffice.google_place_id || "") || null,
+      latitude: String(form.get("latitude") || "") ? Number(form.get("latitude")) : currentOffice.latitude,
+      longitude: String(form.get("longitude") || "") ? Number(form.get("longitude")) : currentOffice.longitude,
       phone: String(form.get("office_phone") || "") || null,
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
@@ -811,7 +815,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
         ...form.getAll("software").map(String),
         ...String(form.get("other_software") || "").split(",").map((value) => value.trim()).filter(Boolean),
       ],
-      search_radius_km: Number(form.get("search_radius_km") || details.office.search_radius_km || 25),
+      search_radius_km: Number(form.get("search_radius_km") || currentOffice.search_radius_km || 25),
     };
     setBusy(true); setError(""); setNotice("");
     try {
@@ -826,7 +830,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
       }
       const refreshed = await loadAccountDetails(session!.user.id);
       setDetails({ ...refreshed, office: saved });
-      setNotice(details.professional ? "Office account information saved." : "Office account saved. Your Dental Professional workspace can use the same email with its own password.");
+      setNotice(details?.professional ? "Office account information saved." : "Office account saved. Your Dental Professional workspace can use the same email with its own password.");
       onSaved();
       close();
     } catch (value) { setError(value instanceof Error ? value.message : "The office account could not be saved."); }
