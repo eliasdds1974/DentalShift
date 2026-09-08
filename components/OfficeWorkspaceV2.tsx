@@ -77,6 +77,14 @@ function shortTime(value: string) {
   return new Date(value).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" });
 }
 
+function interestElapsed(startedAt: string, nowMs: number) {
+  const total = Math.max(0, Math.floor((nowMs - new Date(startedAt).getTime()) / 1000));
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
+}
+
 function longDate(value: string) {
   return new Date(`${value}T12:00:00`).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" });
 }
@@ -100,6 +108,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [postShiftOpen, setPostShiftOpen] = useState(false);
+  const [nowMs, setNowMs] = useState(() => Date.now());
   const resultsRef = useRef<HTMLElement | null>(null);
   const [officeCoordinates, setOfficeCoordinates] = useState<{ latitude: number; longitude: number } | null>(() =>
     office.latitude != null && office.longitude != null ? { latitude: Number(office.latitude), longitude: Number(office.longitude) } : null
@@ -119,6 +128,10 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   };
 
   useEffect(() => { void refresh(); }, [office.id, refreshKey]);
+  useEffect(() => {
+    const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   useEffect(() => {
     if (office.latitude != null && office.longitude != null) {
@@ -368,7 +381,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
               const availableMatches = Array.from(new Map(data.availability.filter((slot) => !interestedIds.has(slot.professional_id) && slot.professional_profiles?.profession === shift.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at)).map((slot) => [slot.professional_id, slot])).values());
               return <article key={shift.id} className="rounded-xl border border-white/70 bg-white p-3 shadow-sm">
                 <div className="flex items-start justify-between gap-2"><div><div className="flex items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${role.solid}`} /><strong className="text-[#032757]">{shift.profession}</strong></div><p className="mt-1 text-xs font-bold text-slate-500">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)} · ${Number(shift.hourly_rate)}/hr</p><p className="mt-1 text-xs font-bold text-[#017f27]">Software: {(office.software || []).join(", ") || "Any software"}</p></div><div className="flex flex-col items-end gap-1.5"><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black uppercase text-slate-600">{shift.status}</span>{shift.status === "open" && <button type="button" disabled={busy === `cancel-${shift.id}`} onClick={() => { if (!window.confirm(`Cancel this ${shift.profession} shift?`)) return; void act(`cancel-${shift.id}`, () => cancelOfficeShift(shift.id, office.id)); }} className="rounded-lg border border-rose-200 bg-rose-50 px-2 py-1 text-[10px] font-black text-rose-700 transition hover:bg-rose-100 disabled:opacity-50">{busy === `cancel-${shift.id}` ? "Cancelling…" : "Cancel shift"}</button>}</div></div>
-                {pendingPairings.length > 0 && <section className="mt-3 rounded-xl bg-[#F21C13] p-2"><h4 className="mb-2 text-center text-base font-black text-white">Applicants</h4><div className="space-y-2">{pendingPairings.map((application) => { const profile = application.professional_profiles; return <div key={application.id} className="rounded-lg bg-white p-3"><h5 className="font-black text-[#032757]">{profile?.profession || shift.profession}</h5><p className="mt-1 text-[11px] font-bold text-[#017f27]">{profile?.licence_province ? `Licence province: ${profile.licence_province}` : "Credential status unavailable"}</p><div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-600"><span>Rating: <strong>{profile?.rating ? `${profile.rating}★` : "No rating yet"}</strong></span><span>Completed: <strong>{profile?.completed_shifts || 0}</strong></span><span>Reliability: <strong>{profile?.reliability_score != null ? `${profile.reliability_score}%` : "Not enough history"}</strong></span><span>Requested rate: <strong>{application.proposed_rate != null ? `$${Number(application.proposed_rate).toFixed(2)}/hr` : "Not specified"}</strong></span></div><p className="mt-2 text-[10px] leading-4 text-slate-500">Identity and contact details are shared after booking confirmation.</p><button disabled={busy === application.id} onClick={() => void act(application.id, () => acceptApplication(application.id))} className="primary-btn mt-2 w-full justify-center py-2 text-xs"><Check size={15} />{busy === application.id ? "Booking…" : "Book Now"}</button></div>; })}</div></section>}
+                {pendingPairings.length > 0 && <section className="mt-3 rounded-xl bg-[#F21C13] p-2"><h4 className="mb-2 text-center text-base font-black text-white">Applicants</h4><div className="space-y-2">{pendingPairings.map((application) => { const profile = application.professional_profiles; return <div key={application.id} className="rounded-lg bg-white p-3"><div className="mb-2 flex items-center justify-between gap-2 rounded-lg bg-[#eaf8ee] px-2.5 py-2"><span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span><span className="font-mono text-xs font-black tabular-nums text-[#017f27]">{interestElapsed(application.created_at, nowMs)}</span></div><h5 className="font-black text-[#032757]">{profile?.profession || shift.profession}</h5><p className="mt-1 text-[11px] font-bold text-[#017f27]">{profile?.licence_province ? `Licence province: ${profile.licence_province}` : "Credential status unavailable"}</p><div className="mt-2 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-600"><span>Rating: <strong>{profile?.rating ? `${profile.rating}★` : "No rating yet"}</strong></span><span>Completed: <strong>{profile?.completed_shifts || 0}</strong></span><span>Reliability: <strong>{profile?.reliability_score != null ? `${profile.reliability_score}%` : "Not enough history"}</strong></span><span>Requested rate: <strong>{application.proposed_rate != null ? `$${Number(application.proposed_rate).toFixed(2)}/hr` : "Not specified"}</strong></span></div><p className="mt-2 text-[10px] leading-4 text-slate-500">Identity and contact details are shared after booking confirmation.</p><button disabled={busy === application.id} onClick={() => void act(application.id, () => acceptApplication(application.id))} className="primary-btn mt-2 w-full justify-center py-2 text-xs"><Check size={15} />{busy === application.id ? "Booking…" : "Book Now"}</button></div>; })}</div></section>}
                 {shift.status === "open" && availableMatches.length > 0 && <div className="mt-3 border-t border-slate-100 pt-3"><p className="text-xs font-black uppercase tracking-wide text-slate-500">Available Professionals</p><div className="mt-2 space-y-2">{availableMatches.slice(0, 3).map((slot) => <button key={slot.id} disabled={busy === slot.professional_id || shift.applications?.some((item) => item.professional_id === slot.professional_id)} onClick={() => void act(slot.professional_id, () => inviteProfessional(shift.id, slot.professional_id, Number(shift.hourly_rate)))} className="w-full rounded-lg border border-[#04A62F]/25 bg-[#eaf8ee] p-2.5 text-left disabled:opacity-50"><UsersRound size={15} className="text-[#04A62F]" /><strong className="mt-1 block text-xs text-[#032757]">Available {slot.professional_profiles?.profession || "professional"}</strong><span className="mt-1 block text-[11px] text-slate-500">{slot.professional_profiles?.licence_province} · {slot.professional_profiles?.rating || 0}★</span></button>)}</div></div>}
               </article>;
             })}
