@@ -482,7 +482,7 @@ function NeedsReviewModal({ item, saving, close, submit }: { item: VerificationI
   return <div className="fixed inset-0 z-[95] grid place-items-center bg-[#002757]/60 p-4"><button aria-label="Close" onClick={close} className="absolute inset-0" /><section role="dialog" aria-modal="true" aria-labelledby="review-title" className="relative z-10 w-full max-w-lg rounded-3xl bg-white shadow-2xl"><form onSubmit={(event) => { event.preventDefault(); void submit(notes); }}><div className="border-b border-slate-200 px-6 py-5"><p className="text-xs font-extrabold uppercase tracking-[0.12em] text-amber-700">Verification follow-up</p><h2 id="review-title" className="mt-1 text-2xl font-extrabold text-slate-900">Request information</h2><p className="mt-2 text-sm text-slate-500">Tell {item.name} what is needed. This message will be visible in their DentalShift account.</p></div><div className="p-6"><label className="field"><span>Message to applicant</span><textarea value={notes} onChange={(event) => setNotes(event.target.value)} minLength={10} maxLength={1000} required rows={5} placeholder="Example: Please confirm your Alberta licence number or upload a current licence document." /></label><p className="mt-2 text-xs text-slate-500">Be specific and do not include private internal comments.</p></div><div className="flex justify-end gap-3 border-t border-slate-100 px-6 py-5"><button type="button" onClick={close} disabled={saving} className="secondary-btn">Cancel</button><button type="submit" disabled={saving || notes.trim().length < 10} className="primary-btn">{saving ? "Sending…" : "Send review request"}</button></div></form></section></div>;
 }
 
-function AccountModal({ close, session, profile, onSaved, activeRole = "professional", initialMode = "signin", initialRole = "office", passwordRecovery = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; onSaved: () => void; activeRole?: Role; initialMode?: "signin" | "signup"; initialRole?: Role; passwordRecovery?: boolean; onPasswordRecoveryComplete?: () => void }) {
+function AccountModal({ close, session, profile, officeFallback = null, onSaved, activeRole = "professional", initialMode = "signin", initialRole = "office", passwordRecovery = false, onPasswordRecoveryComplete }: { close: () => void; session: Session | null; profile: AccountProfile | null; officeFallback?: OfficeDetails | null; onSaved: () => void; activeRole?: Role; initialMode?: "signin" | "signup"; initialRole?: Role; passwordRecovery?: boolean; onPasswordRecoveryComplete?: () => void }) {
   const [mode, setMode] = useState<"signin" | "signup">(initialMode);
   const [role, setRole] = useState<Role>(initialRole);
   const [busy, setBusy] = useState(false);
@@ -886,15 +886,20 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">{notice}</p>}
           </div>
-        ) : session && activeRole === "office" && details?.office ? (
+        ) : session && activeRole === "office" && (details?.office || officeFallback) ? (
           <div className="bg-[#f8fafc]">
             <OfficeWorkspace
               userId={session.user.id}
-              office={details.office}
+              office={(details?.office || officeFallback)!}
               onPost={() => {}}
               refreshKey={0}
               view="profile"
             />
+          </div>
+        ) : session && activeRole === "office" ? (
+          <div className="p-8 text-center">
+            <p className="font-extrabold text-[#002757]">Loading dental office account…</p>
+            <p className="mt-2 text-sm text-slate-500">DentalShift is loading your current office information.</p>
           </div>
         ) : session ? (
           <form onSubmit={saveProfile} className="grid gap-3 bg-[#f8fafc] p-4 sm:grid-cols-2 sm:p-5"><div className="rounded-2xl border border-[#002757]/15 bg-white p-4 sm:col-span-2"><h3 className="font-extrabold text-[#002757]">Login email</h3><p className="mt-1 text-xs leading-5 text-slate-500"><strong>This email address is used to log in to this DentalShift account.</strong> Changing it will change the email you use to sign in.</p><div className="mt-3 flex flex-col gap-2 sm:flex-row"><input name="account_new_email" type="email" placeholder={session.user.email || "New email address"} className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold outline-none focus:border-[#0078FE]" /><button type="button" disabled={busy} onClick={(event) => { const input = event.currentTarget.parentElement?.querySelector('input[name=account_new_email]') as HTMLInputElement | null; if (input) void changeAccountEmail(input.value); }} className="secondary-btn justify-center">{busy ? "Updating…" : "Change email"}</button></div></div>
@@ -1418,7 +1423,7 @@ export default function Home() {
         onGetStarted={(nextRole) => { setAccountIntent({ mode: "signup", role: nextRole }); setAccountOpen(true); }}
         onWorkspace={() => navigate(role, "overview")}
       />
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
+      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} officeFallback={office} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
         setRefreshKey((key) => key + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
           setProfile(details.profile); setOfficeId(details.office?.id ?? null); setOffice(details.office);
@@ -1442,7 +1447,7 @@ export default function Home() {
       {post && <ShiftModal close={() => setPost(false)} officeId={officeId} onSaved={() => setRefreshKey((value) => value + 1)} />}
       {rebook && <RebookModal close={() => setRebook(false)} />}
       {messages && <MessageCenter role={role} close={() => setMessages(false)} />}
-      {accountOpen && <AccountModal close={() => { setAccountOpen(false); if (role === "office" && view === "profile") navigate("office", "overview"); }} session={session} profile={profile} activeRole={role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
+      {accountOpen && <AccountModal close={() => { setAccountOpen(false); if (role === "office" && view === "profile") navigate("office", "overview"); }} session={session} profile={profile} officeFallback={office} activeRole={role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
         setRefreshKey((value) => value + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
           setProfile(details.profile);
