@@ -1,0 +1,31 @@
+name: Add professional office distance
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/add_professional_office_distance.py'
+      - '.github/workflows/add-professional-office-distance.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add office distance to professional cards
+        run: python .github/scripts/add_professional_office_distance.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspace.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Show office distance in professional cards"
+            git push
+          fi
