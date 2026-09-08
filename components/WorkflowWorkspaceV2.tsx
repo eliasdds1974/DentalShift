@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, MapPin, ShieldCheck } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, MapPin, ShieldCheck } from "lucide-react";
 import {
   addProfessionalAvailability,
   applyForShift,
@@ -9,7 +9,6 @@ import {
   loadProfessionalWorkflow,
   removeProfessionalAvailability,
   respondToInvitation,
-  normalizeWebsite,
   type AccountProfile,
   type LiveShift,
   type ProfessionalAvailability,
@@ -79,7 +78,6 @@ function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | 
 
 function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude, professionalLongitude }: { shift: LiveShift; action?: React.ReactNode; tone?: "blue" | "red" | "green" | "navy"; status?: string; professionalLatitude?: number | null; professionalLongitude?: number | null }) {
   const [expanded, setExpanded] = useState(false);
-  const website = normalizeWebsite(shift.offices?.website);
   const officeDistanceKm = distanceKm(professionalLatitude, professionalLongitude, shift.offices?.latitude, shift.offices?.longitude);
   const tones = {
     blue: "border-[#4285F4]/25 bg-blue-50/50",
@@ -98,7 +96,6 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
         <p className="mt-1 text-xs font-black text-slate-700">{shift.profession}</p>
         <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-600"><Clock3 size={14} />{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span className="inline-flex items-center gap-1.5"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span>{officeDistanceKm != null && <span className="inline-flex items-center rounded-full bg-[#edf3fa] px-2 py-0.5 font-black text-[#002757]">{officeDistanceKm < 10 ? officeDistanceKm.toFixed(1) : Math.round(officeDistanceKm)} km away</span>}</div>
-        {website && <a href={website} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-black text-[#002757] underline decoration-[#34A853]/60 underline-offset-4"><ExternalLink size={13} />Visit website</a>}
       </div>
       <div className="shrink-0 text-right">
         <p className="text-base font-black text-[#002757]">${Number(shift.hourly_rate)}/hr</p>
