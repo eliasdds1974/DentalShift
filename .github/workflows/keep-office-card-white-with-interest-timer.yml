@@ -1,0 +1,23 @@
+name: Keep office card white with interest timer
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/keep-office-card-white-with-interest-timer.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python .github/scripts/keep_office_card_white_with_interest_timer.py
+      - run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m "Keep office cards white with inline interest timer"
+          git push
