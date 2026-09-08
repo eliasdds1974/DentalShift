@@ -63,7 +63,7 @@ function weekStart(value: Date) {
 }
 
 function officeName(shift?: LiveShift | null) {
-  return shift?.offices?.name || "Dental office";
+  return "Dental Office";
 }
 
 function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null) {
