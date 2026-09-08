@@ -168,18 +168,27 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     return date;
   });
 
+  const activeInterestDateKeys = useMemo(() => new Set(
+    applied
+      .filter((item) => item.application_kind === "application" && item.shifts)
+      .map((item) => localDateKey(item.shifts!.starts_at)),
+  ), [applied]);
+
   const countsByDate = useMemo(() => {
     const map = new Map<string, { open: number; invited: number; applied: number; booked: number }>();
     const ensure = (key: string) => {
       if (!map.has(key)) map.set(key, { open: 0, invited: 0, applied: 0, booked: 0 });
       return map.get(key)!;
     };
-    matchingOpen.forEach((shift) => { ensure(localDateKey(shift.starts_at)).open += 1; });
+    matchingOpen.forEach((shift) => {
+      const key = localDateKey(shift.starts_at);
+      if (!activeInterestDateKeys.has(key)) ensure(key).open += 1;
+    });
     invitations.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).invited += 1; });
     applied.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).applied += 1; });
     booked.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).booked += 1; });
     return map;
-  }, [matchingOpen, invitations, applied, booked]);
+  }, [matchingOpen, invitations, applied, booked, activeInterestDateKeys]);
 
   const selectedOpen = matchingOpen
     .filter((shift) => localDateKey(shift.starts_at) === selectedDate)
@@ -201,7 +210,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
       .map((item) => item.shifts!.id),
   );
   const selectedInterest = selectedApplied.find((item) => item.application_kind === "application" && item.shifts) ?? null;
-  const visibleOpen = selectedOpen.filter((shift) => !openShiftIdsAlreadyApplied.has(shift.id));
+  const visibleOpen = selectedInterest ? [] : selectedOpen.filter((shift) => !openShiftIdsAlreadyApplied.has(shift.id));
 
   const run = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -300,7 +309,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             const selected = key === selectedDate;
             const inMonth = day.getMonth() === cursor.getMonth();
             const today = key === localDateKey(new Date());
-            const availableOnDate = workflow.availability.some((slot) => slot.available && localDateKey(slot.starts_at) === key);
+            const availableOnDate = !activeInterestDateKeys.has(key) && workflow.availability.some((slot) => slot.available && localDateKey(slot.starts_at) === key);
             return <button key={key} type="button" onClick={() => chooseDate(day)} aria-label={`${longDate(key)}: ${count.open} open shifts, ${count.invited} invitations, ${count.applied} applied, ${count.booked} booked`} className={`relative min-h-[92px] rounded-2xl border p-1.5 text-center transition sm:min-h-[122px] sm:p-2 ${selected ? "border-[#4285F4] bg-blue-50 ring-2 ring-[#4285F4]/20" : "border-slate-200 bg-white hover:border-slate-300"} ${!inMonth ? "opacity-35" : ""}`}>
               <span className={`absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#002757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
               <span className="absolute left-1 right-1 top-9 flex min-h-6 flex-wrap items-start justify-center gap-1 sm:left-2 sm:right-2 sm:top-11 sm:min-h-7 sm:gap-1.5">
@@ -319,7 +328,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             <p className="text-xs font-black uppercase tracking-[.12em] text-[#4285F4]">Selected date</p>
             <h3 className="mt-1 text-xl font-black text-[#002757]">{longDate(selectedDate)}</h3>
             <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
-              {selectedOpen.length > 0 && <span className="rounded-full bg-[#4285F4] px-2.5 py-1 text-white">{selectedOpen.length} Open</span>}
+              {visibleOpen.length > 0 && <span className="rounded-full bg-[#4285F4] px-2.5 py-1 text-white">{visibleOpen.length} Open</span>}
               {selectedInvitations.length > 0 && <span className="rounded-full bg-[#EA4335] px-2.5 py-1 text-white">{selectedInvitations.length} Invitations</span>}
               {selectedApplied.length > 0 && <span className="rounded-full bg-[#34A853] px-2.5 py-1 text-white">{selectedApplied.length} Applied</span>}
               {selectedBooked.length > 0 && <span className="rounded-full bg-[#002757] px-2.5 py-1 text-white">✓ Booked</span>}
@@ -336,9 +345,9 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
                 <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={selectedInterest.shifts} tone="red" officeHeader action={<button type="button" disabled={busy === `cancel-interest-${selectedInterest.id}`} onClick={() => void run(`cancel-interest-${selectedInterest.id}`, () => cancelShiftInterest(selectedInterest.id))} className="secondary-btn w-full justify-center border-[#19a93b] font-black text-[#017f27] hover:bg-[#edf9f0]">{busy === `cancel-interest-${selectedInterest.id}` ? "Cancelling…" : "Cancel Interest"}</button>} />
               </div>
             </section>}
-            {selectedAvailability.length > 0 ? <section className="rounded-2xl border border-[#34A853]/25 bg-green-50 p-4">
+            {!selectedInterest && (selectedAvailability.length > 0 ? <section className="rounded-2xl border border-[#34A853]/25 bg-green-50 p-4">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#34A853]">I’m Available</p>{selectedAvailability.map((slot) => <div key={slot.id}><p className="mt-1 text-sm font-black text-[#002757]">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p><p className="mt-0.5 text-xs font-extrabold text-[#017f27]">${Number(slot.hourly_rate)}/hr</p></div>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id)).then((removed) => { if (removed) setAvailabilityOpen(true); })} className="secondary-btn">Cancel / Repost</button></div>
-            </section> : <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button>}
+            </section> : <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button>)}
 
             {selectedInvitations.length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#EA4335]"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />Invitations</h4>
