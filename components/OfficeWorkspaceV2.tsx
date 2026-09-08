@@ -345,7 +345,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}
               </div>
               <div className="mt-1 flex flex-wrap justify-center gap-1">
-                {dayShifts.length > 0 && <span className="rounded-full bg-[#4285F4]/10 px-1.5 py-0.5 text-[8px] font-black text-[#2f6fd0] sm:text-[9px]">{dayShifts.length} shift{dayShifts.length === 1 ? "" : "s"}</span>}
+                {dayShifts.length > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]"><span aria-hidden="true">✓</span>{dayShifts.length} Posted Shift{dayShifts.length === 1 ? "" : "s"}</span>}
                 {interestedCount > 0 && <span className="rounded-full bg-[#FBBC05]/20 px-1.5 py-0.5 text-[8px] font-black text-amber-800 sm:text-[9px]">{interestedCount} applicant{interestedCount === 1 ? "" : "s"}</span>}
                 {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}
               </div>
