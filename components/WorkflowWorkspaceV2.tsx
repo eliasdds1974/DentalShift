@@ -358,7 +358,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
                 return <ShiftCard key={shift.id} professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={shift} tone="blue" officeHeader action={interest ? <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 rounded-xl border border-[#01A32E]/35 bg-[#eaf8ee] px-3 py-2">
                     <span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span>
-                    <span className="font-mono text-xs font-black tabular-nums text-[#017f27]">{interestElapsed(interest.created_at, nowMs)}</span>
+                    <span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={14} />{interestElapsed(interest.created_at, nowMs)}</span>
                   </div>
                   <button type="button" disabled={busy === `cancel-interest-${interest.id}`} onClick={() => void run(`cancel-interest-${interest.id}`, () => cancelShiftInterest(interest.id))} className="secondary-btn w-full justify-center border-[#01A32E]/35 font-black text-[#017f27] hover:bg-[#edf9f0]">{busy === `cancel-interest-${interest.id}` ? "Cancelling…" : "Cancel Interest"}</button>
                 </div> : <button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>} />;
