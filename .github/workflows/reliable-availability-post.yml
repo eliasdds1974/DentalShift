@@ -1,0 +1,31 @@
+name: Reliable professional availability posting
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/reliable_availability_post.py'
+      - '.github/workflows/reliable-availability-post.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch professional availability save
+        run: python .github/scripts/reliable_availability_post.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib/dentalshift.ts
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Make professional availability posting reliable"
+            git push
+          fi
