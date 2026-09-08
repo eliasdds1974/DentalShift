@@ -29,3 +29,5 @@ jobs:
             git commit -m "Use latest dental office account form"
             git push
           fi
+      - name: Confirm routing patch
+        run: grep -q 'view === "profile" ? "overview" : view' app/page.tsx
