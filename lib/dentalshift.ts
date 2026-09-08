@@ -628,7 +628,7 @@ export async function updateAttendance(bookingId: string, action: "check_in" | "
   if (error) throw error;
 }
 
-export type ProfessionalAvailability = { id: string; starts_at: string; ends_at: string; available: boolean };
+export type ProfessionalAvailability = { id: string; starts_at: string; ends_at: string; available: boolean; hourly_rate: number };
 export type FavouriteOffice = { id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; offices: { id: string; name: string; address: string; city: string; province: string; postal_code: string; google_place_id: string | null; latitude: number | null; longitude: number | null; website: string | null } | null };
 export type OfficePreferredProfessional = {
   id: string;
@@ -700,13 +700,15 @@ export type AvailableProfessionalSlot = {
   professional_id: string;
   starts_at: string;
   ends_at: string;
+  hourly_rate: number;
   professional_profiles: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; travel_radius_km: number; years_experience: number | null; skills: string[] | null; local_anesthetic: boolean; local_anesthetic_status: string; profiles: { latitude: number | null; longitude: number | null } | null } | null;
 };
 
 export type OfficeShift = LiveShift & { applications: WorkflowApplication[] };
 
-export async function addProfessionalAvailability(userId: string, startsAt: string, endsAt: string) {
-  const { error } = await supabase.from("availability").insert({ professional_id: userId, starts_at: startsAt, ends_at: endsAt, available: true });
+export async function addProfessionalAvailability(userId: string, startsAt: string, endsAt: string, hourlyRate: number) {
+  if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) throw new Error("Enter a valid hourly rate.");
+  const { error } = await supabase.from("availability").insert({ professional_id: userId, starts_at: startsAt, ends_at: endsAt, hourly_rate: hourlyRate, available: true });
   if (error) throw error;
 }
 
@@ -739,7 +741,7 @@ export async function loadProfessionalWorkflow(userId: string) {
     loadOpenShifts(),
     supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude))").eq("professional_id", userId).order("created_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
-    supabase.from("availability").select("id,starts_at,ends_at,available").eq("professional_id", userId).order("starts_at", { ascending: true }),
+    supabase.from("availability").select("id,starts_at,ends_at,available,hourly_rate").eq("professional_id", userId).order("starts_at", { ascending: true }),
     supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,address,city,province,postal_code,google_place_id,latitude,longitude,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
   ]);
 
@@ -760,7 +762,7 @@ export async function loadOfficeWorkflow(officeId: string) {
     supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
     supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").eq("available_for_work", true).order("rating", { ascending: false }).limit(12),
-    supabase.from("availability").select("id,professional_id,starts_at,ends_at,professional_profiles!availability_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,hourly_rate,travel_radius_km,years_experience,skills,local_anesthetic,local_anesthetic_status,profiles!professional_profiles_user_id_fkey(latitude,longitude))").eq("available", true).gte("ends_at", new Date().toISOString()),
+    supabase.from("availability").select("id,professional_id,starts_at,ends_at,hourly_rate,professional_profiles!availability_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,hourly_rate,travel_radius_km,years_experience,skills,local_anesthetic,local_anesthetic_status,profiles!professional_profiles_user_id_fkey(latitude,longitude))").eq("available", true).gte("ends_at", new Date().toISOString()),
   ]);
   if (shiftsResult.error) throw shiftsResult.error;
   if (bookingsResult.error) throw bookingsResult.error;

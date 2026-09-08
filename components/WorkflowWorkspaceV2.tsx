@@ -204,14 +204,19 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     const form = new FormData(event.currentTarget);
     const start = String(form.get("start") || "");
     const end = String(form.get("end") || "");
+    const hourlyRate = Number(form.get("hourly_rate") || 0);
     if (!start || !end) return;
+    if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) {
+      setError("Enter a valid hourly rate before posting availability.");
+      return;
+    }
     const startsAt = new Date(`${selectedDate}T${start}:00`);
     const endsAt = new Date(`${selectedDate}T${end}:00`);
     if (endsAt <= startsAt) {
       setError("Choose an end time after the start time.");
       return;
     }
-    await run("availability-add", () => addProfessionalAvailability(userId, startsAt.toISOString(), endsAt.toISOString()));
+    await run("availability-add", () => addProfessionalAvailability(userId, startsAt.toISOString(), endsAt.toISOString(), hourlyRate));
     setAvailabilityOpen(false);
   };
 
@@ -304,7 +309,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             </section>}
 
             {selectedAvailability.length > 0 ? <section className="rounded-2xl border border-[#34A853]/25 bg-green-50 p-4">
-              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#34A853]">I’m Available</p>{selectedAvailability.map((slot) => <p key={slot.id} className="mt-1 text-sm font-black text-[#002757]">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id))} className="secondary-btn">Remove</button></div>
+              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#34A853]">I’m Available</p>{selectedAvailability.map((slot) => <div key={slot.id}><p className="mt-1 text-sm font-black text-[#002757]">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p><p className="mt-0.5 text-xs font-extrabold text-[#017f27]">${Number(slot.hourly_rate)}/hr</p></div>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id))} className="secondary-btn">Cancel / Repost</button></div>
             </section> : <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button>}
 
             {selectedInvitations.length === 0 && selectedBooked.length === 0 && visibleOpen.length === 0 && selectedApplied.length === 0 && <div className="rounded-2xl bg-slate-50 p-6 text-center"><p className="font-black text-[#002757]">No shift activity on this date</p><p className="mt-1 text-sm text-slate-500">Try another day or add your availability so offices can find you.</p></div>}
@@ -320,7 +325,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         <p className="text-xs font-black uppercase tracking-[.12em] text-[#34A853]">Availability</p>
         <h3 className="mt-1 text-xl font-black text-[#002757]">{longDate(selectedDate)}</h3>
         <p className="mt-1 text-sm text-slate-500">Tell offices what hours you can work.</p>
-        <div className="mt-4 grid grid-cols-2 gap-3"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div>
+        <div className="mt-4 grid grid-cols-2 gap-3"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div><label className="field mt-3"><span>Hourly rate *</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
         <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => setAvailabilityOpen(false)} className="secondary-btn justify-center">Cancel</button><button type="submit" disabled={busy === "availability-add"} className="primary-btn justify-center">{busy === "availability-add" ? "Saving…" : "I’m Available"}</button></div>
       </form>
     </div>}

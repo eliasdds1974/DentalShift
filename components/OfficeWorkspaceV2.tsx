@@ -417,7 +417,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 <label className="field"><span>Start</span><input name="start_time" type="time" defaultValue="08:00" required /></label>
                 <label className="field"><span>End</span><input name="end_time" type="time" defaultValue="17:00" required /></label>
               </div>
-              <label className="field"><span>Hourly rate</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
+              <label className="field"><span>Hourly rate *</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
               <label className="field"><span>Notes</span><textarea name="notes" rows={2} placeholder="Optional shift details" /></label>
             </div>
             {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
