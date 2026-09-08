@@ -1405,6 +1405,12 @@ export default function Home() {
     }
   }, [session, role, view]);
 
+  useEffect(() => {
+    if (session && role === "office" && view === "profile" && office) {
+      setAccountOpen(true);
+    }
+  }, [session, role, view, office]);
+
   const content = useMemo(
     () => role === "office"
       ? session && profile && office
@@ -1467,7 +1473,7 @@ export default function Home() {
       {post && <ShiftModal close={() => setPost(false)} officeId={officeId} onSaved={() => setRefreshKey((value) => value + 1)} />}
       {rebook && <RebookModal close={() => setRebook(false)} />}
       {messages && <MessageCenter role={role} close={() => setMessages(false)} />}
-      {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session} profile={profile} activeRole={role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
+      {accountOpen && <AccountModal close={() => { setAccountOpen(false); if (role === "office" && view === "profile") navigate("office", "overview"); }} session={session} profile={profile} activeRole={role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
         setRefreshKey((value) => value + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
           setProfile(details.profile);
