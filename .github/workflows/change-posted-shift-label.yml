@@ -1,0 +1,31 @@
+name: Change posted shift calendar label
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/change_posted_shift_label.py'
+      - '.github/workflows/change-posted-shift-label.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Patch Office calendar label
+        run: python .github/scripts/change_posted_shift_label.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Label office calendar posted shifts in green"
+            git push
+          fi
