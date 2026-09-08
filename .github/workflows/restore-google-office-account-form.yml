@@ -1,0 +1,31 @@
+name: Restore Google office account form
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/restore_google_office_account_form.py'
+      - '.github/workflows/restore-google-office-account-form.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Restore Google-powered office account form
+        run: python .github/scripts/restore_google_office_account_form.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Restore Google-powered office account form"
+            git push
+          fi
