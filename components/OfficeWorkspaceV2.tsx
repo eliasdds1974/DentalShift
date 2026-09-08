@@ -381,7 +381,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         </div>
 
         <aside ref={resultsRef} className="scroll-mt-[92px] self-stretch border-t border-slate-200 bg-white p-4 sm:p-5 lg:border-l lg:border-t-0 lg:p-0"><div className="h-full lg:p-5">
-          <div><p className="text-xs font-black uppercase tracking-[.12em] text-[#0078FE]">Selected date</p><h3 className="mt-1 text-xl font-black text-[#0f172a]">{longDate(selectedDate)}</h3><div className="mt-3 flex flex-wrap gap-2 text-[10px] font-black"><span className="rounded-full bg-[#4285F4]/10 px-2.5 py-1 text-[#2f6fd0]">{selectedShifts.length} Posted</span><span className="rounded-full bg-[#FBBC05]/20 px-2.5 py-1 text-amber-800">{selectedShifts.reduce((n, shift) => n + (shift.applications || []).filter((a) => a.status === "applied").length, 0)} Applicants</span><span className="rounded-full bg-slate-100 px-2.5 py-1 text-slate-600">{selectedAvailability.length} Available Professionals</span><span className="rounded-full bg-[#34A853]/15 px-2.5 py-1 text-[#278841]">✓ {selectedBookings.length} Booked</span></div></div>
+          <div><p className="text-xs font-black uppercase tracking-[.12em] text-[#0078FE]">Selected date</p><h3 className="mt-1 text-xl font-black text-[#0f172a]">{longDate(selectedDate)}</h3></div>
           <div className="my-4 border-t border-slate-200" />
           <div className="space-y-3">
             <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="secondary-btn mb-1 w-full justify-center lg:hidden">↑ Back to calendar</button>
