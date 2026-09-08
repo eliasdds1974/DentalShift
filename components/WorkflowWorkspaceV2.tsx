@@ -96,7 +96,7 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
   const [expanded, setExpanded] = useState(false);
   const officeDistanceKm = distanceKm(professionalLatitude, professionalLongitude, shift.offices?.latitude, shift.offices?.longitude);
   const tones = {
-    blue: "border-[#4285F4]/25 bg-blue-50/50",
+    blue: "border-2 border-[#0078FE] bg-white",
     red: "border-[#EA4335]/25 bg-red-50/60",
     green: "border-[#34A853]/25 bg-green-50/60",
     navy: "border-[#002757]/20 bg-slate-50",
@@ -209,13 +209,9 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     .sort((a, b) => rolePriority(a.shifts?.profession) - rolePriority(b.shifts?.profession) || new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime());
   const selectedAvailability = workflow.availability.filter((slot) => slot.available && localDateKey(slot.starts_at) === selectedDate);
 
-  const openShiftIdsAlreadyApplied = new Set(
-    workflow.applications
-      .filter((item) => item.shifts && !["withdrawn", "declined", "not_selected"].includes(item.status))
-      .map((item) => item.shifts!.id),
-  );
   const selectedInterests = selectedApplied.filter((item) => item.application_kind === "application" && item.shifts);
-  const visibleOpen = selectedOpen.filter((shift) => !openShiftIdsAlreadyApplied.has(shift.id));
+  const interestByShiftId = new Map(selectedInterests.map((item) => [item.shifts!.id, item]));
+  const visibleOpen = selectedOpen;
 
   const run = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -344,15 +340,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-white">I’m Available</p>{selectedAvailability.map((slot) => <div key={slot.id}><p className="mt-1 text-sm font-black text-white">{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</p><p className="mt-0.5 text-xs font-extrabold text-white/90">${Number(slot.hourly_rate)}/hr</p></div>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id)).then((removed) => { if (removed) setAvailabilityOpen(true); })} className="secondary-btn">Cancel / Repost</button></div>
             </section> : <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button>}
 
-            {selectedInterests.map((interest) => interest.shifts ? <section key={interest.id} className="overflow-hidden rounded-3xl border-2 border-[#19a93b] bg-[#19a93b] shadow-[0_10px_28px_rgba(25,169,59,0.20)]">
-              <div className="flex items-center justify-between gap-2 px-4 py-3">
-                <h4 className="flex items-center gap-2 text-base font-black text-white"><span className="grid h-6 w-6 place-items-center rounded-full bg-white text-[12px] font-black text-[#19a93b]">✓</span>I’m Interested</h4>
-                <span className="rounded-full bg-white px-2.5 py-1 font-mono text-xs font-black tabular-nums text-[#017f27]">{interestElapsed(interest.created_at, nowMs)}</span>
-              </div>
-              <div className="m-2 rounded-2xl border-2 border-[#EA4335] bg-white p-1 shadow-sm">
-                <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={interest.shifts} tone="red" officeHeader action={<button type="button" disabled={busy === `cancel-interest-${interest.id}`} onClick={() => void run(`cancel-interest-${interest.id}`, () => cancelShiftInterest(interest.id))} className="secondary-btn w-full justify-center border-[#19a93b] font-black text-[#017f27] hover:bg-[#edf9f0]">{busy === `cancel-interest-${interest.id}` ? "Cancelling…" : "Cancel Interest"}</button>} />
-              </div>
-            </section> : null)}
+
 
             {selectedInvitations.length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#EA4335]"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />Invitations</h4>
@@ -365,7 +353,16 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             </section>}
 
             {visibleOpen.length > 0 && <section>
-              <div className="space-y-3">{visibleOpen.map((shift) => <div key={shift.id} className="rounded-[20px] border-2 border-[#0078FE] bg-[#0078FE] p-1 shadow-[0_8px_22px_rgba(0,120,254,0.16)]"><ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={shift} tone="blue" officeHeader action={<button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>} /></div>)}</div>
+              <div className="space-y-3">{visibleOpen.map((shift) => {
+                const interest = interestByShiftId.get(shift.id);
+                return <ShiftCard key={shift.id} professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={shift} tone="blue" officeHeader action={interest ? <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-2 rounded-xl border border-[#01A32E]/35 bg-[#eaf8ee] px-3 py-2">
+                    <span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span>
+                    <span className="font-mono text-xs font-black tabular-nums text-[#017f27]">{interestElapsed(interest.created_at, nowMs)}</span>
+                  </div>
+                  <button type="button" disabled={busy === `cancel-interest-${interest.id}`} onClick={() => void run(`cancel-interest-${interest.id}`, () => cancelShiftInterest(interest.id))} className="secondary-btn w-full justify-center border-[#01A32E]/35 font-black text-[#017f27] hover:bg-[#edf9f0]">{busy === `cancel-interest-${interest.id}` ? "Cancelling…" : "Cancel Interest"}</button>
+                </div> : <button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>} />;
+              })}</div>
             </section>}
 
             {selectedApplied.filter((item) => item.application_kind !== "application").length > 0 && <section>
