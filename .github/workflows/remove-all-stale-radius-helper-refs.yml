@@ -1,0 +1,25 @@
+name: Remove stale office radius helper references
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/remove-all-stale-radius-helper-refs.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove all stale helper references
+        run: python -c "from pathlib import Path; p=Path('components/OfficeWorkspaceV2.tsx'); s=p.read_text(); s2=s.replace('isSlotInProfessionalRadius(slot) && ', ''); assert s2 != s, 'no stale radius helper references found'; p.write_text(s2)"
+      - name: Commit source change
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          git commit -m "Remove stale office radius helper references"
+          git push
