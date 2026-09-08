@@ -326,11 +326,6 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
           <div className="sticky top-[82px] z-10 -mx-4 -mt-4 border-b border-slate-100 bg-white/95 px-4 pb-3 pt-4 backdrop-blur sm:-mx-5 sm:-mt-5 sm:px-5 sm:pt-5">
             <p className="text-xs font-black uppercase tracking-[.12em] text-[#4285F4]">Selected date</p>
             <h3 className="mt-1 text-xl font-black text-[#002757]">{longDate(selectedDate)}</h3>
-            <div className="mt-3 flex flex-wrap gap-2 text-xs font-black">
-              {selectedInvitations.length > 0 && <span className="rounded-full bg-[#EA4335] px-2.5 py-1 text-white">{selectedInvitations.length} Invitations</span>}
-              {selectedApplied.length > 0 && <span className="rounded-full bg-[#34A853] px-2.5 py-1 text-white">{selectedApplied.length} Applied</span>}
-              {selectedBooked.length > 0 && <span className="rounded-full bg-[#002757] px-2.5 py-1 text-white">✓ Booked</span>}
-            </div>
           </div>
 
           <div className="mt-4 space-y-5">
@@ -372,7 +367,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
 
             {selectedInvitations.length === 0 && selectedBooked.length === 0 && visibleOpen.length === 0 && selectedApplied.length === 0 && <div className="rounded-2xl bg-slate-50 p-6 text-center"><p className="font-black text-[#002757]">No shift activity on this date</p><p className="mt-1 text-sm text-slate-500">Try another day or add your availability so offices can find you.</p></div>}
 
-            <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="secondary-btn w-full justify-center lg:hidden">↑ Back to calendar</button>
+            <div className="mt-6 border-t border-slate-200 pt-4 lg:hidden"><button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="secondary-btn w-full justify-center">↑ Back to calendar</button></div>
           </div>
         </aside>
       </div>
