@@ -123,6 +123,11 @@ export type AdminShift = {
   openDisputeCount: number;
 };
 
+function localTodayKey() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+}
+
 export function normalizeWebsite(value?: string | null) {
   const candidate = value?.trim();
   if (!candidate) return null;
@@ -594,6 +599,10 @@ export async function createShiftSeries(input: {
   notes: string;
   autoInvite: boolean;
 }) {
+  const today = localTodayKey();
+  if (input.dates.some((date) => date < today)) {
+    throw new Error("Past dates are read-only. Shifts can only be posted for today or a future date.");
+  }
   const seriesId = input.dates.length > 1 ? crypto.randomUUID() : null;
   const rows = input.dates.map((date) => ({
     office_id: input.officeId,
@@ -711,6 +720,11 @@ export type AvailableProfessionalSlot = {
 export type OfficeShift = LiveShift & { applications: WorkflowApplication[] };
 
 export async function addProfessionalAvailability(userId: string, startsAt: string, endsAt: string, hourlyRate: number) {
+  const starts = new Date(startsAt);
+  const availabilityDate = `${starts.getFullYear()}-${String(starts.getMonth() + 1).padStart(2, "0")}-${String(starts.getDate()).padStart(2, "0")}`;
+  if (availabilityDate < localTodayKey()) {
+    throw new Error("Past dates are read-only. Availability can only be posted for today or a future date.");
+  }
   if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) throw new Error("Enter a valid hourly rate.");
 
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();

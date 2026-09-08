@@ -1218,7 +1218,7 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
                 <select name="profession" required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Certified Dental Assistant</option><option>Sterilization Technician</option></select>
               </label>
 
-              <label className="field"><span>First date</span><input name="date_1" required type="date" defaultValue="2026-09-04" /></label>
+              <label className="field"><span>First date</span><input name="date_1" required type="date" defaultValue="2026-09-04"  min={new Date().toISOString().slice(0, 10)} /></label>
               <label className="field"><span>Hourly rate</span><div className="relative"><span className="absolute left-3 top-3 text-slate-400">$</span><input name="hourly_rate" required min="1" type="number" className="pl-7!" defaultValue="56" /></div></label>
               <label className="field"><span>Start time</span><input name="start_time" required type="time" defaultValue="08:00" /></label>
               <label className="field"><span>End time</span><input name="end_time" required type="time" defaultValue="16:30" /></label>
@@ -1238,8 +1238,8 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
 
               {series && (
                 <div className="grid gap-4 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-4 sm:col-span-2 sm:grid-cols-2">
-                  <label className="field"><span>Additional date 2</span><input name="date_2" required type="date" defaultValue="2026-09-07" /></label>
-                  <label className="field"><span>Additional date 3</span><input name="date_3" required type="date" defaultValue="2026-09-09" /></label>
+                  <label className="field"><span>Additional date 2</span><input name="date_2" required type="date" defaultValue="2026-09-07"  min={new Date().toISOString().slice(0, 10)} /></label>
+                  <label className="field"><span>Additional date 3</span><input name="date_3" required type="date" defaultValue="2026-09-09"  min={new Date().toISOString().slice(0, 10)} /></label>
                   <p className="text-sm font-bold text-[#002757] sm:col-span-2"><CalendarDays size={16} className="mr-1 inline" />3 shifts will be published together.</p>
                 </div>
               )}

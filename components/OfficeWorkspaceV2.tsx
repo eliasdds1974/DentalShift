@@ -262,6 +262,10 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
 
   const postSelectedShift = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (selectedDate < localDateKey(new Date())) {
+      setError("Past dates are read-only. Choose today or a future date.");
+      return;
+    }
     const form = new FormData(event.currentTarget);
     const profession = String(form.get("profession") || "Registered Dental Hygienist");
     const startTime = String(form.get("start_time") || "08:00");
@@ -303,6 +307,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   };
   const chooseDate = (day: Date) => {
     const key = localDateKey(day);
+    if (key < localDateKey(new Date())) return;
     setSelectedDate(key);
     setCalendarCursor(day);
     setError("");
@@ -358,6 +363,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
           <div className="grid grid-cols-7">{["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => <div key={day} className="px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-slate-500">{day}</div>)}</div>
           <div className="grid grid-cols-7 gap-1.5 rounded-2xl bg-slate-100 p-1.5 sm:gap-2 sm:p-2">{calendarDays.map((day) => {
             const key = localDateKey(day);
+            const isPast = key < localDateKey(new Date());
             const selected = key === selectedDate;
             const today = key === localDateKey(new Date());
             const inMonth = day.getMonth() === calendarCursor.getMonth();
@@ -366,7 +372,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key);
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
-            return <button type="button" key={key} onClick={() => chooseDate(day)} className={`relative min-h-[132px] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-sm transition hover:border-[#0078FE]/30 hover:bg-blue-50 sm:min-h-[148px] sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 border-[#0078FE] bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
+            return <button type="button" key={key} disabled={isPast} aria-disabled={isPast} title={isPast ? "Past dates are read-only" : undefined} onClick={() => { if (!isPast) chooseDate(day); }} className={`relative min-h-[132px] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-sm transition sm:min-h-[148px] sm:p-2 ${isPast ? "cursor-not-allowed bg-slate-50 text-slate-300 opacity-45 grayscale" : "hover:border-[#0078FE]/30 hover:bg-blue-50"} ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 border-[#0078FE] bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
               {dayBookings.length > 0 ? <><span className="absolute inset-0 grid place-items-center rounded-xl bg-[#002757] text-sm font-black tracking-wide text-white sm:text-base">BOOKED</span></> : <><span className={`absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
               <div className="absolute left-1 right-1 top-9 flex min-h-6 flex-wrap items-start justify-center gap-1 sm:left-2 sm:right-2 sm:top-11 sm:min-h-7 sm:gap-1.5">
                 {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}
