@@ -199,9 +199,32 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
     .sort((first, second) => {
       if (sortShifts === "highest") return Number(second.hourly_rate) - Number(first.hourly_rate);
       if (sortShifts === "soonest") return new Date(first.starts_at).getTime() - new Date(second.starts_at).getTime();
-      const firstScore = (matchesAvailability(first) ? 2 : 0) + (favouriteOfficeIds.has(first.office_id) ? 1 : 0);
-      const secondScore = (matchesAvailability(second) ? 2 : 0) + (favouriteOfficeIds.has(second.office_id) ? 1 : 0);
-      return secondScore - firstScore || new Date(first.starts_at).getTime() - new Date(second.starts_at).getTime();
+
+      // Default card priority in the professional portal:
+      // 1) shifts that match "I'm Available"
+      // 2) RDH, 3) CDA, 4) DT/DA, 5) ST
+      const firstAvailable = matchesAvailability(first);
+      const secondAvailable = matchesAvailability(second);
+      if (firstAvailable !== secondAvailable) return firstAvailable ? -1 : 1;
+
+      const rolePriority = (shift: LiveShift) => {
+        const code = shiftRoleCode(shift.profession);
+        if (code === "RDH") return 0;
+        if (code === "CDA") return 1;
+        if (code === "DA") return 2;
+        if (code === "ST") return 3;
+        const value = shift.profession.toLowerCase();
+        if (value.includes("dentist") || value.includes("dental therapist")) return 2;
+        return 4;
+      };
+
+      const roleDifference = rolePriority(first) - rolePriority(second);
+      if (roleDifference) return roleDifference;
+
+      const favouriteDifference = Number(favouriteOfficeIds.has(second.office_id)) - Number(favouriteOfficeIds.has(first.office_id));
+      if (favouriteDifference) return favouriteDifference;
+
+      return new Date(first.starts_at).getTime() - new Date(second.starts_at).getTime();
     });
   const roleFilteredShifts = visibleShifts.filter((shift) => roleFilter === "all" || shiftRoleCode(shift.profession) === roleFilter);
   const selectedDayShifts = roleFilteredShifts.filter((shift) => localDateKey(shift.starts_at) === selectedDate);
