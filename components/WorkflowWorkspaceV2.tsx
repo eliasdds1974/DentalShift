@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, MapPin } from "lucide-react";
+import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, ExternalLink, MapPin, ShieldCheck } from "lucide-react";
 import {
   addProfessionalAvailability,
   applyForShift,
@@ -9,6 +9,7 @@ import {
   loadProfessionalWorkflow,
   removeProfessionalAvailability,
   respondToInvitation,
+  normalizeWebsite,
   type AccountProfile,
   type LiveShift,
   type ProfessionalAvailability,
@@ -67,6 +68,8 @@ function officeName(shift?: LiveShift | null) {
 }
 
 function ShiftCard({ shift, action, tone = "blue", status }: { shift: LiveShift; action?: React.ReactNode; tone?: "blue" | "red" | "green" | "navy"; status?: string }) {
+  const [expanded, setExpanded] = useState(false);
+  const website = normalizeWebsite(shift.offices?.website);
   const tones = {
     blue: "border-[#4285F4]/25 bg-blue-50/50",
     red: "border-[#EA4335]/25 bg-red-50/60",
@@ -81,15 +84,18 @@ function ShiftCard({ shift, action, tone = "blue", status }: { shift: LiveShift;
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
           <strong className="truncate text-sm text-[#002757] sm:text-base">{officeName(shift)}</strong>
         </div>
+        <p className="mt-1 text-xs font-black text-slate-700">{shift.profession}</p>
         <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-600"><Clock3 size={14} />{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
         <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</p>
+        {website && <a href={website} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-black text-[#002757] underline decoration-[#34A853]/60 underline-offset-4"><ExternalLink size={13} />Visit website</a>}
       </div>
       <div className="shrink-0 text-right">
         <p className="text-base font-black text-[#002757]">${Number(shift.hourly_rate)}/hr</p>
         {status && <span className="mt-1 inline-flex rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm">{status}</span>}
       </div>
     </div>
-    {shift.required_software && <p className="mt-3 text-xs font-bold text-slate-500">Software: {shift.required_software}</p>}
+    <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-slate-200/70 pt-3"><div className="flex flex-wrap gap-2 text-[11px] font-bold text-slate-500">{shift.required_software && <span className="rounded-full bg-white/80 px-2 py-1">Software: {shift.required_software}</span>}{shift.notes && <span className="rounded-full bg-white/80 px-2 py-1">Shift notes available</span>}</div><button type="button" onClick={() => setExpanded((value) => !value)} className="secondary-btn px-3 py-1.5 text-xs">{expanded ? "Hide details" : "Details"}</button></div>
+    {expanded && <div className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3"><div className="grid gap-3 text-sm sm:grid-cols-2"><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Practice software</p><p className="mt-1 font-extrabold text-[#002757]">{shift.required_software || "No specific software required"}</p></div><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Shift notes</p><p className="mt-1 font-semibold text-slate-700">{shift.notes || "No additional notes provided."}</p></div></div><p className="mt-3 text-xs font-semibold text-slate-500"><ShieldCheck size={14} className="mr-1 inline text-[#34A853]" />Office contact information remains protected until booking confirmation.</p></div>}
     {action && <div className="mt-4">{action}</div>}
   </article>;
 }
