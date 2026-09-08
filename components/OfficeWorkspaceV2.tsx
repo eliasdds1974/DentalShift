@@ -188,7 +188,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     );
   };
   const selectedAvailability = data.availability
-    .filter((slot) => !interestedIds.has(slot.professional_id))
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));

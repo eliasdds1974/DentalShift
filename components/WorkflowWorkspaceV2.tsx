@@ -220,6 +220,10 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
       setError("Choose an end time after the start time.");
       return;
     }
+    if (endsAt.getTime() <= Date.now()) {
+      setError("Choose an availability time that has not already ended.");
+      return;
+    }
     await run("availability-add", () => addProfessionalAvailability(userId, startsAt.toISOString(), endsAt.toISOString(), hourlyRate));
     setAvailabilityOpen(false);
   };
