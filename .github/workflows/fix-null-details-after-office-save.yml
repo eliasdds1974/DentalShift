@@ -1,0 +1,31 @@
+name: Fix nullable office save build
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/fix_null_details_after_office_save.py'
+      - '.github/workflows/fix-null-details-after-office-save.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix nullable office save build
+        run: python .github/scripts/fix_null_details_after_office_save.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Fix nullable details in office account save"
+            git push
+          fi
