@@ -1,6 +1,6 @@
 "use client";
 
-import { MapPin } from "lucide-react";
+import { Clock3, MapPin } from "lucide-react";
 
 export type AvailableStaffRole = "RDH" | "CDA" | "DA" | "ST";
 
@@ -27,6 +27,9 @@ export type AnonymousAvailableStaff = {
   interestElapsed?: string | null;
   licenceProvince?: string | null;
   requestedRate?: number | null;
+  shiftId?: string | null;
+  officeInterested?: boolean;
+  officeInterestElapsed?: string | null;
 };
 
 const roleStyles: Record<AvailableStaffRole, { title: string; badge: string; border: string; soft: string; text: string }> = {
@@ -44,9 +47,11 @@ export function AnonymousAvailableStaffPanel({
   staff,
   onBookInterest,
   busyApplicationId,
+  onExpressInterest,
 }: {
   staff: AnonymousAvailableStaff[];
   onBookInterest?: (applicationId: string) => void;
+  onExpressInterest?: (shiftId: string, professionalId: string) => void;
   busyApplicationId?: string | null;
 }) {
   const groups = (["RDH", "CDA", "DA", "ST"] as AvailableStaffRole[])
@@ -74,6 +79,9 @@ export function AnonymousAvailableStaffPanel({
                 <MapPin size={12} />{item.distanceKm == null ? "Distance unavailable" : `${item.distanceKm.toFixed(1)} km`}
               </span>
             </div>
+            {!item.interested && <div className="mt-3 border-t border-[#34A853]/25 pt-3">
+              {item.officeInterested ? <div className="flex items-center justify-between gap-2 rounded-xl bg-[#eaf8ee] px-3 py-2"><span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span><span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={13} />{item.officeInterestElapsed || "00:00:00"}</span></div> : item.shiftId && onExpressInterest ? <button type="button" disabled={busyApplicationId === `office-interest-${item.id}`} onClick={() => onExpressInterest(item.shiftId!, item.id)} className="w-full rounded-xl border border-[#EA4335] bg-white px-3 py-2 text-xs font-black text-[#c9342d] transition hover:bg-red-50 disabled:opacity-50">{busyApplicationId === `office-interest-${item.id}` ? "Saving…" : "I’m Interested"}</button> : null}
+            </div>}
             {item.interested && <div className="mt-3 border-t border-[#34A853]/25 pt-3">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span>

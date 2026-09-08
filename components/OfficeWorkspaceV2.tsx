@@ -10,6 +10,7 @@ import {
   inviteProfessional,
   loadOfficePreferredProfessionals,
   loadOfficeWorkflow,
+  officeExpressInterest,
   type AvailableProfessionalSlot,
   type OfficeDetails,
   type OfficePreferredProfessional,
@@ -208,11 +209,14 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       return (b.professional_profiles?.rating || 0) - (a.professional_profiles?.rating || 0);
     });
   const applicantByProfessional = new Map(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => [application.professional_id, application] as const)));
+  const officeInterestByProfessional = new Map(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.office_interested_at).map((application) => [application.professional_id, { application, shift }] as const)));
   const anonymousStaff: AnonymousAvailableStaff[] = selectedAvailability.map((slot) => {
     const profile = slot.professional_profiles;
     const completed = Number(profile?.completed_shifts || 0);
     const localAnesthetic = Boolean(profile?.local_anesthetic) && roleCode(profile?.profession) === "RDH";
     const interest = applicantByProfessional.get(slot.professional_id);
+    const officeInterest = officeInterestByProfessional.get(slot.professional_id);
+    const matchingShift = selectedShifts.find((shift) => shift.status === "open" && shift.profession === profile?.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at));
     return {
       id: slot.professional_id,
       role: roleCode(profile?.profession),
@@ -235,6 +239,9 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       interestElapsed: interest ? interestElapsed(interest.created_at, nowMs) : null,
       licenceProvince: interest?.professional_profiles?.licence_province || profile?.licence_province || null,
       requestedRate: interest?.proposed_rate != null ? Number(interest.proposed_rate) : null,
+      shiftId: matchingShift?.id || officeInterest?.shift.id || null,
+      officeInterested: Boolean(officeInterest),
+      officeInterestElapsed: officeInterest?.application.office_interested_at ? interestElapsed(officeInterest.application.office_interested_at, nowMs) : null,
     };
   });
 
@@ -360,7 +367,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
             return <button type="button" key={key} onClick={() => chooseDate(day)} className={`relative min-h-[132px] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-sm transition hover:border-[#0078FE]/30 hover:bg-blue-50 sm:min-h-[148px] sm:p-2 ${calendarView === "month" && !inMonth ? "text-slate-300" : "text-slate-800"} ${selected ? "z-10 border-[#0078FE] bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
-              <span className={`absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
+              {dayBookings.length > 0 ? <><span className="absolute inset-0 grid place-items-center rounded-xl bg-[#002757] text-sm font-black tracking-wide text-white sm:text-base">BOOKED</span></> : <><span className={`absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
               <div className="absolute left-1 right-1 top-9 flex min-h-6 flex-wrap items-start justify-center gap-1 sm:left-2 sm:right-2 sm:top-11 sm:min-h-7 sm:gap-1.5">
                 {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}
               </div>
@@ -368,7 +375,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 {dayShifts.length > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]"><span aria-hidden="true">✓</span>{dayShifts.length} Posted Shift{dayShifts.length === 1 ? "" : "s"}</span>}
                 {interestedCount > 0 && <span className="rounded-full bg-[#FBBC05]/20 px-1.5 py-0.5 text-[8px] font-black text-amber-800 sm:text-[9px]">{interestedCount} applicant{interestedCount === 1 ? "" : "s"}</span>}
                 {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}
-              </div>
+              </div></>}
             </button>;
           })}</div>
         </div>
@@ -393,7 +400,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             })}
               </div>
             </section>}
-            {selectedAvailability.length > 0 && <section><div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-base font-black text-[#002757]">Available Professionals</h3><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">{selectedAvailability.length} available</span></div><AnonymousAvailableStaffPanel staff={anonymousStaff} busyApplicationId={busy || null} onBookInterest={(applicationId) => void act(applicationId, () => acceptApplication(applicationId))} /></section>}
+            {selectedAvailability.length > 0 && <section><div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-base font-black text-[#002757]">Available Professionals</h3><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">{selectedAvailability.length} available</span></div><AnonymousAvailableStaffPanel staff={anonymousStaff} busyApplicationId={busy || null} onBookInterest={(applicationId) => void act(applicationId, () => acceptApplication(applicationId))} onExpressInterest={(shiftId, professionalId) => void act(`office-interest-${professionalId}`, () => officeExpressInterest(shiftId, professionalId))} /></section>}
             <form onSubmit={postSelectedShift} className="hidden">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
               <div className="mt-4 space-y-3">
@@ -407,7 +414,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
               </div>
             </form>
             {selectedShifts.length === 0 && selectedBookings.length === 0 && <p className="rounded-xl bg-slate-50 p-3 text-center text-xs font-bold text-slate-500">No other office activity on this date.</p>}
-            {selectedBookings.length > 0 && <h3 className="pt-1 text-base font-black text-[#002757]">Booked</h3>}{selectedBookings.map((booking) => <article key={booking.id} className="rounded-xl border border-[#04A62F]/25 bg-[#eaf8ee] p-3"><div className="flex items-center gap-2"><FileCheck2 size={17} className="text-[#04A62F]" /><strong className="text-[#032757]">BOOKED</strong></div><p className="mt-1 text-sm font-bold text-slate-700">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{booking.shifts.profession} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}</article>)}
+            {selectedBookings.length > 0 && <section className="rounded-2xl bg-[#002757] p-2.5 shadow-sm"><h3 className="mb-2 text-center text-lg font-black text-white">BOOKED</h3><div className="space-y-2">{selectedBookings.map((booking) => <article key={booking.id} className="rounded-xl border border-white/30 bg-white p-3"><div className="flex items-center gap-2"><FileCheck2 size={17} className="text-[#04A62F]" /><strong className="text-[#032757]">Confirmed Professional</strong></div><p className="mt-1 text-sm font-bold text-slate-700">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{booking.shifts.profession} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}</article>)}</div></section>}
           </div>
           </div>
         </aside>
