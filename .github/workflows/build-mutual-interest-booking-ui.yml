@@ -1,0 +1,27 @@
+name: Build mutual interest booking UI
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/build-mutual-interest-booking-ui.py'
+      - '.github/workflows/build-mutual-interest-booking-ui.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build mutual interest booking UI
+        run: python .github/scripts/build-mutual-interest-booking-ui.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib/dentalshift.ts components/AnonymousAvailableStaffPanel.tsx components/OfficeWorkspaceV2.tsx components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Build mutual interest booking flow"
+            git push
+          fi
