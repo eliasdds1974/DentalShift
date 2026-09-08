@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# One-time patch: align Admin with the same magic-link authentication used by Office and Professional accounts.
 p = Path('app/admin/overview/page.tsx')
 s = p.read_text()
 
