@@ -1,0 +1,27 @@
+name: Merge applicants into available professionals
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/merge-applicants-into-available-professionals.py'
+      - '.github/workflows/merge-applicants-into-available-professionals.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Merge applicant information into available professional cards
+        run: python .github/scripts/merge-applicants-into-available-professionals.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx components/AnonymousAvailableStaffPanel.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Merge applicants into available professional cards"
+            git push
+          fi
