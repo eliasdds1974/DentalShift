@@ -195,7 +195,11 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     .sort((a, b) => rolePriority(a.shifts?.profession) - rolePriority(b.shifts?.profession) || new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime());
   const selectedAvailability = workflow.availability.filter((slot) => slot.available && localDateKey(slot.starts_at) === selectedDate);
 
-  const openShiftIdsAlreadyApplied = new Set(workflow.applications.filter((item) => item.shifts).map((item) => item.shifts!.id));
+  const openShiftIdsAlreadyApplied = new Set(
+    workflow.applications
+      .filter((item) => item.shifts && !["withdrawn", "declined", "not_selected"].includes(item.status))
+      .map((item) => item.shifts!.id),
+  );
   const selectedInterest = selectedApplied.find((item) => item.application_kind === "application" && item.shifts) ?? null;
   const visibleOpen = selectedOpen.filter((shift) => !openShiftIdsAlreadyApplied.has(shift.id));
 
