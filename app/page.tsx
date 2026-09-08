@@ -830,8 +830,11 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
       }
       const refreshed = await loadAccountDetails(session!.user.id);
       setDetails({ ...refreshed, office: saved });
-      setNotice(details?.professional ? "Office account information saved." : "Office account saved. Your Dental Professional workspace can use the same email with its own password.");
+      setNotice("Office account information saved.");
       onSaved();
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/office/")) {
+        window.history.replaceState({}, "", "/office/overview?portal_role=office");
+      }
       close();
     } catch (value) { setError(value instanceof Error ? value.message : "The office account could not be saved."); }
     finally { setBusy(false); }
