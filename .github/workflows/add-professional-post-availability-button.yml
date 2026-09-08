@@ -11,7 +11,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Add Post Availability button
-        run: python -c "from pathlib import Path; p=Path('components/WorkflowWorkspaceV2.tsx'); s=p.read_text(); old='<p className=\"page-subtitle\">Tap a date to see matching offices, invitations, applications and booked shifts.</p>'; new=old+'\\n      <button type=\"button\" onClick={() => setAvailabilityOpen(true)} className=\"mt-2 inline-flex w-fit items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30\"><CalendarDays size={18} />Post Availability</button>'; assert old in s, 'professional calendar header not found'; assert 'setAvailabilityOpen(true)' not in s, 'button already exists'; p.write_text(s.replace(old,new,1))"
+        run: python -c "from pathlib import Path; p=Path('components/WorkflowWorkspaceV2.tsx'); s=p.read_text(); old='<p className=\"page-subtitle\">Tap a date to see matching offices, invitations, applications and booked shifts.</p>'; new=old+'\\n      <button type=\"button\" onClick={() => setAvailabilityOpen(true)} className=\"mt-2 inline-flex w-fit items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30\"><CalendarDays size={18} />Post Availability</button>'; assert old in s, 'professional calendar header not found'; assert '>Post Availability</button>' not in s, 'button already exists'; p.write_text(s.replace(old,new,1))"
       - name: Commit change
         run: |
           git config user.name "github-actions[bot]"
