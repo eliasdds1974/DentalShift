@@ -1,0 +1,31 @@
+name: Rolling 35 day calendars
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/rolling-35-day-calendars.py'
+      - '.github/workflows/rolling-35-day-calendars.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build rolling calendars
+        run: python .github/scripts/rolling-35-day-calendars.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Show rolling 35 day calendars from today"
+            git push
+          fi
