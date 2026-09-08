@@ -1397,10 +1397,18 @@ export default function Home() {
     };
   }, [router, pathname]);
 
+  // The office Account route should always use the newest Dental Office Account
+  // modal rather than the older legacy office-profile workspace form.
+  useEffect(() => {
+    if (session && role === "office" && view === "profile") {
+      setAccountOpen(true);
+    }
+  }, [session, role, view]);
+
   const content = useMemo(
     () => role === "office"
       ? session && profile && office
-        ? <OfficeWorkspace userId={session.user.id} office={office} onPost={() => setPost(true)} refreshKey={refreshKey} view={view} />
+        ? <OfficeWorkspace userId={session.user.id} office={office} onPost={() => setPost(true)} refreshKey={refreshKey} view={view === "profile" ? "overview" : view} />
         : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />
       : role === "professional"
         ? session
