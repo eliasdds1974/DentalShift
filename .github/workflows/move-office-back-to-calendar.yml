@@ -1,0 +1,21 @@
+name: Move office Back to calendar
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/move-office-back-to-calendar.py'
+      - '.github/workflows/move-office-back-to-calendar.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python .github/scripts/move-office-back-to-calendar.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then echo "No changes needed"; else git commit -m "Move office Back to calendar to sidebar end" && git push; fi
