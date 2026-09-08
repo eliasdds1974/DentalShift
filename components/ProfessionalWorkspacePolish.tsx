@@ -39,28 +39,55 @@ export function ProfessionalWorkspacePolish() {
         metricStrip.className = "grid w-full grid-cols-1 gap-2 xl:w-auto xl:min-w-[210px]";
       }
 
-      if (code && profession) {
-        const aside = calendar.querySelector<HTMLElement>("aside");
-        if (aside) {
-          const roleButtons = Array.from(aside.querySelectorAll<HTMLButtonElement>("button")).filter((button) => {
-            const text = button.textContent?.trim() || "";
-            return /^(\d+)(RDH|CDA|DA|ST)$/.test(text.replace(/\s+/g, ""));
-          });
-          if (roleButtons.length) {
-            const roleGrid = roleButtons[0].parentElement as HTMLElement | null;
-            if (roleGrid) roleGrid.className = "mt-4 grid grid-cols-1 gap-2";
-            roleButtons.forEach((button) => {
-              const buttonCode = Array.from(button.querySelectorAll("span")).map((span) => span.textContent?.trim()).find((value) => value && ["RDH", "CDA", "DA", "ST"].includes(value)) || "";
-              const matches = buttonCode === code;
-              button.style.display = matches ? "" : "none";
-              if (matches) {
-                button.className = "rounded-xl p-3 text-left transition bg-blue-50 text-[#002757]";
-                const label = button.querySelector("span");
-                if (label) {
-                  if (label.textContent?.trim() !== profession) label.textContent = profession;
-                  label.className = "mt-1 block text-xs font-black";
-                }
+      const aside = calendar.querySelector<HTMLElement>("aside");
+      if (aside) {
+        const roleButtons = Array.from(aside.querySelectorAll<HTMLButtonElement>("button")).filter((button) => {
+          const text = button.textContent?.trim() || "";
+          return /^(\d+)(RDH|CDA|DA|ST)$/.test(text.replace(/\s+/g, ""));
+        });
+
+        if (roleButtons.length) {
+          const roleGrid = roleButtons[0].parentElement as HTMLElement | null;
+          if (roleGrid) {
+            roleGrid.className = "mt-4 grid grid-cols-1 gap-2";
+
+            // The visible selected-date card order is intentional:
+            // I'm Available, RDH, CDA, DT, ST.
+            let availabilityCard = roleGrid.querySelector<HTMLDivElement>("[data-selected-availability-card]");
+            const selectedDayButton = Array.from(calendar.querySelectorAll<HTMLButtonElement>("button")).find((button) => button.className.includes("ring-2") && button.querySelector("[data-available-marker]"));
+
+            if (selectedDayButton) {
+              if (!availabilityCard) {
+                availabilityCard = document.createElement("div");
+                availabilityCard.dataset.selectedAvailabilityCard = "true";
+                availabilityCard.className = "rounded-xl border border-[#0078FE]/25 bg-blue-50 p-3 text-left text-[#002757]";
+                availabilityCard.innerHTML = '<strong class="block text-xl font-black text-[#0078FE]">✓</strong><span class="mt-1 block text-xs font-black">I\'m Available</span>';
               }
+              roleGrid.prepend(availabilityCard);
+            } else {
+              availabilityCard?.remove();
+            }
+
+            const orderedCodes = ["RDH", "CDA", "DA", "ST"];
+            orderedCodes.forEach((orderedCode) => {
+              const button = roleButtons.find((item) => {
+                const normalized = item.textContent?.replace(/\s+/g, "") || "";
+                return normalized.endsWith(orderedCode);
+              });
+              if (!button) return;
+              button.style.display = "";
+              button.className = orderedCode === code
+                ? "rounded-xl p-3 text-left transition bg-blue-50 text-[#002757] ring-1 ring-[#0078FE]/30"
+                : "rounded-xl p-3 text-left transition bg-slate-50 text-[#002757]";
+
+              // Keep the existing DA backend code, but display the requested DT label.
+              const labels = Array.from(button.querySelectorAll("span"));
+              const label = labels.find((span) => ["RDH", "CDA", "DA", "ST", "DT"].includes(span.textContent?.trim() || ""));
+              if (label) {
+                label.textContent = orderedCode === "DA" ? "DT" : orderedCode;
+                label.className = "mt-1 block text-xs font-black";
+              }
+              roleGrid.appendChild(button);
             });
           }
         }
