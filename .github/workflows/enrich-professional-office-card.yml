@@ -1,0 +1,21 @@
+name: Enrich professional Dental Office card
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/enrich-professional-office-card.py'
+      - '.github/workflows/enrich-professional-office-card.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python .github/scripts/enrich-professional-office-card.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add lib/dentalshift.ts components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then echo "No changes needed"; else git commit -m "Add compact office details to professional cards" && git push; fi
