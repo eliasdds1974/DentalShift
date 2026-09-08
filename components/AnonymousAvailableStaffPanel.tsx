@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { Clock3, MapPin } from "lucide-react";
 
 export type AvailableStaffRole = "RDH" | "CDA" | "DA" | "ST";
@@ -54,6 +55,17 @@ export function AnonymousAvailableStaffPanel({
   onExpressInterest?: (shiftId: string, professionalId: string) => void;
   busyApplicationId?: string | null;
 }) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+
+  const toggleDetails = (id: string) => {
+    setExpandedIds((current) => {
+      const next = new Set(current);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   const groups = (["RDH", "CDA", "DA", "ST"] as AvailableStaffRole[])
     .map((role) => ({ role, items: staff.filter((item) => item.role === role) }))
     .filter((group) => group.items.length > 0);
@@ -69,35 +81,53 @@ export function AnonymousAvailableStaffPanel({
           </div>
         </header>
         <div className="divide-y divide-slate-100">
-          {items.map((item) => <article key={item.id} className={`p-3 ${item.interested ? "bg-[#f3fbf5]" : ""}`}>
-            <div className="flex items-center justify-between gap-3">
-              <div>
-                <strong className="text-sm text-[#032757]">{item.role} available</strong>
-                <p className="mt-1 text-xs font-bold text-slate-500">{shortTime(item.startsAt)}–{shortTime(item.endsAt)}{item.minimumHourlyRate != null ? ` · $${item.minimumHourlyRate.toFixed(2)}/hr` : ""}</p>
+          {items.map((item) => {
+            const expanded = expandedIds.has(item.id);
+            return <article key={item.id} className={`p-3 ${item.interested ? "bg-[#f3fbf5]" : ""}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <strong className="text-sm text-[#032757]">{item.role} available</strong>
+                  <p className="mt-1 text-xs font-bold text-slate-500">{shortTime(item.startsAt)}–{shortTime(item.endsAt)}{item.minimumHourlyRate != null ? ` · $${item.minimumHourlyRate.toFixed(2)}/hr` : ""}</p>
+                </div>
+                <span className="flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
+                  <MapPin size={12} />{item.distanceKm == null ? "Distance unavailable" : `${item.distanceKm.toFixed(1)} km`}
+                </span>
               </div>
-              <span className="flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
-                <MapPin size={12} />{item.distanceKm == null ? "Distance unavailable" : `${item.distanceKm.toFixed(1)} km`}
-              </span>
-            </div>
-            {!item.interested && <div className="mt-3 border-t border-[#34A853]/25 pt-3">
-              {item.officeInterested ? <div className="flex items-center justify-between gap-2 rounded-xl bg-[#eaf8ee] px-3 py-2"><span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span><span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={13} />{item.officeInterestElapsed || "00:00:00"}</span></div> : item.shiftId && onExpressInterest ? <button type="button" disabled={busyApplicationId === `office-interest-${item.id}`} onClick={() => onExpressInterest(item.shiftId!, item.id)} className="w-full rounded-xl border border-[#EA4335] bg-white px-3 py-2 text-xs font-black text-[#c9342d] transition hover:bg-red-50 disabled:opacity-50">{busyApplicationId === `office-interest-${item.id}` ? "Saving…" : "I’m Interested"}</button> : null}
-            </div>}
-            {item.interested && <div className="mt-3 border-t border-[#34A853]/25 pt-3">
-              <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span>
-                {item.interestElapsed && <span className="font-mono text-xs font-black tabular-nums text-[#017f27]">{item.interestElapsed}</span>}
+
+              <div className="mt-2 flex justify-end">
+                <button type="button" onClick={() => toggleDetails(item.id)} className="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-black text-[#002757] transition hover:bg-slate-50">
+                  {expanded ? "Hide Details" : "Details"}
+                </button>
               </div>
-              <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-600">
-                <span>Licence province: <strong>{item.licenceProvince || "Unavailable"}</strong></span>
-                <span>Completed: <strong>{item.completedShifts || 0}</strong></span>
-                <span>Rating: <strong>{item.rating ? `${item.rating}★` : "No rating yet"}</strong></span>
-                <span>Reliability: <strong>{item.reliabilityScore != null ? `${item.reliabilityScore}%` : "Not enough history"}</strong></span>
-                <span className="col-span-2">Rate: <strong>{item.requestedRate != null ? `$${item.requestedRate.toFixed(2)}/hr` : (item.minimumHourlyRate != null ? `$${item.minimumHourlyRate.toFixed(2)}/hr` : "Not specified")}</strong></span>
-              </div>
-              <p className="mt-2 text-[10px] leading-4 text-slate-500">Identity and contact details are shared after booking confirmation.</p>
-              {item.interestApplicationId && onBookInterest && <button type="button" disabled={busyApplicationId === item.interestApplicationId} onClick={() => onBookInterest(item.interestApplicationId!)} className="primary-btn mt-2 w-full justify-center py-2 text-xs">{busyApplicationId === item.interestApplicationId ? "Booking…" : "✓ Book Now"}</button>}
-            </div>}
-          </article>)}
+
+              {expanded && <div className="mt-2 border-t border-slate-200 pt-2">
+                <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-[11px] text-slate-600">
+                  <span>Years experience: <strong>{item.yearsExperience != null ? `${item.yearsExperience} year${item.yearsExperience === 1 ? "" : "s"}` : "Not listed"}</strong></span>
+                  <span>Licence province: <strong>{item.licenceProvince || "Unavailable"}</strong></span>
+                  <span>Completed shifts: <strong>{item.completedShifts || 0}</strong></span>
+                  <span>Rating: <strong>{item.rating ? `${item.rating}★` : "No rating yet"}</strong></span>
+                  <span>Reliability: <strong>{item.reliabilityScore != null ? `${item.reliabilityScore}%` : "Not enough history"}</strong></span>
+                  <span>Rate: <strong>{item.requestedRate != null ? `$${item.requestedRate.toFixed(2)}/hr` : (item.minimumHourlyRate != null ? `$${item.minimumHourlyRate.toFixed(2)}/hr` : "Not specified")}</strong></span>
+                </div>
+                {item.qualifications?.length ? <div className="mt-2 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Qualifications: </span>{item.qualifications.map((qualification) => `${qualification.label}${qualification.verified ? " ✓" : ""}`).join(", ")}</div> : null}
+                {item.skills?.length ? <div className="mt-1 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Skills: </span>{item.skills.join(", ")}</div> : null}
+                {item.software?.length ? <div className="mt-1 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Software: </span>{item.software.join(", ")}</div> : null}
+                <p className="mt-2 text-[10px] leading-4 text-slate-500">Identity and contact details are shared after booking confirmation.</p>
+              </div>}
+
+              {!item.interested && <div className="mt-3 border-t border-[#34A853]/25 pt-3">
+                {item.officeInterested ? <div className="flex items-center justify-between gap-2 rounded-xl bg-[#eaf8ee] px-3 py-2"><span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span><span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={13} />{item.officeInterestElapsed || "00:00:00"}</span></div> : item.shiftId && onExpressInterest ? <button type="button" disabled={busyApplicationId === `office-interest-${item.id}`} onClick={() => onExpressInterest(item.shiftId!, item.id)} className="w-full rounded-xl border border-[#EA4335] bg-white px-3 py-2 text-xs font-black text-[#c9342d] transition hover:bg-red-50 disabled:opacity-50">{busyApplicationId === `office-interest-${item.id}` ? "Saving…" : "I’m Interested"}</button> : null}
+              </div>}
+
+              {item.interested && <div className="mt-3 border-t border-[#34A853]/25 pt-3">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span>
+                  {item.interestElapsed && <span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={13} />{item.interestElapsed}</span>}
+                </div>
+                {item.interestApplicationId && onBookInterest && <button type="button" disabled={busyApplicationId === item.interestApplicationId} onClick={() => onBookInterest(item.interestApplicationId!)} className="primary-btn mt-2 w-full justify-center py-2 text-xs">{busyApplicationId === item.interestApplicationId ? "Booking…" : "✓ Book Now"}</button>}
+              </div>}
+            </article>;
+          })}
         </div>
       </section>;
     })}
