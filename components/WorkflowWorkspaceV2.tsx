@@ -250,6 +250,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             const selected = key === selectedDate;
             const inMonth = day.getMonth() === cursor.getMonth();
             const today = key === localDateKey(new Date());
+            const availableOnDate = workflow.availability.some((slot) => slot.available && localDateKey(slot.starts_at) === key);
             return <button key={key} type="button" onClick={() => chooseDate(day)} aria-label={`${longDate(key)}: ${count.open} open shifts, ${count.invited} invitations, ${count.applied} applied, ${count.booked} booked`} className={`relative min-h-[78px] rounded-2xl border p-1.5 pt-9 text-center transition sm:min-h-[108px] sm:p-2 sm:pt-11 ${selected ? "border-[#4285F4] bg-blue-50 ring-2 ring-[#4285F4]/20" : "border-slate-200 bg-white hover:border-slate-300"} ${!inMonth ? "opacity-35" : ""}`}>
               <span className={`absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:left-1 sm:top-1 sm:h-8 sm:w-8 sm:text-sm lg:left-0.5 lg:top-0.5 ${today ? "bg-[#002757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
               <span className="mt-1.5 flex flex-wrap justify-center gap-1 sm:mt-2 sm:gap-1.5">
@@ -258,6 +259,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
                 {count.applied > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#34A853] px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px]">{count.applied}</span>}
                 {count.booked > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#002757] px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px]">✓{count.booked > 1 ? count.booked : ""}</span>}
               </span>
+              {availableOnDate && <span className="absolute bottom-1 left-1 right-1 rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[8px] font-black leading-tight text-[#017f27] sm:bottom-2 sm:left-2 sm:right-2 sm:py-1 sm:text-[10px]"><span className="sm:hidden">✓</span><span className="hidden sm:inline">✓ I’m Available</span></span>}
             </button>;
           })}</div>
         </div>
