@@ -820,7 +820,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
     setBusy(true); setError(""); setNotice("");
     try {
       const saved = await updateOfficeProfile(nextOffice);
-      if (!details.professional && String(form.get("new_profession") || "").trim()) {
+      if (!details?.professional && String(form.get("new_profession") || "").trim()) {
         await createProfessionalWorkspace({
           user_id: session!.user.id,
           profession: String(form.get("new_profession") || "").trim(),
