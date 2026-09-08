@@ -1,0 +1,27 @@
+name: Highlight selected interest card red
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/highlight_selected_interest_card_red.py'
+      - '.github/workflows/highlight-selected-interest-card-red.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Highlight selected interest card red
+        run: python .github/scripts/highlight_selected_interest_card_red.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Highlight selected interest card in logo red"
+            git push
+          fi
