@@ -206,7 +206,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       id: slot.professional_id,
       role: roleCode(profile?.profession),
       profession: profile?.profession || "Dental professional",
-      minimumHourlyRate: profile?.hourly_rate != null ? Number(profile.hourly_rate) : null,
+      minimumHourlyRate: Number(slot.hourly_rate),
       distanceKm: distanceForSlot(slot),
       startsAt: slot.starts_at,
       endsAt: slot.ends_at,
