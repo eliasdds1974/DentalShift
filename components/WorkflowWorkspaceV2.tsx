@@ -67,9 +67,20 @@ function officeName(shift?: LiveShift | null) {
   return shift?.offices?.name || "Dental office";
 }
 
-function ShiftCard({ shift, action, tone = "blue", status }: { shift: LiveShift; action?: React.ReactNode; tone?: "blue" | "red" | "green" | "navy"; status?: string }) {
+function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null) {
+  if ([lat1, lon1, lat2, lon2].some((value) => value == null || !Number.isFinite(Number(value)))) return null;
+  const toRad = (value: number) => value * Math.PI / 180;
+  const earthKm = 6371;
+  const dLat = toRad(Number(lat2) - Number(lat1));
+  const dLon = toRad(Number(lon2) - Number(lon1));
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(Number(lat1))) * Math.cos(toRad(Number(lat2))) * Math.sin(dLon / 2) ** 2;
+  return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude, professionalLongitude }: { shift: LiveShift; action?: React.ReactNode; tone?: "blue" | "red" | "green" | "navy"; status?: string; professionalLatitude?: number | null; professionalLongitude?: number | null }) {
   const [expanded, setExpanded] = useState(false);
   const website = normalizeWebsite(shift.offices?.website);
+  const officeDistanceKm = distanceKm(professionalLatitude, professionalLongitude, shift.offices?.latitude, shift.offices?.longitude);
   const tones = {
     blue: "border-[#4285F4]/25 bg-blue-50/50",
     red: "border-[#EA4335]/25 bg-red-50/60",
@@ -86,7 +97,7 @@ function ShiftCard({ shift, action, tone = "blue", status }: { shift: LiveShift;
         </div>
         <p className="mt-1 text-xs font-black text-slate-700">{shift.profession}</p>
         <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-600"><Clock3 size={14} />{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
-        <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-500"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span className="inline-flex items-center gap-1.5"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span>{officeDistanceKm != null && <span className="inline-flex items-center rounded-full bg-[#edf3fa] px-2 py-0.5 font-black text-[#002757]">{officeDistanceKm < 10 ? officeDistanceKm.toFixed(1) : Math.round(officeDistanceKm)} km away</span>}</div>
         {website && <a href={website} target="_blank" rel="noreferrer" className="mt-1 inline-flex items-center gap-1 text-xs font-black text-[#002757] underline decoration-[#34A853]/60 underline-offset-4"><ExternalLink size={13} />Visit website</a>}
       </div>
       <div className="shrink-0 text-right">
@@ -298,22 +309,22 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
           <div className="mt-4 space-y-5">
             {selectedInvitations.length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#EA4335]"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />Invitations</h4>
-              <div className="space-y-3">{selectedInvitations.map((application) => application.shifts ? <ShiftCard key={application.id} shift={application.shifts} tone="red" status="Invitation" action={<div className="grid grid-cols-2 gap-2"><button type="button" disabled={busy === application.id} onClick={() => void run(application.id, () => respondToInvitation(application.id, false))} className="secondary-btn justify-center border-[#EA4335]/30 text-[#c9342d]">Not Available</button><button type="button" disabled={busy === application.id} onClick={() => void run(application.id, () => respondToInvitation(application.id, true))} className="primary-btn justify-center">{busy === application.id ? "Saving…" : "Accept"}</button></div>} /> : null)}</div>
+              <div className="space-y-3">{selectedInvitations.map((application) => application.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={application.id} shift={application.shifts} tone="red" status="Invitation" action={<div className="grid grid-cols-2 gap-2"><button type="button" disabled={busy === application.id} onClick={() => void run(application.id, () => respondToInvitation(application.id, false))} className="secondary-btn justify-center border-[#EA4335]/30 text-[#c9342d]">Not Available</button><button type="button" disabled={busy === application.id} onClick={() => void run(application.id, () => respondToInvitation(application.id, true))} className="primary-btn justify-center">{busy === application.id ? "Saving…" : "Accept"}</button></div>} /> : null)}</div>
             </section>}
 
             {selectedBooked.length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#002757]"><span className="grid h-4 w-4 place-items-center rounded-full bg-[#002757] text-[10px] text-white">✓</span>Booked</h4>
-              <div className="space-y-3">{selectedBooked.map((booking) => booking.shifts ? <ShiftCard key={booking.id} shift={booking.shifts} tone="navy" status="Booked" action={<button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn w-full justify-center">View booked shift</button>} /> : null)}</div>
+              <div className="space-y-3">{selectedBooked.map((booking) => booking.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={booking.id} shift={booking.shifts} tone="navy" status="Booked" action={<button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn w-full justify-center">View booked shift</button>} /> : null)}</div>
             </section>}
 
             {visibleOpen.length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#4285F4]"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />Open shifts</h4>
-              <div className="space-y-3">{visibleOpen.map((shift) => <ShiftCard key={shift.id} shift={shift} tone="blue" action={<button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center">{busy === `apply-${shift.id}` ? "Saving…" : "View & Apply"}</button>} />)}</div>
+              <div className="space-y-3">{visibleOpen.map((shift) => <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={shift.id} shift={shift} tone="blue" action={<button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center">{busy === `apply-${shift.id}` ? "Saving…" : "View & Apply"}</button>} />)}</div>
             </section>}
 
             {selectedApplied.length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#34A853]"><span className="h-3 w-3 rounded-full bg-[#34A853]" />Applied</h4>
-              <div className="space-y-3">{selectedApplied.map((application) => application.shifts ? <ShiftCard key={application.id} shift={application.shifts} tone="green" status="Applied" /> : null)}</div>
+              <div className="space-y-3">{selectedApplied.map((application) => application.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={application.id} shift={application.shifts} tone="green" status="Applied" /> : null)}</div>
             </section>}
 
             {selectedAvailability.length > 0 ? <section className="rounded-2xl border border-[#34A853]/25 bg-green-50 p-4">
