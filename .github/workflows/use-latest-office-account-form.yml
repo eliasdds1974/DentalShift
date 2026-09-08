@@ -30,4 +30,5 @@ jobs:
             git push
           fi
       - name: Confirm routing patch
-        run: grep -q 'view === "profile" ? "overview" : view' app/page.tsx
+        run: |
+          grep -q 'view === "profile" ? "overview" : view' app/page.tsx
