@@ -238,7 +238,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       interestApplicationId: interest?.id || null,
       interestElapsed: interest ? interestElapsed(interest.created_at, nowMs) : null,
       licenceProvince: interest?.professional_profiles?.licence_province || profile?.licence_province || null,
-      requestedRate: interest?.proposed_rate != null ? Number(interest.proposed_rate) : null,
+      requestedRate: Number(slot.hourly_rate),
       shiftId: matchingShift?.id || officeInterest?.shift.id || null,
       officeInterested: Boolean(officeInterest),
       officeInterestElapsed: officeInterest?.application.office_interested_at ? interestElapsed(officeInterest.application.office_interested_at, nowMs) : null,

@@ -73,7 +73,7 @@ export function AnonymousAvailableStaffPanel({
             <div className="flex items-center justify-between gap-3">
               <div>
                 <strong className="text-sm text-[#032757]">{item.role} available</strong>
-                <p className="mt-1 text-xs font-bold text-slate-500">{shortTime(item.startsAt)}–{shortTime(item.endsAt)}{item.minimumHourlyRate != null ? ` · Min $${item.minimumHourlyRate.toFixed(2)}/hr` : ""}</p>
+                <p className="mt-1 text-xs font-bold text-slate-500">{shortTime(item.startsAt)}–{shortTime(item.endsAt)}{item.minimumHourlyRate != null ? ` · $${item.minimumHourlyRate.toFixed(2)}/hr` : ""}</p>
               </div>
               <span className="flex shrink-0 items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-black text-slate-600">
                 <MapPin size={12} />{item.distanceKm == null ? "Distance unavailable" : `${item.distanceKm.toFixed(1)} km`}
@@ -92,7 +92,7 @@ export function AnonymousAvailableStaffPanel({
                 <span>Completed: <strong>{item.completedShifts || 0}</strong></span>
                 <span>Rating: <strong>{item.rating ? `${item.rating}★` : "No rating yet"}</strong></span>
                 <span>Reliability: <strong>{item.reliabilityScore != null ? `${item.reliabilityScore}%` : "Not enough history"}</strong></span>
-                <span className="col-span-2">Requested rate: <strong>{item.requestedRate != null ? `$${item.requestedRate.toFixed(2)}/hr` : "Not specified"}</strong></span>
+                <span className="col-span-2">Rate: <strong>{item.requestedRate != null ? `$${item.requestedRate.toFixed(2)}/hr` : (item.minimumHourlyRate != null ? `$${item.minimumHourlyRate.toFixed(2)}/hr` : "Not specified")}</strong></span>
               </div>
               <p className="mt-2 text-[10px] leading-4 text-slate-500">Identity and contact details are shared after booking confirmation.</p>
               {item.interestApplicationId && onBookInterest && <button type="button" disabled={busyApplicationId === item.interestApplicationId} onClick={() => onBookInterest(item.interestApplicationId!)} className="primary-btn mt-2 w-full justify-center py-2 text-xs">{busyApplicationId === item.interestApplicationId ? "Booking…" : "✓ Book Now"}</button>}
