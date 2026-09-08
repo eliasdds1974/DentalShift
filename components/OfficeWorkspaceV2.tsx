@@ -226,6 +226,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       distanceKm: distanceForSlot(slot),
       startsAt: slot.starts_at,
       endsAt: slot.ends_at,
+      notes: slot.notes || null,
       yearsExperience: profile?.years_experience ?? null,
       rating: Number(profile?.rating || 0) > 0 ? Number(profile?.rating) : null,
       completedShifts: completed,

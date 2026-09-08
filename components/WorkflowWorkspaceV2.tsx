@@ -257,6 +257,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     const start = String(form.get("start") || "");
     const end = String(form.get("end") || "");
     const hourlyRate = Number(form.get("hourly_rate") || 0);
+    const notes = String(form.get("notes") || "").trim();
     if (!start || !end) return;
     if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) {
       setError("Enter a valid hourly rate before posting availability.");
@@ -272,7 +273,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
       setError("Choose an availability time that has not already ended.");
       return;
     }
-    await run("availability-add", () => addProfessionalAvailability(userId, startsAt.toISOString(), endsAt.toISOString(), hourlyRate));
+    await run("availability-add", () => addProfessionalAvailability(userId, startsAt.toISOString(), endsAt.toISOString(), hourlyRate, notes));
     setAvailabilityOpen(false);
   };
 
@@ -383,7 +384,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         <p className="text-xs font-black uppercase tracking-[.12em] text-[#34A853]">Availability</p>
         <h3 className="mt-1 text-xl font-black text-[#002757]">{longDate(selectedDate)}</h3>
         <p className="mt-1 text-sm text-slate-500">Tell offices what hours you can work.</p>
-        <div className="mt-4 grid grid-cols-2 gap-3"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div><label className="field mt-3"><span>Hourly rate *</span><input key={profileHourlyRate ?? "no-rate"} name="hourly_rate" type="number" min="1" step="0.50" defaultValue={profileHourlyRate ?? undefined} placeholder="$ / hr" required /></label>
+        <div className="mt-4 grid grid-cols-2 gap-3"><label className="field"><span>Start</span><input name="start" type="time" step={900} defaultValue="08:00" required /></label><label className="field"><span>End</span><input name="end" type="time" step={900} defaultValue="16:30" required /></label></div><label className="field mt-3"><span>Hourly rate *</span><input key={profileHourlyRate ?? "no-rate"} name="hourly_rate" type="number" min="1" step="0.50" defaultValue={profileHourlyRate ?? undefined} placeholder="$ / hr" required /></label><label className="field mt-3"><span>Notes</span><textarea name="notes" rows={3} maxLength={500} placeholder="Optional information for dental offices" className="resize-none" /></label>
         <div className="mt-4 grid grid-cols-2 gap-2"><button type="button" onClick={() => setAvailabilityOpen(false)} className="secondary-btn justify-center">Cancel</button><button type="submit" disabled={busy === "availability-add"} className="primary-btn justify-center">{busy === "availability-add" ? "Saving…" : "I’m Available"}</button></div>
       </form>
     </div>}
