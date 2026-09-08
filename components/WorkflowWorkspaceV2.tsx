@@ -84,7 +84,7 @@ function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | 
   return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude, professionalLongitude }: { shift: LiveShift; action?: React.ReactNode; tone?: "blue" | "red" | "green" | "navy"; status?: string; professionalLatitude?: number | null; professionalLongitude?: number | null }) {
+function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude, professionalLongitude, officeHeader = false }: { shift: LiveShift; action?: React.ReactNode; tone?: "blue" | "red" | "green" | "navy"; status?: string; professionalLatitude?: number | null; professionalLongitude?: number | null; officeHeader?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const officeDistanceKm = distanceKm(professionalLatitude, professionalLongitude, shift.offices?.latitude, shift.offices?.longitude);
   const tones = {
@@ -97,10 +97,12 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
   return <article className={`rounded-2xl border p-4 ${tones[tone]}`}>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        <div className="flex items-center gap-2">
+        {officeHeader ? <div className="mb-2 inline-flex rounded-lg bg-[#EA4335] px-3 py-1.5 shadow-sm">
+          <strong className="truncate text-sm font-black text-white sm:text-base">{officeName(shift)}</strong>
+        </div> : <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
           <strong className="truncate text-sm text-[#002757] sm:text-base">{officeName(shift)}</strong>
-        </div>
+        </div>}
         <p className="mt-1 text-xs font-black text-slate-700">{shift.profession}</p>
         <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-600"><Clock3 size={14} />{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span className="inline-flex items-center gap-1.5"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span>{officeDistanceKm != null && <span className="inline-flex items-center rounded-full bg-[#edf3fa] px-2 py-0.5 font-black text-[#002757]">{officeDistanceKm < 10 ? officeDistanceKm.toFixed(1) : Math.round(officeDistanceKm)} km away</span>}</div>
@@ -327,7 +329,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
                 <span className="text-[10px] font-black uppercase tracking-wide text-white/90">Selected office</span>
               </div>
               <div className="m-2 rounded-2xl border-2 border-[#EA4335] bg-white p-1 shadow-sm">
-                <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={selectedInterest.shifts} tone="red" action={<button type="button" disabled={busy === `cancel-interest-${selectedInterest.id}`} onClick={() => void run(`cancel-interest-${selectedInterest.id}`, () => cancelShiftInterest(selectedInterest.id))} className="secondary-btn w-full justify-center border-[#19a93b] font-black text-[#017f27] hover:bg-[#edf9f0]">{busy === `cancel-interest-${selectedInterest.id}` ? "Cancelling…" : "Cancel Interest"}</button>} />
+                <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={selectedInterest.shifts} tone="red" officeHeader action={<button type="button" disabled={busy === `cancel-interest-${selectedInterest.id}`} onClick={() => void run(`cancel-interest-${selectedInterest.id}`, () => cancelShiftInterest(selectedInterest.id))} className="secondary-btn w-full justify-center border-[#19a93b] font-black text-[#017f27] hover:bg-[#edf9f0]">{busy === `cancel-interest-${selectedInterest.id}` ? "Cancelling…" : "Cancel Interest"}</button>} />
               </div>
             </section>}
             {selectedAvailability.length > 0 ? <section className="rounded-2xl border border-[#34A853]/25 bg-green-50 p-4">
