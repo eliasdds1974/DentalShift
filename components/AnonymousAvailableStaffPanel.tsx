@@ -22,6 +22,11 @@ export type AnonymousAvailableStaff = {
   software?: string[] | null;
   qualifications?: { label: string; verified: boolean }[];
   preferred?: boolean;
+  interested?: boolean;
+  interestApplicationId?: string | null;
+  interestElapsed?: string | null;
+  licenceProvince?: string | null;
+  requestedRate?: number | null;
 };
 
 const roleStyles: Record<AvailableStaffRole, { title: string; badge: string; border: string; soft: string; text: string }> = {
@@ -37,8 +42,12 @@ function shortTime(value: string) {
 
 export function AnonymousAvailableStaffPanel({
   staff,
+  onBookInterest,
+  busyApplicationId,
 }: {
   staff: AnonymousAvailableStaff[];
+  onBookInterest?: (applicationId: string) => void;
+  busyApplicationId?: string | null;
 }) {
   const groups = (["RDH", "CDA", "DA", "ST"] as AvailableStaffRole[])
     .map((role) => ({ role, items: staff.filter((item) => item.role === role) }))
@@ -55,7 +64,7 @@ export function AnonymousAvailableStaffPanel({
           </div>
         </header>
         <div className="divide-y divide-slate-100">
-          {items.map((item) => <article key={item.id} className="p-3">
+          {items.map((item) => <article key={item.id} className={`p-3 ${item.interested ? "bg-[#f3fbf5]" : ""}`}>
             <div className="flex items-center justify-between gap-3">
               <div>
                 <strong className="text-sm text-[#032757]">{item.role} available</strong>
@@ -65,6 +74,21 @@ export function AnonymousAvailableStaffPanel({
                 <MapPin size={12} />{item.distanceKm == null ? "Distance unavailable" : `${item.distanceKm.toFixed(1)} km`}
               </span>
             </div>
+            {item.interested && <div className="mt-3 border-t border-[#34A853]/25 pt-3">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span>
+                {item.interestElapsed && <span className="font-mono text-xs font-black tabular-nums text-[#017f27]">{item.interestElapsed}</span>}
+              </div>
+              <div className="mt-3 grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] text-slate-600">
+                <span>Licence province: <strong>{item.licenceProvince || "Unavailable"}</strong></span>
+                <span>Completed: <strong>{item.completedShifts || 0}</strong></span>
+                <span>Rating: <strong>{item.rating ? `${item.rating}★` : "No rating yet"}</strong></span>
+                <span>Reliability: <strong>{item.reliabilityScore != null ? `${item.reliabilityScore}%` : "Not enough history"}</strong></span>
+                <span className="col-span-2">Requested rate: <strong>{item.requestedRate != null ? `$${item.requestedRate.toFixed(2)}/hr` : "Not specified"}</strong></span>
+              </div>
+              <p className="mt-2 text-[10px] leading-4 text-slate-500">Identity and contact details are shared after booking confirmation.</p>
+              {item.interestApplicationId && onBookInterest && <button type="button" disabled={busyApplicationId === item.interestApplicationId} onClick={() => onBookInterest(item.interestApplicationId!)} className="primary-btn mt-2 w-full justify-center py-2 text-xs">{busyApplicationId === item.interestApplicationId ? "Booking…" : "✓ Book Now"}</button>}
+            </div>}
           </article>)}
         </div>
       </section>;
