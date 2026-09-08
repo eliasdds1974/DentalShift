@@ -1,0 +1,50 @@
+name: Show office profile software on professional cards
+on:
+  push:
+    paths:
+      - '.github/workflows/show-office-profile-software-on-professional-cards.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add office software to professional card data and UI
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          lib = Path('lib/dentalshift.ts')
+          s = lib.read_text()
+          s = s.replace(
+            'offices: { name: string; city: string; province: string; website: string | null; google_place_id: string | null; latitude: number | null; longitude: number | null } | null;',
+            'offices: { name: string; city: string; province: string; website: string | null; software: string[] | null; google_place_id: string | null; latitude: number | null; longitude: number | null } | null;',
+            1,
+          )
+          s = s.replace(
+            'offices(name,city,province,website,google_place_id,latitude,longitude)',
+            'offices(name,city,province,website,software,google_place_id,latitude,longitude)',
+          )
+          lib.write_text(s)
+
+          ui = Path('components/WorkflowWorkspaceV2.tsx')
+          s = ui.read_text()
+          old = '{shift.required_software && <span className="rounded-full bg-white/80 px-2 py-1">Software: {shift.required_software}</span>}'
+          new = '{shift.offices?.software?.length ? <span className="rounded-full bg-white/80 px-2 py-1">Office software: {shift.offices.software.join(", ")}</span> : null}'
+          assert old in s, 'software pill not found'
+          s = s.replace(old, new, 1)
+
+          old2 = '<div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Practice software</p><p className="mt-1 font-extrabold text-[#002757]">{shift.required_software || "No specific software required"}</p></div>'
+          new2 = '<div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Office software</p><p className="mt-1 font-extrabold text-[#002757]">{shift.offices?.software?.length ? shift.offices.software.join(", ") : "Not listed by office"}</p>{shift.required_software && <p className="mt-1 text-xs font-semibold text-slate-500">Shift requirement: {shift.required_software}</p>}</div>'
+          assert old2 in s, 'expanded practice software block not found'
+          s = s.replace(old2, new2, 1)
+          ui.write_text(s)
+          PY
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/dentalshift.ts components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m "Display office profile software on professional cards"
+          git push
