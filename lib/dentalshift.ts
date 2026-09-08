@@ -701,7 +701,8 @@ export type AvailableProfessionalSlot = {
   starts_at: string;
   ends_at: string;
   hourly_rate: number;
-  professional_profiles: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; travel_radius_km: number; years_experience: number | null; skills: string[] | null; local_anesthetic: boolean; local_anesthetic_status: string; profiles: { latitude: number | null; longitude: number | null } | null } | null;
+  distance_km?: number | null;
+  professional_profiles: { profession: string; licence_province: string; licence_status?: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; travel_radius_km: number; years_experience: number | null; skills: string[] | null; local_anesthetic: boolean; local_anesthetic_status: string; profiles: { latitude: number | null; longitude: number | null } | null } | null;
 };
 
 export type OfficeShift = LiveShift & { applications: WorkflowApplication[] };
@@ -762,7 +763,7 @@ export async function loadOfficeWorkflow(officeId: string) {
     supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude),applications(id,status,proposed_rate,application_kind,created_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
     supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").eq("available_for_work", true).order("rating", { ascending: false }).limit(12),
-    supabase.from("availability").select("id,professional_id,starts_at,ends_at,hourly_rate,professional_profiles!availability_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,hourly_rate,travel_radius_km,years_experience,skills,local_anesthetic,local_anesthetic_status,profiles!professional_profiles_user_id_fkey(latitude,longitude))").eq("available", true).gte("ends_at", new Date().toISOString()),
+    supabase.rpc("office_available_professionals", { p_office_id: officeId }),
   ]);
   if (shiftsResult.error) throw shiftsResult.error;
   if (bookingsResult.error) throw bookingsResult.error;

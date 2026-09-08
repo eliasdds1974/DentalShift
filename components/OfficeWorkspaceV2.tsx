@@ -178,21 +178,18 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     });
   const selectedBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
   const interestedIds = new Set(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => application.professional_id)));
-  const distanceForSlot = (slot: AvailableProfessionalSlot) => distanceKm(
-    officeCoordinates?.latitude,
-    officeCoordinates?.longitude,
-    slot.professional_profiles?.profiles?.latitude,
-    slot.professional_profiles?.profiles?.longitude,
-  );
-  const isSlotInProfessionalRadius = (slot: AvailableProfessionalSlot) => {
-    const distance = distanceForSlot(slot);
-    const travelRadiusKm = Number(slot.professional_profiles?.travel_radius_km || 0);
-    return distance != null && travelRadiusKm > 0 && distance <= travelRadiusKm;
+  const distanceForSlot = (slot: AvailableProfessionalSlot) => {
+    if (slot.distance_km != null && Number.isFinite(Number(slot.distance_km))) return Number(slot.distance_km);
+    return distanceKm(
+      officeCoordinates?.latitude,
+      officeCoordinates?.longitude,
+      slot.professional_profiles?.profiles?.latitude,
+      slot.professional_profiles?.profiles?.longitude,
+    );
   };
   const selectedAvailability = data.availability
     .filter((slot) => !interestedIds.has(slot.professional_id))
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
-    .filter(isSlotInProfessionalRadius)
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
       if (roleCompare) return roleCompare;
