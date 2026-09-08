@@ -1321,11 +1321,21 @@ export default function Home() {
       }
       try {
         const details = await loadAccountDetails(nextSession.user.id);
-        const account = { profile: details.profile, officeId: details.office?.id ?? null };
+        let activeOffice = details.office;
+        if (!activeOffice && details.profile.role === "admin") {
+          const { data: previewOffice } = await supabase
+            .from("offices")
+            .select("*")
+            .order("created_at", { ascending: true })
+            .limit(1)
+            .maybeSingle();
+          if (previewOffice) activeOffice = previewOffice as OfficeDetails;
+        }
+        const account = { profile: details.profile, officeId: activeOffice?.id ?? null };
         if (!active) return;
         setProfile(account.profile);
         setOfficeId(account.officeId);
-        setOffice(details.office);
+        setOffice(activeOffice);
         const requestedRole = window.sessionStorage.getItem("dentalshift_signin_role");
         const routeState = portalState(pathname) ?? portalState(window.location.pathname);
         const routeRole = routeState?.role;
@@ -1333,7 +1343,7 @@ export default function Home() {
         window.sessionStorage.removeItem("dentalshift_signin_role");
 
         const canUseRole = (candidate: string | null | undefined): candidate is Role =>
-          (candidate === "office" && Boolean(details.office)) ||
+          (candidate === "office" && Boolean(activeOffice)) ||
           (candidate === "professional" && Boolean(details.professional)) ||
           (candidate === "admin" && account.profile.role === "admin");
 
