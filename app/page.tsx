@@ -633,7 +633,7 @@ function AccountModal({ close, session, profile, onSaved, activeRole = "professi
     window.sessionStorage.setItem("dentalshift_signin_role", role);
     window.localStorage.setItem("dentalshift_portal_role", role);
     const redirectTo = role === "admin"
-      ? `${window.location.origin}/admin/overview`
+      ? `${window.location.origin}/auth/admin-callback`
       : role === "office"
         ? `${window.location.origin}/office/overview?portal_role=office`
         : `${window.location.origin}/professionals/find-shifts?portal_role=professional`;
