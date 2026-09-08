@@ -1,0 +1,27 @@
+name: Strengthen professional right panel
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/strengthen-professional-right-panel.py'
+      - '.github/workflows/strengthen-professional-right-panel.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Strengthen professional right panel
+        run: python .github/scripts/strengthen-professional-right-panel.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Strengthen professional right panel colors"
+            git push
+          fi
