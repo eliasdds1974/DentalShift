@@ -1,0 +1,31 @@
+name: Prioritize professional shift cards
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/prioritize_professional_shift_cards.py'
+      - '.github/workflows/prioritize-professional-shift-cards.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional card priority
+        run: python .github/scripts/prioritize_professional_shift_cards.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add components/WorkflowWorkspace.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Prioritize professional shift cards"
+            git push
+          fi
