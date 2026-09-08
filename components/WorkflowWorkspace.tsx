@@ -74,6 +74,16 @@ function localDateKey(value: Date | string) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
+function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null) {
+  if ([lat1, lon1, lat2, lon2].some((value) => value == null || !Number.isFinite(Number(value)))) return null;
+  const toRad = (value: number) => value * Math.PI / 180;
+  const earthKm = 6371;
+  const dLat = toRad(Number(lat2) - Number(lat1));
+  const dLon = toRad(Number(lon2) - Number(lon1));
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(Number(lat1))) * Math.cos(toRad(Number(lat2))) * Math.sin(dLon / 2) ** 2;
+  return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
 function weekStart(value: Date) {
   const date = new Date(value.getFullYear(), value.getMonth(), value.getDate());
   date.setDate(date.getDate() - date.getDay());
@@ -219,13 +229,14 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
     const favourite = favouriteOfficeIds.has(shift.office_id);
     const expanded = expandedShift === shift.id;
     const role = shiftRoles.find((item) => item.code === shiftRoleCode(shift.profession))!;
+    const officeDistanceKm = distanceKm(profile.latitude, profile.longitude, shift.offices?.latitude, shift.offices?.longitude);
     return <article key={shift.id} className={`overflow-hidden rounded-2xl border shadow-sm transition ${available ? "border-[#01A32E]/30 bg-[#eaf8ee]/30" : "border-[#0078FE]/20 bg-white"}`}>
       <div className={`flex flex-col gap-3 ${compact ? "p-3.5" : "p-4 sm:flex-row sm:items-start sm:p-5"}`}>
         {!compact && <div className={`flex min-w-20 shrink-0 items-center gap-3 rounded-xl px-4 py-3 text-white sm:flex-col sm:gap-0 sm:text-center ${role.dot}`}><strong className="text-2xl font-black leading-none">{new Date(shift.starts_at).toLocaleDateString("en-CA", { day: "numeric" })}</strong><span className="text-sm font-extrabold uppercase tracking-wide">{new Date(shift.starts_at).toLocaleDateString("en-CA", { month: "short" })}</span><span className="text-xs font-bold text-white/85">{new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short" })}</span></div>}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2"><span className={`h-2.5 w-2.5 rounded-full ${role.dot}`} /><strong className={compact ? "text-sm text-[#002757]" : "text-lg text-[#002757]"}>{shift.offices?.name || "Dental office"}</strong>{favourite && <Pill tone="green"><Star size={13} className="fill-[#01A32E] text-[#01A32E]" />Favourite</Pill>}{available && <Pill tone="green"><Check size={13} />Matches availability</Pill>}</div>
           <p className="mt-1 text-sm font-extrabold text-slate-700">{shift.profession}</p>
-          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold text-slate-600"><span className="flex items-center gap-1"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span><span className="flex items-center gap-1"><Clock3 size={14} />{new Date(shift.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(shift.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><strong className="text-[#002757]">${Number(shift.hourly_rate)}/hr</strong><WebsiteLink website={shift.offices?.website} /></div>
+          <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1 text-xs font-bold text-slate-600"><span className="flex items-center gap-1"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span>{officeDistanceKm != null && <span className="inline-flex items-center gap-1 rounded-full bg-[#edf3fa] px-2 py-0.5 font-black text-[#002757]">{officeDistanceKm < 10 ? officeDistanceKm.toFixed(1) : Math.round(officeDistanceKm)} km away</span>}<span className="flex items-center gap-1"><Clock3 size={14} />{new Date(shift.starts_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}–{new Date(shift.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><strong className="text-[#002757]">${Number(shift.hourly_rate)}/hr</strong><WebsiteLink website={shift.offices?.website} /></div>
           {conflict && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-xs font-extrabold text-[#F21C13]">Schedule conflict with a confirmed booking.</p>}
           {application && <p className="mt-3 rounded-xl bg-[#edf3fa] px-3 py-2 text-xs font-extrabold text-[#002757]">Application: {application.status.replace("_", " ")}{application.proposed_rate ? ` · $${Number(application.proposed_rate)}/hr proposed` : ""}</p>}
         </div>
