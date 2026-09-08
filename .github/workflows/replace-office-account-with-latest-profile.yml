@@ -1,0 +1,31 @@
+name: Replace office account with latest profile
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/replace_office_account_with_latest_profile.py'
+      - '.github/workflows/replace-office-account-with-latest-profile.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Replace office account form
+        run: python .github/scripts/replace_office_account_with_latest_profile.py
+      - name: Commit source changes
+        run: |
+          git config user.name "DentalShift automation"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes needed"
+          else
+            git commit -m "Replace office account with latest profile form"
+            git push
+          fi
