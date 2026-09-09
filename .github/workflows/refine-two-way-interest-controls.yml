@@ -1,0 +1,25 @@
+name: Refine two-way interest controls
+on:
+  push:
+    paths:
+      - '.github/workflows/refine-two-way-interest-controls.yml'
+      - '.github/scripts/refine-two-way-interest-controls.py'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Patch two-way interest controls
+        run: python .github/scripts/refine-two-way-interest-controls.py
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/dentalshift.ts components/AnonymousAvailableStaffPanel.tsx components/OfficeWorkspaceV2.tsx components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Refine two-way interest controls"
+          git push origin main
