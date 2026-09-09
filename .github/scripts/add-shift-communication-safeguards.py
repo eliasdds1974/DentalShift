@@ -33,6 +33,7 @@ s = s.replace('p_hourly_rate: hourlyRate,\n  });', 'p_hourly_rate: hourlyRate,\n
 # Include notes in professional workflow and office slot type.
 s = s.replace('supabase.from("availability").select("id,starts_at,ends_at,available,hourly_rate")', 'supabase.from("availability").select("id,starts_at,ends_at,available,hourly_rate,notes")')
 s = s.replace('  hourly_rate: number;\n  distance_km?: number | null;', '  hourly_rate: number;\n  notes?: string | null;\n  distance_km?: number | null;')
+s = s.replace('  notes?: string | null;\n  distance_km?: number | null;\n  notes?: string | null;\n', '  notes?: string | null;\n  distance_km?: number | null;\n')
 
 # Screen protected messages.
 needle = '''export async function sendProtectedMessage(input: {\n  shiftId?: string;\n  bookingId?: string;\n  senderId: string;\n  recipientId: string;\n  body: string;\n}) {\n  const { data, error } = await supabase.from("messages").insert({\n'''
