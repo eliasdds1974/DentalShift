@@ -1,0 +1,33 @@
+name: Add booking cancellation flow
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-booking-cancellation-flow.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply cancellation patch
+        run: python .github/scripts/add-booking-cancellation-flow.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/dentalshift.ts components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add participant booking cancellation flow"
+            git push
+          fi
