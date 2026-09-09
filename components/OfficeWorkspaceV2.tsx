@@ -219,6 +219,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     });
   const selectedShifts = selectedAllShifts.filter((shift) => !shift.interest_only);
   const selectedBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
+  const bookedProfessionalIds = new Set(selectedBookings.map((booking) => booking.professional_id));
   const interestedIds = new Set(selectedAllShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => application.professional_id)));
   const distanceForSlot = (slot: AvailableProfessionalSlot) => {
     if (slot.distance_km != null && Number.isFinite(Number(slot.distance_km))) return Number(slot.distance_km);
@@ -231,6 +232,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   };
   const selectedAvailability = data.availability
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
+    .filter((slot) => !bookedProfessionalIds.has(slot.professional_id))
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
       if (roleCompare) return roleCompare;
@@ -277,7 +279,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const availabilityProfessionalIds = new Set(selectedAvailability.map((slot) => slot.professional_id));
   const applicantOnlyStaff: AnonymousAvailableStaff[] = selectedShifts.flatMap((shift) =>
     (shift.applications || [])
-      .filter((application) => application.status === "applied" && application.application_kind === "application" && !availabilityProfessionalIds.has(application.professional_id))
+      .filter((application) => application.status === "applied" && application.application_kind === "application" && !availabilityProfessionalIds.has(application.professional_id) && !bookedProfessionalIds.has(application.professional_id))
       .map((application) => {
         const profile = application.professional_profiles;
         const completed = Number(profile?.completed_shifts || 0);
@@ -311,7 +313,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         };
       })
   );
-  const anonymousStaff: AnonymousAvailableStaff[] = [...availabilityStaff, ...applicantOnlyStaff];
+  const anonymousStaff: AnonymousAvailableStaff[] = [...availabilityStaff, ...applicantOnlyStaff].filter((person) => !bookedProfessionalIds.has(person.id));
 
   const act = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);

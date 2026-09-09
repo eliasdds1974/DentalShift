@@ -434,14 +434,14 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
           </div>
 
           <div className="mt-4 space-y-5">
-            {selectedAvailability.length > 0 && !hasProfessionalInterest ? <section className="overflow-hidden rounded-2xl border-2 border-[#01A32E] bg-white shadow-sm">
+            {selectedBooked.length === 0 && selectedAvailability.length > 0 && !hasProfessionalInterest ? <section className="overflow-hidden rounded-2xl border-2 border-[#01A32E] bg-white shadow-sm">
               <div className="flex items-center gap-2 bg-[#01A32E] px-4 py-2.5"><span className="grid h-6 w-6 place-items-center rounded-full bg-white text-sm font-black text-[#017f27]">✓</span><p className="text-sm font-black tracking-wide text-white">I’m Available</p></div>
               <div className="flex items-center justify-between gap-3 p-4"><div className="min-w-0 space-y-2">{selectedAvailability.map((slot) => <div key={slot.id} className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1.5 text-sm font-black text-[#002757]"><Clock3 size={15} className="text-[#017f27]" />{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</span><span className="rounded-full bg-[#eaf8ee] px-2.5 py-1 text-xs font-black text-[#017f27]">${Number(slot.hourly_rate).toFixed(2)}/hr</span></div>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id)).then((removed) => { if (removed) setAvailabilityOpen(true); })} className="secondary-btn shrink-0 border-[#01A32E]/30 text-[#017f27] hover:bg-[#edf9f0]">Cancel / Repost</button></div>
             </section> : selectedAvailability.length === 0 ? <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button> : null}
 
 
 
-            {selectedInvitations.length > 0 && <section>
+            {selectedBooked.length === 0 && selectedInvitations.length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#EA4335]"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />Invitations</h4>
               <div className="space-y-3">{selectedInvitations.map((application) => application.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={application.id} shift={application.shifts} tone="red" status="Invitation" action={<div className="grid grid-cols-2 gap-2"><button type="button" disabled={busy === application.id} onClick={() => void run(application.id, () => respondToInvitation(application.id, false))} className="secondary-btn justify-center border-[#EA4335]/30 text-[#c9342d]">Not Available</button><button type="button" disabled={busy === application.id} onClick={() => void run(application.id, () => respondToInvitation(application.id, true))} className="primary-btn justify-center">{busy === application.id ? "Saving…" : "Accept"}</button></div>} /> : null)}</div>
             </section>}
@@ -451,7 +451,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               <div className="space-y-3 rounded-2xl bg-white p-1">{selectedBooked.map((booking) => booking.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={booking.id} shift={booking.shifts} tone="navy" status="Booked" action={<div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn justify-center">View booked shift</button><button type="button" disabled={busy === `cancel-booking-${booking.id}`} onClick={() => void cancelProfessionalBooking(booking.id)} className="secondary-btn justify-center border-rose-200 text-rose-700 hover:bg-rose-50">{busy === `cancel-booking-${booking.id}` ? "Cancelling…" : "Cancel Booking"}</button></div>} /> : null)}</div>
             </section>}
 
-            {visibleOpen.length > 0 && <section>
+            {selectedBooked.length === 0 && visibleOpen.length > 0 && <section>
               <div className="space-y-3">{visibleOpen.map((shift) => {
                 const interest = interestByShiftId.get(shift.id);
                 const officeInterest = officeInterestByShiftId.get(shift.id);
@@ -465,7 +465,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               })}</div>
             </section>}
 
-            {selectedApplied.filter((item) => item.application_kind !== "application").length > 0 && <section>
+            {selectedBooked.length === 0 && selectedApplied.filter((item) => item.application_kind !== "application").length > 0 && <section>
               <h4 className="mb-2 flex items-center gap-2 font-black text-[#34A853]"><span className="h-3 w-3 rounded-full bg-[#34A853]" />Applied</h4>
               <div className="space-y-3">{selectedApplied.filter((item) => item.application_kind !== "application").map((application) => application.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={application.id} shift={application.shifts} tone="green" status="Applied" /> : null)}</div>
             </section>}
