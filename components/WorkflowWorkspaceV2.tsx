@@ -197,14 +197,23 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
       if (!map.has(key)) map.set(key, { open: 0, invited: 0, applied: 0, booked: 0 });
       return map.get(key)!;
     };
-    matchingOpen.forEach((shift) => {
+    const incomingInterestShifts = workflow.applications.filter((item) => item.office_interested_at && item.shifts).map((item) => item.shifts!);
+    const visibleCalendarShifts = Array.from(new Map([...matchingOpen, ...incomingInterestShifts].map((shift) => [shift.id, shift])).values());
+    visibleCalendarShifts.forEach((shift) => {
       const dateKey = localDateKey(shift.starts_at);
       if (!declinedOfficeDateKeys.has(`${dateKey}|${shift.office_id}`)) ensure(dateKey).open += 1;
     });
     applied.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).applied += 1; });
     booked.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).booked += 1; });
     return map;
-  }, [matchingOpen, applied, booked, declinedOfficeDateKeys]);
+  }, [matchingOpen, applied, booked, declinedOfficeDateKeys, workflow.applications]);
+
+  const professionalInterestDateKeys = new Set(workflow.applications
+    .filter((item) => item.status === "applied" && item.application_kind === "application" && item.shifts)
+    .map((item) => localDateKey(item.shifts!.starts_at)));
+  const officeInterestDateKeys = new Set(workflow.applications
+    .filter((item) => item.office_interested_at && item.shifts)
+    .map((item) => localDateKey(item.shifts!.starts_at)));
 
   const selectedOpen = matchingOpen
     .filter((shift) => localDateKey(shift.starts_at) === selectedDate)
@@ -224,7 +233,11 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const hasProfessionalInterest = selectedInterests.length > 0;
   const interestByShiftId = new Map(selectedInterests.map((item) => [item.shifts!.id, item]));
   const officeInterestByShiftId = new Map(workflow.applications.filter((item) => item.office_interested_at && item.shifts && localDateKey(item.shifts.starts_at) === selectedDate).map((item) => [item.shifts!.id, item]));
-  const visibleOpen = selectedOpen.filter((shift) => !declinedOfficeDateKeys.has(`${selectedDate}|${shift.office_id}`));
+  const incomingOfficeInterestShifts = workflow.applications
+    .filter((item) => item.office_interested_at && item.shifts && localDateKey(item.shifts.starts_at) === selectedDate)
+    .map((item) => item.shifts!);
+  const visibleOpen = Array.from(new Map([...selectedOpen, ...incomingOfficeInterestShifts].map((shift) => [shift.id, shift])).values())
+    .filter((shift) => !declinedOfficeDateKeys.has(`${selectedDate}|${shift.office_id}`));
 
   const run = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -346,7 +359,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
 
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs font-extrabold text-slate-600">
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />Open shifts</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#34A853]" />Applied</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#34A853]" />Interested</span>
           <span className="inline-flex items-center gap-1.5"><span className="grid h-3 w-3 place-items-center rounded-full bg-[#002757] text-[8px] text-white">✓</span>Booked</span>
         </div>
       </div>
@@ -368,7 +381,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
                 {count.applied > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#34A853] px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px]">{count.applied}</span>}
                 {count.booked > 0 && <span className="grid h-5 min-w-5 place-items-center rounded-full bg-[#002757] px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px]">✓{count.booked > 1 ? count.booked : ""}</span>}
               </span>
-              {availableOnDate && count.applied === 0 && <span className="absolute bottom-1 left-1 right-1 rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[8px] font-black leading-tight text-[#017f27] sm:bottom-2 sm:left-2 sm:right-2 sm:py-1 sm:text-[10px]"><span className="sm:hidden">✓</span><span className="hidden sm:inline">✓ I’m Available</span></span>}</>}
+              {officeInterestDateKeys.has(key) ? <span className="absolute bottom-1 left-1 right-1 rounded-md bg-[#EA4335]/15 px-1 py-0.5 text-center text-[8px] font-black leading-tight text-[#c9342d] sm:bottom-2 sm:left-2 sm:right-2 sm:py-1 sm:text-[10px]">They are interested</span> : professionalInterestDateKeys.has(key) ? <span className="absolute bottom-1 left-1 right-1 rounded-md bg-[#002757] px-1 py-0.5 text-center text-[8px] font-black leading-tight text-white sm:bottom-2 sm:left-2 sm:right-2 sm:py-1 sm:text-[10px]">✓ I’m Interested</span> : availableOnDate ? <span className="absolute bottom-1 left-1 right-1 rounded-md bg-[#eaf8ee] px-1 py-0.5 text-center text-[8px] font-black leading-tight text-[#017f27] sm:bottom-2 sm:left-2 sm:right-2 sm:py-1 sm:text-[10px]"><span className="sm:hidden">✓</span><span className="hidden sm:inline">✓ I’m Available</span></span> : null}</>}
             </button>;
           })}</div>
         </div>

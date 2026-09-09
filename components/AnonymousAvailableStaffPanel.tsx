@@ -30,6 +30,7 @@ export type AnonymousAvailableStaff = {
   licenceProvince?: string | null;
   requestedRate?: number | null;
   shiftId?: string | null;
+  availabilityId?: string | null;
   officeInterested?: boolean;
   officeInterestElapsed?: string | null;
 };
@@ -55,7 +56,7 @@ export function AnonymousAvailableStaffPanel({
 }: {
   staff: AnonymousAvailableStaff[];
   onBookInterest?: (applicationId: string) => void;
-  onExpressInterest?: (shiftId: string, professionalId: string) => void;
+  onExpressInterest?: (shiftId: string | null, professionalId: string, availabilityId: string | null) => void;
   onRemoveInterest?: (shiftId: string, professionalId: string) => void;
   onDeclineInterest?: (applicationId: string) => void;
   busyApplicationId?: string | null;
@@ -120,7 +121,7 @@ export function AnonymousAvailableStaffPanel({
               </div>}
 
               {!item.interested && <div className="mt-3 border-t border-[#34A853]/25 pt-3">
-                {item.officeInterested ? <div className="space-y-2"><div className="flex items-center justify-between gap-2 rounded-xl bg-[#eaf8ee] px-3 py-2"><span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span><span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={13} />{item.officeInterestElapsed || "00:00:00"}</span></div>{item.shiftId && onRemoveInterest && <button type="button" disabled={busyApplicationId === `office-remove-interest-${item.id}`} onClick={() => onRemoveInterest(item.shiftId!, item.id)} className="secondary-btn w-full justify-center border-[#01A32E]/30 py-2 text-xs font-black text-[#017f27]">{busyApplicationId === `office-remove-interest-${item.id}` ? "Removing…" : "Remove Interest"}</button>}</div> : onExpressInterest ? <button type="button" disabled={!item.shiftId || busyApplicationId === `office-interest-${item.id}`} title={!item.shiftId ? "Post a matching shift for this professional first" : undefined} onClick={() => { if (item.shiftId) onExpressInterest(item.shiftId, item.id); }} className="w-full rounded-xl border border-[#002757] bg-[#002757] px-3 py-2 text-sm font-black text-white transition hover:bg-[#0a3568] disabled:cursor-not-allowed disabled:opacity-50">{busyApplicationId === `office-interest-${item.id}` ? "Saving…" : "I’m Interested"}</button> : null}
+                {item.officeInterested ? <div className="space-y-2"><div className="flex items-center justify-between gap-2 rounded-xl bg-[#eaf8ee] px-3 py-2"><span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span><span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={13} />{item.officeInterestElapsed || "00:00:00"}</span></div>{item.shiftId && onRemoveInterest && <button type="button" disabled={busyApplicationId === `office-remove-interest-${item.id}`} onClick={() => onRemoveInterest(item.shiftId!, item.id)} className="secondary-btn w-full justify-center border-[#01A32E]/30 py-2 text-xs font-black text-[#017f27]">{busyApplicationId === `office-remove-interest-${item.id}` ? "Removing…" : "Cancel Interest"}</button>}</div> : onExpressInterest ? <button type="button" disabled={(!item.shiftId && !item.availabilityId) || busyApplicationId === `office-interest-${item.id}`} title={!item.shiftId && !item.availabilityId ? "This professional is no longer available" : undefined} onClick={() => onExpressInterest(item.shiftId || null, item.id, item.availabilityId || null)} className="w-full rounded-xl border border-[#002757] bg-[#002757] px-3 py-2 text-sm font-black text-white transition hover:bg-[#0a3568] disabled:cursor-not-allowed disabled:opacity-50">{busyApplicationId === `office-interest-${item.id}` ? "Saving…" : "I’m Interested"}</button> : null}
               </div>}
 
               {item.interested && <div className="mt-3 border-t border-[#EA4335]/25 pt-3">
@@ -128,7 +129,7 @@ export function AnonymousAvailableStaffPanel({
                   <span className="text-xs font-black text-[#EA4335]">✓ They are interested</span>
                   {item.interestElapsed && <span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#EA4335]"><Clock3 size={13} />{item.interestElapsed}</span>}
                 </div>
-                {item.interestApplicationId && <div className="mt-2 grid grid-cols-2 gap-2">{onDeclineInterest && <button type="button" disabled={busyApplicationId === `office-decline-${item.interestApplicationId}`} onClick={() => onDeclineInterest(item.interestApplicationId!)} className="secondary-btn justify-center border-[#EA4335]/30 py-2 text-xs font-black text-[#c9342d]">{busyApplicationId === `office-decline-${item.interestApplicationId}` ? "Removing…" : "I’m not interested"}</button>}{onBookInterest && <button type="button" disabled={busyApplicationId === item.interestApplicationId} onClick={() => onBookInterest(item.interestApplicationId!)} className="primary-btn justify-center py-2 text-xs">{busyApplicationId === item.interestApplicationId ? "Booking…" : "Book appointment"}</button>}</div>}
+                {item.interestApplicationId && <div className="mt-2 grid grid-cols-2 gap-2">{onDeclineInterest && <button type="button" disabled={busyApplicationId === `office-decline-${item.interestApplicationId}`} onClick={() => onDeclineInterest(item.interestApplicationId!)} className="secondary-btn justify-center border-[#EA4335]/30 py-2 text-xs font-black text-[#c9342d]">{busyApplicationId === `office-decline-${item.interestApplicationId}` ? "Removing…" : {item.availabilityId ? "I’m not interested" : "Cancel Interest"}</button>}{onBookInterest && <button type="button" disabled={busyApplicationId === item.interestApplicationId} onClick={() => onBookInterest(item.interestApplicationId!)} className="primary-btn justify-center py-2 text-xs">{busyApplicationId === item.interestApplicationId ? "Booking…" : "Book appointment"}</button>}</div>}
               </div>}
             </article>;
           })}

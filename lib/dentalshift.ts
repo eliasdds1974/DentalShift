@@ -168,6 +168,8 @@ export type LiveShift = {
   required_software: string | null;
   notes: string | null;
   status: string;
+  interest_only: boolean;
+  source_availability_id?: string | null;
   offices: { name: string; city: string; province: string; website: string | null; software: string[] | null; google_place_id: string | null; latitude: number | null; longitude: number | null; languages: string[] | null; parking_info: string | null; operatories: number | null; benefits: string | null } | null;
 };
 
@@ -594,8 +596,9 @@ export async function cancelAdminShift(shiftId: string, reason: string) {
 export async function loadOpenShifts() {
   const { data, error } = await supabase
     .from("shifts")
-    .select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)")
+    .select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)")
     .eq("status", "open")
+    .eq("interest_only", false)
     .gte("starts_at", new Date().toISOString())
     .order("starts_at", { ascending: true });
   if (error) throw error;
@@ -735,7 +738,7 @@ export async function removeOfficePreferredProfessional(officeId: string, id: st
 export type WorkflowApplication = {
   id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string; office_interested_at?: string | null;
   professional_id: string;
-  professional_profiles?: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number } | null;
+  professional_profiles?: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number; years_experience?: number | null; skills?: string[] | null; hourly_rate?: number | null; local_anesthetic?: boolean; local_anesthetic_status?: string; profiles?: { latitude: number | null; longitude: number | null } | null } | null;
   shifts?: LiveShift | null;
 };
 
@@ -832,8 +835,8 @@ export async function removeFavouriteOffice(userId: string, favouriteId: string)
 export async function loadProfessionalWorkflow(userId: string) {
   const workflowPromise = Promise.all([
     loadOpenShifts(),
-    supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,office_interested_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits))").eq("professional_id", userId).order("created_at", { ascending: false }),
-    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
+    supabase.from("applications").select("id,status,proposed_rate,application_kind,created_at,office_interested_at,professional_id,shifts!applications_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits))").eq("professional_id", userId).order("created_at", { ascending: false }),
+    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
     supabase.from("availability").select("id,starts_at,ends_at,available,hourly_rate,notes").eq("professional_id", userId).order("starts_at", { ascending: true }),
     supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,address,city,province,postal_code,google_place_id,latitude,longitude,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
   ]);
@@ -852,8 +855,8 @@ export async function loadProfessionalWorkflow(userId: string) {
 
 export async function loadOfficeWorkflow(officeId: string) {
   const [shiftsResult, bookingsResult, directoryResult, availabilityResult] = await Promise.all([
-    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits),applications(id,status,proposed_rate,application_kind,created_at,office_interested_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score))").eq("office_id", officeId).order("starts_at", { ascending: false }),
-    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
+    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits),applications(id,status,proposed_rate,application_kind,created_at,office_interested_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,years_experience,skills,hourly_rate,local_anesthetic,local_anesthetic_status,profiles(latitude,longitude)))").eq("office_id", officeId).order("starts_at", { ascending: false }),
+    supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
     supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").eq("available_for_work", true).order("rating", { ascending: false }).limit(12),
     supabase.rpc("office_available_professionals", { p_office_id: officeId }),
   ]);
@@ -884,6 +887,12 @@ export async function acceptApplication(applicationId: string) {
 
 export async function officeExpressInterest(shiftId: string, professionalId: string) {
   const { data, error } = await supabase.rpc("office_express_interest", { p_shift_id: shiftId, p_professional_id: professionalId });
+  if (error) throw error;
+  return data;
+}
+
+export async function officeExpressInterestFromAvailability(officeId: string, availabilityId: string) {
+  const { data, error } = await supabase.rpc("office_express_interest_from_availability", { p_office_id: officeId, p_availability_id: availabilityId });
   if (error) throw error;
   return data;
 }

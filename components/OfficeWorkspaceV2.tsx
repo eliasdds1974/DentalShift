@@ -11,6 +11,7 @@ import {
   loadOfficePreferredProfessionals,
   loadOfficeWorkflow,
   officeExpressInterest,
+  officeExpressInterestFromAvailability,
   officeRemoveInterest,
   officeDeclineProfessionalInterest,
   type AvailableProfessionalSlot,
@@ -170,7 +171,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     };
   }, [office.id]);
 
-  const openShifts = useMemo(() => data.shifts.filter((shift) => shift.status === "open"), [data.shifts]);
+  const openShifts = useMemo(() => data.shifts.filter((shift) => shift.status === "open" && !shift.interest_only), [data.shifts]);
   const upcomingBookings = useMemo(() => data.bookings
     .filter((booking) => booking.shifts && !booking.cancelled_at && new Date(booking.shifts.ends_at).getTime() >= Date.now())
     .sort((a, b) => new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime()), [data.bookings]);
@@ -185,7 +186,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   });
   const calendarWeekdays = calendarDays.slice(0, 7).map((day) => day.toLocaleDateString("en-CA", { weekday: "short" }));
 
-  const selectedShifts = data.shifts
+  const selectedAllShifts = data.shifts
     .filter((shift) => shift.status !== "cancelled")
     .filter((shift) => localDateKey(shift.starts_at) === selectedDate)
     .sort((a, b) => {
@@ -193,8 +194,9 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       if (roleOrder) return roleOrder;
       return new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime();
     });
+  const selectedShifts = selectedAllShifts.filter((shift) => !shift.interest_only);
   const selectedBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === selectedDate);
-  const interestedIds = new Set(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => application.professional_id)));
+  const interestedIds = new Set(selectedAllShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => application.professional_id)));
   const distanceForSlot = (slot: AvailableProfessionalSlot) => {
     if (slot.distance_km != null && Number.isFinite(Number(slot.distance_km))) return Number(slot.distance_km);
     return distanceKm(
@@ -204,18 +206,16 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       slot.professional_profiles?.profiles?.longitude,
     );
   };
-  const declinedProfessionalIds = new Set(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "declined").map((application) => application.professional_id)));
   const selectedAvailability = data.availability
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
-    .filter((slot) => !declinedProfessionalIds.has(slot.professional_id))
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
       if (roleCompare) return roleCompare;
       return (b.professional_profiles?.rating || 0) - (a.professional_profiles?.rating || 0);
     });
-  const applicantByProfessional = new Map(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => [application.professional_id, application] as const)));
-  const officeInterestByProfessional = new Map(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.office_interested_at).map((application) => [application.professional_id, { application, shift }] as const)));
-  const anonymousStaff: AnonymousAvailableStaff[] = selectedAvailability.map((slot) => {
+  const applicantByProfessional = new Map(selectedAllShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "applied").map((application) => [application.professional_id, application] as const)));
+  const officeInterestByProfessional = new Map(selectedAllShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.office_interested_at).map((application) => [application.professional_id, { application, shift }] as const)));
+  const availabilityStaff: AnonymousAvailableStaff[] = selectedAvailability.map((slot) => {
     const profile = slot.professional_profiles;
     const completed = Number(profile?.completed_shifts || 0);
     const localAnesthetic = Boolean(profile?.local_anesthetic) && roleCode(profile?.profession) === "RDH";
@@ -246,10 +246,49 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       licenceProvince: interest?.professional_profiles?.licence_province || profile?.licence_province || null,
       requestedRate: Number(slot.hourly_rate),
       shiftId: matchingShift?.id || officeInterest?.shift.id || null,
+      availabilityId: slot.id,
       officeInterested: Boolean(officeInterest),
       officeInterestElapsed: officeInterest?.application.office_interested_at ? interestElapsed(officeInterest.application.office_interested_at, nowMs) : null,
     };
   });
+  const availabilityProfessionalIds = new Set(selectedAvailability.map((slot) => slot.professional_id));
+  const applicantOnlyStaff: AnonymousAvailableStaff[] = selectedShifts.flatMap((shift) =>
+    (shift.applications || [])
+      .filter((application) => application.status === "applied" && application.application_kind === "application" && !availabilityProfessionalIds.has(application.professional_id))
+      .map((application) => {
+        const profile = application.professional_profiles;
+        const completed = Number(profile?.completed_shifts || 0);
+        const km = distanceKm(officeCoordinates?.latitude, officeCoordinates?.longitude, profile?.profiles?.latitude, profile?.profiles?.longitude);
+        return {
+          id: application.professional_id,
+          role: roleCode(profile?.profession || shift.profession),
+          profession: profile?.profession || shift.profession,
+          minimumHourlyRate: Number(application.proposed_rate ?? shift.hourly_rate),
+          distanceKm: km,
+          startsAt: shift.starts_at,
+          endsAt: shift.ends_at,
+          yearsExperience: profile?.years_experience ?? null,
+          rating: Number(profile?.rating || 0) > 0 ? Number(profile?.rating) : null,
+          completedShifts: completed,
+          reliabilityScore: completed > 0 && profile?.reliability_score != null ? Number(profile.reliability_score) : null,
+          cancellations: null,
+          skills: profile?.skills || null,
+          software: profile?.skills || null,
+          qualifications: [],
+          preferred: data.preferredProfessionals.some((person) => person.matched_professional_id === application.professional_id),
+          interested: true,
+          interestApplicationId: application.id,
+          interestElapsed: interestElapsed(application.created_at, nowMs),
+          licenceProvince: profile?.licence_province || null,
+          requestedRate: Number(application.proposed_rate ?? shift.hourly_rate),
+          shiftId: shift.id,
+          availabilityId: null,
+          officeInterested: Boolean(application.office_interested_at),
+          officeInterestElapsed: application.office_interested_at ? interestElapsed(application.office_interested_at, nowMs) : null,
+        };
+      })
+  );
+  const anonymousStaff: AnonymousAvailableStaff[] = [...availabilityStaff, ...applicantOnlyStaff];
 
   const act = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
@@ -370,12 +409,13 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const isPast = key < localDateKey(new Date());
             const selected = key === selectedDate;
             const today = key === localDateKey(new Date());
-            const dayShifts = data.shifts.filter((shift) => shift.status !== "cancelled" && localDateKey(shift.starts_at) === key);
+            const allDayShifts = data.shifts.filter((shift) => shift.status !== "cancelled" && localDateKey(shift.starts_at) === key);
+            const dayShifts = allDayShifts.filter((shift) => !shift.interest_only);
             const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
-            const dayDeclinedProfessionalIds = new Set(dayShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "declined").map((application) => application.professional_id)));
-            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && !dayDeclinedProfessionalIds.has(slot.professional_id));
+            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key);
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
-            const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
+            const incomingInterestCount = allDayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied" && item.application_kind === "application").length, 0);
+            const outgoingInterestCount = allDayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => Boolean(item.office_interested_at)).length, 0);
             return <button type="button" key={key} disabled={isPast} aria-disabled={isPast} title={isPast ? "Past dates are read-only" : undefined} onClick={() => { if (!isPast) chooseDate(day); }} className={`relative min-h-[132px] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-sm transition sm:min-h-[148px] sm:p-2 ${isPast ? "cursor-not-allowed bg-slate-50 text-slate-300 opacity-45 grayscale" : "hover:border-[#0078FE]/30 hover:bg-blue-50"} text-slate-800 ${selected ? "z-10 border-[#0078FE] bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
               {dayBookings.length > 0 ? <><span className="absolute inset-0 grid place-items-center rounded-xl bg-[#002757] text-sm font-black tracking-wide text-white sm:text-base">BOOKED</span></> : <><span className={`absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full text-xs font-black sm:h-8 sm:w-8 sm:text-sm ${today ? "bg-[#032757] text-white" : "text-slate-700"}`}>{day.getDate()}</span>
               <div className="absolute left-1 right-1 top-9 flex min-h-6 flex-wrap items-start justify-center gap-1 sm:left-2 sm:right-2 sm:top-11 sm:min-h-7 sm:gap-1.5">
@@ -383,7 +423,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
               </div>
               <div className="absolute bottom-1 left-1 right-1 flex flex-wrap justify-center gap-1 sm:bottom-2 sm:left-2 sm:right-2">
                 {dayShifts.length > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]"><span aria-hidden="true">✓</span>{dayShifts.length} Posted Shift{dayShifts.length === 1 ? "" : "s"}</span>}
-                {interestedCount > 0 && <span className="rounded-full bg-[#FBBC05]/20 px-1.5 py-0.5 text-[8px] font-black text-amber-800 sm:text-[9px]">{interestedCount} applicant{interestedCount === 1 ? "" : "s"}</span>}
+                {incomingInterestCount > 0 && <span className="rounded-full bg-[#EA4335]/15 px-1.5 py-0.5 text-[8px] font-black text-[#c9342d] sm:text-[9px]">{incomingInterestCount === 1 ? "They are interested" : `${incomingInterestCount} interested`}</span>}
+                {outgoingInterestCount > 0 && <span className="rounded-full bg-[#002757] px-1.5 py-0.5 text-[8px] font-black text-white sm:text-[9px]">✓ I’m Interested</span>}
                 {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}
               </div></>}
             </button>;
@@ -409,7 +450,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             })}
               </div>
             </section>}
-            {selectedAvailability.length > 0 && <section><div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-base font-black text-[#002757]">Available Professionals</h3><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">{selectedAvailability.length} available</span></div><AnonymousAvailableStaffPanel staff={anonymousStaff} busyApplicationId={busy || null} onBookInterest={(applicationId) => void act(applicationId, () => acceptApplication(applicationId))} onExpressInterest={(shiftId, professionalId) => void act(`office-interest-${professionalId}`, () => officeExpressInterest(shiftId, professionalId))} onRemoveInterest={(shiftId, professionalId) => void act(`office-remove-interest-${professionalId}`, () => officeRemoveInterest(shiftId, professionalId))} onDeclineInterest={(applicationId) => void act(`office-decline-${applicationId}`, () => officeDeclineProfessionalInterest(applicationId))} /></section>}
+            {anonymousStaff.length > 0 && <section><div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-base font-black text-[#002757]">Available Professionals</h3><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">{anonymousStaff.length} available</span></div><AnonymousAvailableStaffPanel staff={anonymousStaff} busyApplicationId={busy || null} onBookInterest={(applicationId) => void act(applicationId, () => acceptApplication(applicationId))} onExpressInterest={(shiftId, professionalId, availabilityId) => void act(`office-interest-${professionalId}`, () => shiftId ? officeExpressInterest(shiftId, professionalId) : officeExpressInterestFromAvailability(office.id, availabilityId!))} onRemoveInterest={(shiftId, professionalId) => void act(`office-remove-interest-${professionalId}`, () => officeRemoveInterest(shiftId, professionalId))} onDeclineInterest={(applicationId) => void act(`office-decline-${applicationId}`, () => officeDeclineProfessionalInterest(applicationId))} /></section>}
             <form onSubmit={postSelectedShift} className="hidden">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
               <div className="mt-4 space-y-3">
