@@ -274,7 +274,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     const endTime = String(form.get("end_time") || "17:00");
     const hourlyRate = Number(form.get("hourly_rate") || 0);
     const software = (office.software || []).join(", ") || "Any software";
-    const notes = String(form.get("notes") || "").trim();
+    const notes = "";
     const autoInvite = false;
 
     if (!startTime || !endTime || endTime <= startTime) {
@@ -412,7 +412,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 <div className="grid grid-cols-2 gap-2"><label className="text-xs font-black text-slate-600">Start<input name="start_time" type="time" defaultValue="08:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label><label className="text-xs font-black text-slate-600">End<input name="end_time" type="time" defaultValue="17:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label></div>
                 <label className="block text-xs font-black text-slate-600">Hourly rate<input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label>
                 <label className="block text-xs font-black text-slate-600">Software<select name="software" defaultValue="Any software" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
-                <label className="block text-xs font-black text-slate-600">Notes<textarea name="notes" rows={2} placeholder="Optional shift details" className="mt-1 w-full resize-none rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm text-slate-700 outline-none focus:border-[#0078FE]" /></label>
                 <label className="flex items-start gap-2 rounded-xl bg-white p-3 text-xs font-bold text-slate-600"><input name="auto_invite" type="checkbox" className="mt-0.5 h-4 w-4" /><span>Automatically invite matching available professionals.</span></label>
                 <button type="submit" disabled={busy === `post-${selectedDate}`} className="primary-btn w-full justify-center"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
               </div>
@@ -445,7 +444,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 <label className="field"><span>End</span><input name="end_time" type="time" defaultValue="17:00" required /></label>
               </div>
               <label className="field"><span>Hourly rate *</span><input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required /></label>
-              <label className="field"><span>Notes</span><textarea name="notes" rows={2} placeholder="Optional shift details" /></label>
             </div>
             {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
             <div className="mt-5 flex justify-end gap-2">
