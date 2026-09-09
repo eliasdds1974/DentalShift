@@ -11,6 +11,8 @@ import {
   loadOfficePreferredProfessionals,
   loadOfficeWorkflow,
   officeExpressInterest,
+  officeRemoveInterest,
+  officeDeclineProfessionalInterest,
   type AvailableProfessionalSlot,
   type OfficeDetails,
   type OfficePreferredProfessional,
@@ -404,7 +406,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             })}
               </div>
             </section>}
-            {selectedAvailability.length > 0 && <section><div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-base font-black text-[#002757]">Available Professionals</h3><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">{selectedAvailability.length} available</span></div><AnonymousAvailableStaffPanel staff={anonymousStaff} busyApplicationId={busy || null} onBookInterest={(applicationId) => void act(applicationId, () => acceptApplication(applicationId))} onExpressInterest={(shiftId, professionalId) => void act(`office-interest-${professionalId}`, () => officeExpressInterest(shiftId, professionalId))} /></section>}
+            {selectedAvailability.length > 0 && <section><div className="mb-2 flex items-center justify-between gap-2"><h3 className="text-base font-black text-[#002757]">Available Professionals</h3><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-black text-slate-600">{selectedAvailability.length} available</span></div><AnonymousAvailableStaffPanel staff={anonymousStaff} busyApplicationId={busy || null} onBookInterest={(applicationId) => void act(applicationId, () => acceptApplication(applicationId))} onExpressInterest={(shiftId, professionalId) => void act(`office-interest-${professionalId}`, () => officeExpressInterest(shiftId, professionalId))} onRemoveInterest={(shiftId, professionalId) => void act(`office-remove-interest-${professionalId}`, () => officeRemoveInterest(shiftId, professionalId))} onDeclineInterest={(applicationId) => void act(`office-decline-${applicationId}`, () => officeDeclineProfessionalInterest(applicationId))} /></section>}
             <form onSubmit={postSelectedShift} className="hidden">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
               <div className="mt-4 space-y-3">

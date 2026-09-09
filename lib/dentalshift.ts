@@ -883,6 +883,24 @@ export async function officeExpressInterest(shiftId: string, professionalId: str
   return data;
 }
 
+export async function officeRemoveInterest(shiftId: string, professionalId: string) {
+  const { data, error } = await supabase.rpc("office_remove_interest", { p_shift_id: shiftId, p_professional_id: professionalId });
+  if (error) throw error;
+  return data;
+}
+
+export async function officeDeclineProfessionalInterest(applicationId: string) {
+  const { data, error } = await supabase.rpc("office_decline_professional_interest", { p_application_id: applicationId });
+  if (error) throw error;
+  return data;
+}
+
+export async function professionalDeclineOfficeInterest(applicationId: string) {
+  const { data, error } = await supabase.rpc("professional_decline_office_interest", { p_application_id: applicationId });
+  if (error) throw error;
+  return data;
+}
+
 export async function inviteProfessional(shiftId: string, professionalId: string, rate?: number) {
   const { data, error } = await supabase.rpc("office_invite_professional", { p_shift_id: shiftId, p_professional_id: professionalId, p_proposed_rate: rate ?? null });
   if (error) throw error;
