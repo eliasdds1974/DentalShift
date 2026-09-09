@@ -204,8 +204,10 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       slot.professional_profiles?.profiles?.longitude,
     );
   };
+  const declinedProfessionalIds = new Set(selectedShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "declined").map((application) => application.professional_id)));
   const selectedAvailability = data.availability
     .filter((slot) => localDateKey(slot.starts_at) === selectedDate)
+    .filter((slot) => !declinedProfessionalIds.has(slot.professional_id))
     .sort((a, b) => {
       const roleCompare = roleCode(a.professional_profiles?.profession).localeCompare(roleCode(b.professional_profiles?.profession));
       if (roleCompare) return roleCompare;
@@ -370,7 +372,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const today = key === localDateKey(new Date());
             const dayShifts = data.shifts.filter((shift) => shift.status !== "cancelled" && localDateKey(shift.starts_at) === key);
             const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
-            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key);
+            const dayDeclinedProfessionalIds = new Set(dayShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.status === "declined").map((application) => application.professional_id)));
+            const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key && !dayDeclinedProfessionalIds.has(slot.professional_id));
             const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const interestedCount = dayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied").length, 0);
             return <button type="button" key={key} disabled={isPast} aria-disabled={isPast} title={isPast ? "Past dates are read-only" : undefined} onClick={() => { if (!isPast) chooseDate(day); }} className={`relative min-h-[132px] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-sm transition sm:min-h-[148px] sm:p-2 ${isPast ? "cursor-not-allowed bg-slate-50 text-slate-300 opacity-45 grayscale" : "hover:border-[#0078FE]/30 hover:bg-blue-50"} text-slate-800 ${selected ? "z-10 border-[#0078FE] bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>

@@ -215,7 +215,8 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const hasProfessionalInterest = selectedInterests.length > 0;
   const interestByShiftId = new Map(selectedInterests.map((item) => [item.shifts!.id, item]));
   const officeInterestByShiftId = new Map(workflow.applications.filter((item) => item.office_interested_at && item.shifts && localDateKey(item.shifts.starts_at) === selectedDate).map((item) => [item.shifts!.id, item]));
-  const visibleOpen = selectedOpen;
+  const declinedOfficeIdsForDate = new Set(workflow.applications.filter((item) => item.status === "declined" && item.shifts && localDateKey(item.shifts.starts_at) === selectedDate).map((item) => item.shifts!.office_id));
+  const visibleOpen = selectedOpen.filter((shift) => !declinedOfficeIdsForDate.has(shift.office_id));
 
   const run = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
