@@ -1244,7 +1244,7 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
                 </div>
               )}
 
-              <label className="field sm:col-span-2"><span>Shift notes</span><textarea name="notes" rows={3} placeholder="Parking, software used, patient schedule or other helpful details" /></label>
+              
 
               <label className="flex items-start gap-3 rounded-2xl bg-slate-50 p-4 sm:col-span-2">
                 <input name="auto_invite" type="checkbox" defaultChecked className="mt-1 h-4 w-4 accent-[#01A32E]" />
