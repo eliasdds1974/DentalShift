@@ -1,0 +1,21 @@
+name: Apply professional reliability stats
+on:
+  push:
+    paths:
+      - '.github/scripts/apply-professional-reliability-stats.py'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python .github/scripts/apply-professional-reliability-stats.py
+      - run: |
+          git config user.name dentalshift-bot
+          git config user.email bot@users.noreply.github.com
+          git add lib/dentalshift.ts components/AnonymousAvailableStaffPanel.tsx components/OfficeWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m 'Replace reliability score with factual booking stats'
+          git push origin main
