@@ -6,7 +6,6 @@ import {
   acceptApplication,
   addProfessionalAvailability,
   applyForShift,
-  bookingAction,
   inviteProfessional,
   loadAccountDetails,
   loadOfficeWorkflow,
@@ -15,7 +14,6 @@ import {
   respondToInvitation,
   saveAccountDetails,
   setFavouriteOffice,
-  submitReview,
   submitOfficeForVerification,
   updateOfficeProfile,
   uploadOfficeLogo,
@@ -108,21 +106,6 @@ function WebsiteLink({ website, className = "" }: { website?: string | null; cla
   return <a href={href} target="_blank" rel="noreferrer" className={`inline-flex items-center gap-1 text-sm font-extrabold text-[#002757] underline decoration-[#01A32E]/60 underline-offset-4 hover:text-[#01A32E] ${className}`}><ExternalLink size={14} />Visit website</a>;
 }
 
-function ReviewBox({ booking, userId, onDone }: { booking: WorkflowBooking; userId: string; onDone: () => void }) {
-  const [rating, setRating] = useState(5);
-  const [comment, setComment] = useState("");
-  const [busy, setBusy] = useState(false);
-  const mine = booking.reviews?.find((review) => review.reviewer_id === userId);
-  if (!booking.office_confirmed_completion || !booking.professional_confirmed_completion) return null;
-  if (mine) return <div className="mt-3 rounded-xl bg-amber-50 p-3 text-sm font-bold text-amber-800"><Star size={15} className="mr-1 inline fill-amber-400" />Your rating: {mine.rating}/5{mine.comment ? ` · ${mine.comment}` : ""}</div>;
-  return <div className="mt-4 rounded-2xl border border-slate-200 p-4">
-    <p className="text-sm font-extrabold text-slate-800">Rate this completed shift</p>
-    <div className="mt-2 flex gap-1">{[1, 2, 3, 4, 5].map((value) => <button type="button" aria-label={`${value} stars`} key={value} onClick={() => setRating(value)}><Star size={22} className={value <= rating ? "fill-amber-400 text-amber-400" : "text-slate-300"} /></button>)}</div>
-    <textarea value={comment} onChange={(event) => setComment(event.target.value)} rows={2} placeholder="Optional comments" className="mt-3 w-full rounded-xl border border-slate-200 p-3 text-sm outline-none focus:border-[#01A32E]" />
-    <button disabled={busy} onClick={async () => { setBusy(true); try { await submitReview(booking.id, rating, comment); onDone(); } finally { setBusy(false); } }} className="primary-btn mt-3">{busy ? "Saving…" : "Submit review"}</button>
-  </div>;
-}
-
 export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNavigate }: { userId: string; profile: AccountProfile; refreshKey: number; view: "overview" | "shifts" | "bookings" | "talent" | "profile"; onNavigate: (view: "overview" | "shifts" | "bookings" | "talent" | "profile") => void }) {
   const [data, setData] = useState<{ open: LiveShift[]; applications: WorkflowApplication[]; bookings: WorkflowBooking[]; availability: ProfessionalAvailability[]; favourites: FavouriteOffice[] }>({ open: [], applications: [], bookings: [], availability: [], favourites: [] });
   const [loading, setLoading] = useState(true);
@@ -181,10 +164,9 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
   const existing = new Map(data.applications.map((application) => [application.shifts?.id, application]));
   const upcomingBookings = data.bookings.filter((booking) => !booking.cancelled_at);
   const bookedShifts = upcomingBookings
-    .filter((booking) => booking.shifts && !booking.professional_confirmed_completion && (booking.check_in_at || new Date(booking.shifts.ends_at).getTime() >= Date.now()))
+    .filter((booking) => booking.shifts && new Date(booking.shifts.ends_at).getTime() >= Date.now())
     .sort((first, second) => new Date(first.shifts!.starts_at).getTime() - new Date(second.shifts!.starts_at).getTime());
   const nextBooking = bookedShifts[0];
-  const canCheckIn = Boolean(nextBooking?.shifts && !nextBooking.check_in_at && new Date(nextBooking.shifts.starts_at).getTime() <= Date.now() + 30 * 60 * 1000 && new Date(nextBooking.shifts.ends_at).getTime() > Date.now());
   const activeApplications = data.applications.filter((application) => ["applied", "invited"].includes(application.status));
   const favouriteOfficeIds = new Set(data.favourites.map((favourite) => favourite.office_id));
   const matchesAvailability = (shift: LiveShift) => data.availability.some((slot) => slot.available && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at));
@@ -368,8 +350,8 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
       {view === "overview" && nextBooking?.shifts && <section aria-label="Upcoming booked shift" className="mt-5 overflow-hidden rounded-2xl border border-[#01A32E]/30 bg-white shadow-sm">
         <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
           <div className="flex shrink-0 items-center gap-3 sm:w-44"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#eaf8ee] text-[#017f27]"><CalendarDays size={21} /></span><div><p className="text-[11px] font-black uppercase tracking-[.1em] text-[#017f27]">Upcoming booking</p><p className="mt-0.5 text-sm font-extrabold text-[#002757]">{bookedShifts.length} confirmed</p></div></div>
-          <div className="min-w-0 flex-1 border-slate-200 sm:border-l sm:pl-5"><div className="flex flex-wrap items-center gap-2"><h2 className="font-black text-[#002757]">{nextBooking.shifts.offices?.name || nextBooking.contact?.name || "Dental office"}</h2><Pill tone={nextBooking.check_in_at ? "blue" : "green"}>{nextBooking.check_out_at ? "Awaiting completion" : nextBooking.check_in_at ? "In progress" : "Confirmed"}</Pill></div><p className="mt-1 text-sm font-extrabold text-slate-700">{nextBooking.shifts.profession}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-500"><span>{dateLabel(nextBooking.shifts.starts_at)}–{new Date(nextBooking.shifts.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><strong className="text-[#002757]">${Number(nextBooking.shifts.hourly_rate)}/hr</strong>{nextBooking.shifts.offices && <span><MapPin size={13} className="mr-1 inline" />{nextBooking.shifts.offices.city}, {nextBooking.shifts.offices.province}</span>}</div></div>
-          <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn">{bookedShifts.length > 1 ? "View all bookings" : "View booking"}</button>{canCheckIn && <button type="button" disabled={busy === nextBooking.id} onClick={() => void act(nextBooking.id, () => bookingAction(nextBooking.id, "check_in"))} className="primary-btn">{busy === nextBooking.id ? "Checking in…" : "Check in"}</button>}{nextBooking.check_in_at && !nextBooking.check_out_at && <button type="button" disabled={busy === nextBooking.id} onClick={() => void act(nextBooking.id, () => bookingAction(nextBooking.id, "check_out"))} className="primary-btn">{busy === nextBooking.id ? "Checking out…" : "Check out"}</button>}</div>
+          <div className="min-w-0 flex-1 border-slate-200 sm:border-l sm:pl-5"><div className="flex flex-wrap items-center gap-2"><h2 className="font-black text-[#002757]">{nextBooking.shifts.offices?.name || nextBooking.contact?.name || "Dental office"}</h2><Pill tone="green">Confirmed</Pill></div><p className="mt-1 text-sm font-extrabold text-slate-700">{nextBooking.shifts.profession}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-500"><span>{dateLabel(nextBooking.shifts.starts_at)}–{new Date(nextBooking.shifts.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><strong className="text-[#002757]">${Number(nextBooking.shifts.hourly_rate)}/hr</strong>{nextBooking.shifts.offices && <span><MapPin size={13} className="mr-1 inline" />{nextBooking.shifts.offices.city}, {nextBooking.shifts.offices.province}</span>}</div></div>
+          <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn">{bookedShifts.length > 1 ? "View all bookings" : "View booking"}</button></div>
         </div>
       </section>}
 
@@ -427,7 +409,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
         {upcomingBookings.length === 0 ? <div className="p-8 text-center"><CalendarDays size={26} className="mx-auto text-slate-300" /><p className="mt-3 font-extrabold text-[#002757]">No confirmed bookings yet</p><button type="button" onClick={() => onNavigate("overview")} className="primary-btn mt-4">Back to calendar</button></div> : <div className="divide-y divide-slate-100">{upcomingBookings.map((booking) => <article key={booking.id} className="p-5">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2"><strong className="text-xl text-[#002757]">{booking.contact?.name || booking.shifts?.offices?.name || "Confirmed office"}</strong><Pill tone={booking.professional_confirmed_completion ? "green" : booking.check_in_at ? "blue" : "amber"}>{booking.professional_confirmed_completion ? "Completed" : booking.check_out_at ? "Awaiting confirmation" : booking.check_in_at ? "In progress" : "Confirmed"}</Pill></div>
+              <div className="flex flex-wrap items-center gap-2"><strong className="text-xl text-[#002757]">{booking.contact?.name || booking.shifts?.offices?.name || "Confirmed office"}</strong><Pill tone="green">Confirmed</Pill></div>
               {booking.shifts && <><p className="mt-1 text-sm font-bold text-slate-700">{booking.shifts.profession}</p><ShiftFacts shift={booking.shifts} /></>}
 
               {booking.contact && <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -480,9 +462,8 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
               </div>}
             </div>
 
-            <div className="flex shrink-0 flex-wrap gap-2">{!booking.check_in_at && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_in"))} className="primary-btn">Check in</button>}{booking.check_in_at && !booking.check_out_at && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_out"))} className="primary-btn">Check out</button>}{booking.check_out_at && !booking.professional_confirmed_completion && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "confirm_completion"))} className="primary-btn">Confirm completion</button>}</div>
+            <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => onNavigate("overview")} className="secondary-btn"><ChevronLeft size={17} />Back to calendar</button></div>
           </div>
-          <ReviewBox booking={booking} userId={userId} onDone={() => void refresh()} />
         </article>)}</div>}
       </section>}
 
@@ -629,9 +610,9 @@ export function OfficeWorkspace({ userId, office, onPost, refreshKey, view }: { 
   </div>;
 
   if (view === "bookings") return <div className="page-wrap">
-    <div><Pill tone="blue"><FileCheck2 size={13} />Confirmed work</Pill><h1 className="page-title">Bookings</h1><p className="page-subtitle">See every confirmed booking and follow its completion status.</p></div>
+    <div><Pill tone="blue"><FileCheck2 size={13} />Confirmed work</Pill><h1 className="page-title">Bookings</h1><p className="page-subtitle">See every confirmed booking and the professional contact details released after booking.</p></div>
     <ErrorNote text={error} />
-    {loading ? <p className="mt-8 text-sm text-slate-500">Loading bookings…</p> : <section className="panel mt-7 overflow-hidden"><div className="border-b border-slate-200 p-5"><h2 className="section-title">Confirmed bookings</h2><p className="text-sm text-slate-500">Professional contact details are shown only after a booking is confirmed.</p></div>{data.bookings.length === 0 ? <p className="p-7 text-sm text-slate-500">No confirmed bookings yet.</p> : <div className="divide-y divide-slate-100">{data.bookings.map((booking) => <div key={booking.id} className="p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-extrabold text-[#002757]">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <><p className="mt-1 text-sm font-bold text-slate-700">{booking.shifts.profession}</p><ShiftFacts shift={booking.shifts} /></>}{booking.contact && <p className="mt-3 text-sm text-slate-600">{booking.contact.phone || "No phone listed"} · {booking.contact.email}</p>}</div><Pill tone={booking.office_confirmed_completion ? "green" : booking.check_in_at ? "blue" : "amber"}>{booking.office_confirmed_completion ? "Completed" : booking.check_in_at ? "In progress" : "Confirmed"}</Pill></div></div>)}</div>}</section>}
+    {loading ? <p className="mt-8 text-sm text-slate-500">Loading bookings…</p> : <section className="panel mt-7 overflow-hidden"><div className="border-b border-slate-200 p-5"><h2 className="section-title">Confirmed bookings</h2><p className="text-sm text-slate-500">Professional contact details are shown only after a booking is confirmed.</p></div>{data.bookings.length === 0 ? <p className="p-7 text-sm text-slate-500">No confirmed bookings yet.</p> : <div className="divide-y divide-slate-100">{data.bookings.map((booking) => <div key={booking.id} className="p-5"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="font-extrabold text-[#002757]">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <><p className="mt-1 text-sm font-bold text-slate-700">{booking.shifts.profession}</p><ShiftFacts shift={booking.shifts} /></>}{booking.contact && <p className="mt-3 text-sm text-slate-600">{booking.contact.phone || "No phone listed"} · {booking.contact.email}</p>}</div><Pill tone="green">Confirmed</Pill></div></div>)}</div>}</section>}
   </div>;
 
   return <div className="page-wrap">
