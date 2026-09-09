@@ -120,8 +120,8 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
         {status && !status.toLowerCase().includes("interested") && <span className="mt-1 inline-flex rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm">{status}</span>}
       </div>
     </div>
-    <div className="mt-2 border-t border-slate-200/70 pt-2"><div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-600">{shift.notes && <span className="rounded-full bg-slate-50 px-2 py-1">Shift notes</span>}<button type="button" onClick={() => setExpanded((value) => !value)} className="ml-0.5 inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-black text-[#002757] hover:bg-slate-50">{expanded ? "Hide Details" : "Details"}</button></div></div>
-    {expanded && <div className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3"><div className="grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2"><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Languages</p><p className="mt-1 font-extrabold text-[#002757]">{shift.offices?.languages?.length ? shift.offices.languages.join(", ") : "Not listed"}</p></div>{shift.offices?.parking_info && <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Parking</p><p className="mt-1 font-semibold text-slate-700">{shift.offices.parking_info}</p></div>}{shift.offices?.benefits && <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Office highlights</p><p className="mt-1 font-semibold text-slate-700">{shift.offices.benefits}</p></div>}<div className="sm:col-span-2"><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Shift notes</p><p className="mt-1 font-semibold text-slate-700">{shift.notes || "No additional notes provided."}</p></div></div><p className="mt-2 text-[11px] font-semibold text-slate-500"><ShieldCheck size={13} className="mr-1 inline text-[#34A853]" />Contact information stays protected until booking.</p></div>}
+    <div className="mt-2 border-t border-slate-200/70 pt-2"><div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-600"><button type="button" onClick={() => setExpanded((value) => !value)} className="ml-0.5 inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-black text-[#002757] hover:bg-slate-50">{expanded ? "Hide Details" : "Details"}</button></div></div>
+    {expanded && <div className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3"><div className="grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2"><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Languages</p><p className="mt-1 font-extrabold text-[#002757]">{shift.offices?.languages?.length ? shift.offices.languages.join(", ") : "Not listed"}</p></div>{shift.offices?.parking_info && <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Parking</p><p className="mt-1 font-semibold text-slate-700">{shift.offices.parking_info}</p></div>}{shift.offices?.benefits && <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Office highlights</p><p className="mt-1 font-semibold text-slate-700">{shift.offices.benefits}</p></div>}</div><p className="mt-2 text-[11px] font-semibold text-slate-500"><ShieldCheck size={13} className="mr-1 inline text-[#34A853]" />Contact information stays protected until booking.</p></div>}
     {action && <div className="mt-4">{action}</div>}
   </article>;
 }
@@ -257,7 +257,6 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     const start = String(form.get("start") || "");
     const end = String(form.get("end") || "");
     const hourlyRate = Number(form.get("hourly_rate") || 0);
-    const notes = String(form.get("notes") || "").trim();
     if (!start || !end) return;
     if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) {
       setError("Enter a valid hourly rate before posting availability.");
@@ -273,7 +272,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
       setError("Choose an availability time that has not already ended.");
       return;
     }
-    await run("availability-add", () => addProfessionalAvailability(userId, startsAt.toISOString(), endsAt.toISOString(), hourlyRate, notes));
+    await run("availability-add", () => addProfessionalAvailability(userId, startsAt.toISOString(), endsAt.toISOString(), hourlyRate));
     setAvailabilityOpen(false);
   };
 

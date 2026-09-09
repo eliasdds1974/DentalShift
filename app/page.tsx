@@ -11,7 +11,6 @@ import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWor
 import { GoogleAddressAutocomplete, GoogleOfficeFavouriteSearch, type GoogleOfficeSelection } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
 import { AdminCommandCenter } from "@/components/AdminCommandCenter";
-import { AdminShiftCommunications } from "@/components/AdminShiftCommunications";
 import type { OfficeDetails } from "@/lib/dentalshift";
 
 type Role = "office" | "professional" | "admin";
@@ -20,7 +19,7 @@ type View = "overview" | "shifts" | "talent" | "bookings" | "profile";
 const portalRoutes: Record<Role, Record<View, string>> = {
   office: { overview: "/office/overview", shifts: "/office/shifts", talent: "/office/professionals", bookings: "/office/bookings", profile: "/office/account" },
   professional: { overview: "/professionals/find-shifts", shifts: "/professionals/applications", talent: "/professionals/favourite-offices", bookings: "/professionals/schedule", profile: "/professionals/profile" },
-  admin: { overview: "/admin/overview", shifts: "/admin/shifts", talent: "/admin/verification", bookings: "/admin/disputes", profile: "/admin/communications" },
+  admin: { overview: "/admin/overview", shifts: "/admin/shifts", talent: "/admin/verification", bookings: "/admin/disputes", profile: "/admin/overview" },
 };
 
 function portalState(pathname: string): { role: Role; view: View } | null {
@@ -75,7 +74,7 @@ function Sidebar({ role, setRole, view, setView, open, setOpen }: { role: Role; 
     ? [["overview", "Overview", <LayoutDashboard key="a" size={19} />], ["shifts", "My shifts", <CalendarDays key="b" size={19} />], ["talent", "Find professionals", <UsersRound key="c" size={19} />], ["bookings", "Bookings", <BriefcaseBusiness key="d" size={19} />]]
     : role === "professional"
       ? [["overview", "Find shifts", <Search key="e" size={19} />], ["shifts", "My applications", <FileCheck2 key="f" size={19} />], ["bookings", "My schedule", <CalendarDays key="g" size={19} />]]
-      : [["overview", "Admin overview", <LayoutDashboard key="i" size={19} />], ["talent", "Verification", <ShieldCheck key="j" size={19} />], ["shifts", "All shifts", <CalendarDays key="k" size={19} />], ["bookings", "Disputes", <MessageCircle key="l" size={19} />], ["profile", "Communications", <MessageCircle key="m" size={19} />]];
+      : [["overview", "Admin overview", <LayoutDashboard key="i" size={19} />], ["talent", "Verification", <ShieldCheck key="j" size={19} />], ["shifts", "All shifts", <CalendarDays key="k" size={19} />], ["bookings", "Disputes", <MessageCircle key="l" size={19} />]];
   return <>{open && <button aria-label="Close menu" className="fixed inset-0 z-40 bg-slate-950/30 lg:hidden" onClick={() => setOpen(false)} />}<aside className={`fixed inset-y-0 left-0 z-50 flex w-[270px] flex-col border-r border-slate-200 bg-white px-4 py-5 transition-transform lg:translate-x-0 ${open ? "translate-x-0" : "-translate-x-full"}`}><div className="px-2"><Brand /></div><p className="mb-2 mt-7 px-3 text-[11px] font-extrabold uppercase tracking-[0.14em] text-slate-400">Workspace</p><nav className="space-y-1">{nav.map(([key, label, icon]) => <button key={key as string} onClick={() => { setView(key as View); setOpen(false); }} className={`flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition ${view === key ? "bg-[#eaf8ee] text-[#017f27]" : "text-slate-600 hover:bg-slate-50 hover:text-slate-900"}`}>{icon}{label}</button>)}</nav><div className="mt-auto rounded-2xl border border-[#01A32E]/20 bg-[#eaf8ee] p-4"><div className="flex items-center gap-2 text-sm font-extrabold text-[#017f27]"><ShieldCheck size={18} /> Trust & safety</div><p className="mt-2 text-xs leading-5 text-[#017f27]">Licences are checked against the applicable provincial registry.</p></div><div className="mt-4 flex items-center gap-3 px-2"><div className="grid h-10 w-10 place-items-center rounded-full bg-[#002757] text-sm font-bold text-white">{role === "office" ? "LD" : role === "professional" ? "MR" : "EK"}</div><div className="min-w-0"><p className="truncate text-sm font-bold text-slate-800">{role === "office" ? "Lakeside Dental" : role === "professional" ? "Maya Roberts" : "DentalShift Admin"}</p><p className="truncate text-xs text-slate-500">{role === "admin" ? "Platform administrator" : "Verified account"}</p></div></div></aside></>;
 }
 
@@ -1436,7 +1435,7 @@ export default function Home() {
             : <div className="page-wrap"><div className="panel mx-auto max-w-xl p-8 text-center"><h1 className="text-xl font-black text-[#002757]">Loading your professional workspace</h1><p className="mt-2 text-sm leading-6 text-slate-500">DentalShift is reconnecting your account. Your calendar and workspace will appear here as soon as your professional profile is available.</p><button type="button" onClick={() => window.location.reload()} className="secondary-btn mx-auto mt-5 justify-center">Retry</button></div></div>
           : <ProfessionalDashboard userId={null} refreshKey={refreshKey} />
         : session && profile?.role === "admin"
-          ? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : view === "talent" ? <AdminDashboard userId={session.user.id} /> : view === "profile" ? <AdminShiftCommunications /> : <AdminCommandCenter onNavigate={(nextView) => navigate("admin", nextView)} />
+          ? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : view === "talent" ? <AdminDashboard userId={session.user.id} /> : <AdminCommandCenter onNavigate={(nextView) => navigate("admin", nextView)} />
           : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />,
     [role, session, profile, office, refreshKey, view, navigate],
   );
