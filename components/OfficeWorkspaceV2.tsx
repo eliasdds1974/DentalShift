@@ -113,6 +113,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [calendarView, setCalendarView] = useState<CalendarView>("month");
   const [calendarCursor, setCalendarCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
+  const [calendarOffsetDays, setCalendarOffsetDays] = useState(0);
   const [postShiftOpen, setPostShiftOpen] = useState(false);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const resultsRef = useRef<HTMLElement | null>(null);
@@ -179,14 +180,34 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     .sort((a, b) => new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime()), [data.bookings]);
   const applicantCount = useMemo(() => data.shifts.flatMap((shift) => shift.applications || []).filter((application) => application.status === "applied").length, [data.shifts]);
 
+  const CALENDAR_HORIZON_DAYS = 400;
+  const CALENDAR_PAGE_DAYS = 35;
   const calendarStart = new Date();
   calendarStart.setHours(12, 0, 0, 0);
-  const calendarDays = Array.from({ length: 35 }, (_, index) => {
+  calendarStart.setDate(calendarStart.getDate() + calendarOffsetDays);
+  const remainingCalendarDays = Math.max(0, CALENDAR_HORIZON_DAYS - calendarOffsetDays);
+  const calendarDays = Array.from({ length: Math.min(CALENDAR_PAGE_DAYS, remainingCalendarDays) }, (_, index) => {
     const date = new Date(calendarStart);
     date.setDate(calendarStart.getDate() + index);
     return date;
   });
-  const calendarWeekdays = calendarDays.slice(0, 7).map((day) => day.toLocaleDateString("en-CA", { weekday: "short" }));
+  const calendarWeekdays = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(calendarStart);
+    day.setDate(calendarStart.getDate() + index);
+    return day.toLocaleDateString("en-CA", { weekday: "short" });
+  });
+  const calendarEnd = calendarDays[calendarDays.length - 1] || calendarStart;
+  const calendarRangeLabel = `${calendarStart.toLocaleDateString("en-CA", { month: "short", day: "numeric" })} – ${calendarEnd.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}`;
+  const canGoBack = calendarOffsetDays > 0;
+  const canGoForward = calendarOffsetDays + CALENDAR_PAGE_DAYS < CALENDAR_HORIZON_DAYS;
+  const goCalendarBack = () => setCalendarOffsetDays((value) => Math.max(0, value - CALENDAR_PAGE_DAYS));
+  const goCalendarForward = () => setCalendarOffsetDays((value) => Math.min(Math.floor((CALENDAR_HORIZON_DAYS - 1) / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS, value + CALENDAR_PAGE_DAYS));
+  const goCalendarToday = () => {
+    const today = new Date();
+    setCalendarOffsetDays(0);
+    setCalendarCursor(today);
+    setSelectedDate(localDateKey(today));
+  };
 
   const selectedAllShifts = data.shifts
     .filter((shift) => shift.status !== "cancelled")
@@ -398,8 +419,11 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         </div>
 
         <div className="flex flex-wrap items-center gap-2 md:col-start-1 md:row-start-2 md:self-end">
-          <button type="button" onClick={() => { const now = new Date(); setCalendarCursor(now); setSelectedDate(localDateKey(now)); }} className="secondary-btn">Today</button>
-          <div className="ml-1 grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+          <button type="button" disabled={!canGoBack} onClick={goCalendarBack} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous 35 days"><ChevronLeft size={16} />Previous</button>
+          <button type="button" onClick={goCalendarToday} className="secondary-btn">Today</button>
+          <button type="button" disabled={!canGoForward} onClick={goCalendarForward} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next 35 days">Next<ChevronRight size={16} /></button>
+          <span className="mr-1 text-xs font-black text-slate-500">{calendarRangeLabel}</span>
+          <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
             {(["month", "list"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}>{mode === "month" ? "Calendar" : "List"}</button>)}
           </div>
           <button type="button" onClick={() => setPostShiftOpen(true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30"><Plus size={18} />Post a Shift</button>
@@ -411,7 +435,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         <section><h3 className="text-lg font-black text-[#002757]">Confirmed bookings</h3><div className="mt-3 space-y-3">{upcomingBookings.length ? upcomingBookings.map((booking) => <button type="button" key={booking.id} onClick={() => { if (!booking.shifts) return; setSelectedDate(localDateKey(booking.shifts.starts_at)); setCalendarCursor(new Date(booking.shifts.starts_at)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{booking.shifts?.profession || "Booked shift"}</strong><span className="rounded-full bg-[#eaf8ee] px-2 py-1 text-[10px] font-black text-[#017f27]">Booked</span></div>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{new Date(booking.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}</button>) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No upcoming bookings right now.</p>}</div></section>
       </div> : <div className="grid lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
         <div className="border-b border-slate-200 p-3 sm:p-5 lg:border-b-0 lg:border-r">
-          <h3 className="mb-3 text-xl font-black text-[#0f172a]">Next 35 days</h3>
+          <h3 className="mb-3 text-xl font-black text-[#0f172a]">Next 400 days</h3>
           <div className="grid grid-cols-7">{calendarWeekdays.map((day) => <div key={day} className="px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-slate-500">{day}</div>)}</div>
           <div className="grid grid-cols-7 gap-1.5 rounded-2xl bg-slate-100 p-1.5 sm:gap-2 sm:p-2">{calendarDays.map((day) => {
             const key = localDateKey(day);
