@@ -885,6 +885,13 @@ export async function acceptApplication(applicationId: string) {
   return data;
 }
 
+export async function confirmInterestBooking(applicationId: string) {
+  const { data, error } = await supabase.rpc("confirm_interest_booking", { p_application_id: applicationId });
+  if (error) throw error;
+  if (!data) throw new Error("DentalShift could not confirm the booking. Please try again.");
+  return data;
+}
+
 export async function officeExpressInterest(shiftId: string, professionalId: string) {
   const { data, error } = await supabase.rpc("office_express_interest", { p_shift_id: shiftId, p_professional_id: professionalId });
   if (error) throw error;
