@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Fix magic-link routing so a signed-in user stays in the portal selected by the link.
 path = Path('app/page.tsx')
 s = path.read_text()
 old = '''        if (requestedRole && canUseRole(requestedRole) && window.location.pathname === "/") {
