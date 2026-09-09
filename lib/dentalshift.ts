@@ -106,6 +106,24 @@ export type AdminDispute = {
   booking: { id: string; checkInAt: string | null; checkOutAt: string | null; cancelledAt: string | null };
 };
 
+export type AdminShiftCommunication = {
+  id: string;
+  actor_id: string;
+  actor_role: string;
+  actor_name: string;
+  communication_type: string;
+  shift_id: string | null;
+  booking_id: string | null;
+  availability_id: string | null;
+  content: string;
+  blocked: boolean;
+  block_reason: string | null;
+  created_at: string;
+  shift_profession: string | null;
+  shift_starts_at: string | null;
+  office_name: string | null;
+};
+
 export type AdminShift = {
   id: string;
   status: "draft" | "open" | "filled" | "completed" | "cancelled";
@@ -562,6 +580,12 @@ export async function loadAdminShifts(): Promise<AdminShift[]> {
   return ((data as { shifts?: AdminShift[] } | null)?.shifts ?? []) as AdminShift[];
 }
 
+export async function loadAdminShiftCommunications(limit = 250): Promise<AdminShiftCommunication[]> {
+  const { data, error } = await supabase.rpc("admin_list_shift_communications", { p_limit: limit });
+  if (error) throw error;
+  return (data ?? []) as unknown as AdminShiftCommunication[];
+}
+
 export async function cancelAdminShift(shiftId: string, reason: string) {
   const { error } = await supabase.rpc("admin_cancel_shift", { p_shift_id: shiftId, p_reason: reason.trim() });
   if (error) throw error;
@@ -588,6 +612,29 @@ export async function cancelOfficeShift(shiftId: string, officeId: string) {
   if (error) throw error;
 }
 
+async function screenShiftCommunication(input: {
+  content: string;
+  communicationType: string;
+  shiftId?: string;
+  bookingId?: string;
+  availabilityId?: string;
+}) {
+  const content = input.content.trim();
+  if (!content) return;
+  const { data, error } = await supabase.rpc("screen_shift_communication", {
+    p_content: content,
+    p_communication_type: input.communicationType,
+    p_shift_id: input.shiftId ?? null,
+    p_booking_id: input.bookingId ?? null,
+    p_availability_id: input.availabilityId ?? null,
+  });
+  if (error) throw error;
+  const result = data as { allowed?: boolean; reason?: string | null } | null;
+  if (!result?.allowed) {
+    throw new Error(`Please remove contact information from this message${result?.reason ? ` (${result.reason})` : ""}. Contact details are shared after booking.`);
+  }
+}
+
 export async function createShiftSeries(input: {
   officeId: string;
   profession: string;
@@ -600,6 +647,9 @@ export async function createShiftSeries(input: {
   autoInvite: boolean;
 }) {
   const today = localTodayKey();
+  if (input.notes.trim()) {
+    await screenShiftCommunication({ content: input.notes, communicationType: "office_shift_notes" });
+  }
   if (input.dates.some((date) => date < today)) {
     throw new Error("Past dates are read-only. Shifts can only be posted for today or a future date.");
   }
@@ -713,6 +763,7 @@ export type AvailableProfessionalSlot = {
   starts_at: string;
   ends_at: string;
   hourly_rate: number;
+  notes?: string | null;
   distance_km?: number | null;
   notes?: string | null;
   professional_profiles: { profession: string; licence_province: string; licence_status?: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; travel_radius_km: number; years_experience: number | null; skills: string[] | null; local_anesthetic: boolean; local_anesthetic_status: string; profiles: { latitude: number | null; longitude: number | null } | null } | null;
@@ -727,6 +778,9 @@ export async function addProfessionalAvailability(userId: string, startsAt: stri
     throw new Error("Past dates are read-only. Availability can only be posted for today or a future date.");
   }
   if (!Number.isFinite(hourlyRate) || hourlyRate <= 0) throw new Error("Enter a valid hourly rate.");
+  if (notes.trim()) {
+    await screenShiftCommunication({ content: notes, communicationType: "professional_availability_notes" });
+  }
 
   const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
   if (sessionError) throw sessionError;
@@ -854,6 +908,12 @@ export async function sendProtectedMessage(input: {
   recipientId: string;
   body: string;
 }) {
+  await screenShiftCommunication({
+    content: input.body,
+    communicationType: "protected_message",
+    shiftId: input.shiftId,
+    bookingId: input.bookingId,
+  });
   const { data, error } = await supabase.from("messages").insert({
     shift_id: input.shiftId ?? null,
     booking_id: input.bookingId ?? null,
