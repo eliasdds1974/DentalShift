@@ -1,0 +1,31 @@
+name: Refine office professional interest label
+
+on:
+  push:
+    paths:
+      - '.github/scripts/refine-office-professional-interest-label.py'
+      - '.github/workflows/refine-office-professional-interest-label.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python .github/scripts/refine-office-professional-interest-label.py
+      - name: Commit change
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/AnonymousAvailableStaffPanel.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Show professional interest as red in office portal"
+          git push origin main
