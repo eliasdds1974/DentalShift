@@ -1,0 +1,34 @@
+name: Enhance professional cancellation
+
+on:
+  push:
+    paths:
+      - '.github/workflows/enhance-professional-cancellation.yml'
+      - '.github/scripts/enhance-professional-cancellation.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply professional cancellation patch
+        run: python .github/scripts/enhance-professional-cancellation.py
+      - name: Commit changes
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add lib/dentalshift.ts components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add professional cancellation card and office email"
+            git push
+          fi
