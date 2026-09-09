@@ -934,9 +934,17 @@ export async function confirmInterestBooking(applicationId: string) {
 export async function cancelConfirmedBooking(bookingId: string, reason: string) {
   const cleanReason = reason.trim();
   if (cleanReason.length < 3) throw new Error("Please provide a cancellation reason.");
-  const { data, error } = await supabase.rpc("cancel_confirmed_booking", { p_booking_id: bookingId, p_reason: cleanReason });
-  if (error) throw error;
-  return data;
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("Please sign in again before cancelling this booking.");
+  const response = await fetch("/api/booking-cancellation", {
+    method: "POST",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ bookingId, reason: cleanReason }),
+  });
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(result?.error || "The booking could not be cancelled.");
+  return result as { cancelled: boolean; emailSent: boolean; actorParty: string };
 }
 
 export async function officeExpressInterest(shiftId: string, professionalId: string) {
