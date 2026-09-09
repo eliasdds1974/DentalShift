@@ -1,0 +1,36 @@
+name: Build confirmed booking details
+
+on:
+  push:
+    paths:
+      - '.github/scripts/build-confirmed-booking-details.py'
+      - '.github/workflows/build-confirmed-booking-details.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply booking detail changes
+        run: python .github/scripts/build-confirmed-booking-details.py
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/dentalshift.ts components/WorkflowWorkspace.tsx
+          git commit -m "Show confirmed booking contact details"
+          git push origin main
