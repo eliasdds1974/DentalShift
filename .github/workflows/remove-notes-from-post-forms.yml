@@ -1,0 +1,22 @@
+name: Remove notes from post forms
+on:
+  push:
+    paths:
+      - '.github/scripts/remove-notes-from-post-forms.py'
+      - '.github/workflows/remove-notes-from-post-forms.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Remove notes from forms
+        run: python .github/scripts/remove-notes-from-post-forms.py
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx app/page.tsx
+          git diff --cached --quiet || git commit -m "Remove notes fields from post forms"
+          git push
