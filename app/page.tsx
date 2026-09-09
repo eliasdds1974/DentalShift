@@ -1372,7 +1372,12 @@ export default function Home() {
         setRole(nextRole);
         if (routeState) setView(routeState.view);
         window.localStorage.setItem("dentalshift_portal_role", nextRole);
-        if (requestedRole && canUseRole(requestedRole) && window.location.pathname === "/") {
+        const currentRoute = portalState(window.location.pathname);
+        if (requestedRole && canUseRole(requestedRole)) {
+          if (!currentRoute || currentRoute.role !== requestedRole) {
+            router.replace(portalRoutes[requestedRole].overview);
+          }
+        } else if (!currentRoute && canUseRole(nextRole)) {
           router.replace(portalRoutes[nextRole].overview);
         }
       } catch {
