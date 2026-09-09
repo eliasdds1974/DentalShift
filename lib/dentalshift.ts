@@ -768,6 +768,10 @@ export type BookingContact = {
   office_hours?: string | null;
   software?: string[] | null;
   languages?: string[] | null;
+  operatories?: number | null;
+  benefits?: string | null;
+  description?: string | null;
+  logo_url?: string | null;
   profession?: string | null;
   licence_number?: string | null;
   licence_province?: string | null;

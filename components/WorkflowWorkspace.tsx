@@ -457,6 +457,21 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
                 </div>
               </div>}
 
+              {booking.contact && (booking.contact.languages?.length || booking.contact.operatories || booking.contact.benefits || booking.contact.description || booking.contact.logo_url) && <div className="mt-3 rounded-xl border border-slate-200 bg-white p-4 text-sm">
+                <div className="flex items-start gap-3">
+                  {booking.contact.logo_url && <img src={booking.contact.logo_url} alt={`${booking.contact.name} logo`} className="h-14 w-14 shrink-0 rounded-xl border border-slate-200 bg-white object-contain" />}
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-[#002757]">Office details</p>
+                    <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                      {booking.contact.languages?.length ? <p className="text-slate-600"><strong className="text-slate-800">Languages:</strong> {booking.contact.languages.join(", ")}</p> : null}
+                      {booking.contact.operatories ? <p className="text-slate-600"><strong className="text-slate-800">Operatories:</strong> {booking.contact.operatories}</p> : null}
+                      {booking.contact.benefits ? <p className="text-slate-600 sm:col-span-2"><strong className="text-slate-800">Office highlights:</strong> {booking.contact.benefits}</p> : null}
+                      {booking.contact.description ? <p className="text-slate-600 sm:col-span-2"><strong className="text-slate-800">About the office:</strong> {booking.contact.description}</p> : null}
+                    </div>
+                  </div>
+                </div>
+              </div>}
+
               {booking.contact && <div className="mt-4 flex flex-wrap gap-2">
                 {booking.contact.phone && <a href={`tel:${booking.contact.phone}`} className="primary-btn">Call office</a>}
                 {booking.contact.email && <a href={`mailto:${booking.contact.email}`} className="secondary-btn">Email office</a>}
