@@ -18,8 +18,8 @@ export type AnonymousAvailableStaff = {
   rating: number | null;
   reviewCount?: number | null;
   completedShifts: number | null;
-  reliabilityScore: number | null;
-  cancellations: number | null;
+  totalCancellations: number;
+  cancellationsUnder24h: number;
   skills?: string[] | null;
   software?: string[] | null;
   qualifications?: { label: string; verified: boolean }[];
@@ -112,7 +112,8 @@ export function AnonymousAvailableStaffPanel({
                   <span>Licence province: <strong>{item.licenceProvince || "Unavailable"}</strong></span>
                   <span>Completed shifts: <strong>{item.completedShifts || 0}</strong></span>
                   <span>Rating: <strong>{item.rating ? `${item.rating}★` : "No rating yet"}</strong></span>
-                  <span>Reliability: <strong>{item.reliabilityScore != null ? `${item.reliabilityScore}%` : "Not enough history"}</strong></span>
+                  <span>Total cancellations: <strong>{item.totalCancellations}</strong></span>
+                  <span>Cancellations &lt;24 hours: <strong>{item.cancellationsUnder24h}</strong></span>
                   <span>Rate: <strong>{item.requestedRate != null ? `$${item.requestedRate.toFixed(2)}/hr` : (item.minimumHourlyRate != null ? `$${item.minimumHourlyRate.toFixed(2)}/hr` : "Not specified")}</strong></span>
                 </div>
                 {item.qualifications?.length ? <div className="mt-2 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Qualifications: </span>{item.qualifications.map((qualification) => `${qualification.label}${qualification.verified ? " ✓" : ""}`).join(", ")}</div> : null}

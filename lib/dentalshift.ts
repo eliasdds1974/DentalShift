@@ -888,7 +888,23 @@ export async function loadOfficeWorkflow(officeId: string) {
   if (directoryResult.error) throw directoryResult.error;
   if (availabilityResult.error) throw availabilityResult.error;
   const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[], "office");
-  return { shifts: (shiftsResult.data ?? []) as unknown as OfficeShift[], bookings, directory: directoryResult.data ?? [], availability: (availabilityResult.data ?? []) as unknown as AvailableProfessionalSlot[] };
+  const shifts = (shiftsResult.data ?? []) as unknown as OfficeShift[];
+  const availability = (availabilityResult.data ?? []) as unknown as AvailableProfessionalSlot[];
+  const professionalIds = Array.from(new Set([
+    ...availability.map((slot) => slot.professional_id),
+    ...shifts.flatMap((shift) => (shift.applications || []).map((application) => application.professional_id)),
+  ])).filter(Boolean);
+  let reliabilityStats: Record<string, { completedBookings: number; totalCancellations: number; cancellationsUnder24h: number }> = {};
+  if (professionalIds.length) {
+    const { data: statsData, error: statsError } = await supabase.rpc("professional_reliability_stats", { p_professional_ids: professionalIds });
+    if (statsError) throw statsError;
+    reliabilityStats = Object.fromEntries((statsData ?? []).map((row: any) => [row.professional_id, {
+      completedBookings: Number(row.completed_bookings || 0),
+      totalCancellations: Number(row.total_cancellations || 0),
+      cancellationsUnder24h: Number(row.cancellations_under_24h || 0),
+    }]));
+  }
+  return { shifts, bookings, directory: directoryResult.data ?? [], availability, reliabilityStats };
 }
 
 export async function withdrawApplication(applicationId: string) {

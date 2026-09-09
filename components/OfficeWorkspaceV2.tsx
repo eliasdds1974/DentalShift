@@ -44,6 +44,7 @@ type OfficeWorkflow = {
   directory: DirectoryPerson[];
   availability: AvailableProfessionalSlot[];
   preferredProfessionals: OfficePreferredProfessional[];
+  reliabilityStats: Record<string, { completedBookings: number; totalCancellations: number; cancellationsUnder24h: number }>;
 };
 
 const dentalSoftwareOptions = ["Tracker", "ClearDent", "Dentrix", "Open Dental", "ABELDent", "Power Practice", "Curve Dental", "Maxident", "Gold Dental", "RecallMax", "Carestream"];
@@ -106,7 +107,7 @@ function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | 
 }
 
 function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number }) {
-  const [data, setData] = useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [], preferredProfessionals: [] });
+  const [data, setData] = useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [], preferredProfessionals: [], reliabilityStats: {} });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -242,7 +243,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const officeInterestByProfessional = new Map(selectedAllShifts.flatMap((shift) => (shift.applications || []).filter((application) => application.office_interested_at).map((application) => [application.professional_id, { application, shift }] as const)));
   const availabilityStaff: AnonymousAvailableStaff[] = selectedAvailability.map((slot) => {
     const profile = slot.professional_profiles;
-    const completed = Number(profile?.completed_shifts || 0);
+    const stats = data.reliabilityStats[slot.professional_id];
+    const completed = stats?.completedBookings ?? 0;
     const localAnesthetic = Boolean(profile?.local_anesthetic) && roleCode(profile?.profession) === "RDH";
     const interest = applicantByProfessional.get(slot.professional_id);
     const officeInterest = officeInterestByProfessional.get(slot.professional_id);
@@ -259,8 +261,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       yearsExperience: profile?.years_experience ?? null,
       rating: Number(profile?.rating || 0) > 0 ? Number(profile?.rating) : null,
       completedShifts: completed,
-      reliabilityScore: completed > 0 && profile?.reliability_score != null ? Number(profile.reliability_score) : null,
-      cancellations: null,
+      totalCancellations: stats?.totalCancellations ?? 0,
+      cancellationsUnder24h: stats?.cancellationsUnder24h ?? 0,
       skills: profile?.skills || null,
       software: profile?.skills || null,
       qualifications: localAnesthetic ? [{ label: "Local Anesthetic", verified: profile?.local_anesthetic_status === "verified" }] : [],
@@ -282,7 +284,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       .filter((application) => application.status === "applied" && application.application_kind === "application" && !availabilityProfessionalIds.has(application.professional_id) && !bookedProfessionalIds.has(application.professional_id))
       .map((application) => {
         const profile = application.professional_profiles;
-        const completed = Number(profile?.completed_shifts || 0);
+        const stats = data.reliabilityStats[application.professional_id];
+        const completed = stats?.completedBookings ?? 0;
         const km = distanceKm(officeCoordinates?.latitude, officeCoordinates?.longitude, profile?.profiles?.latitude, profile?.profiles?.longitude);
         return {
           id: application.professional_id,
@@ -295,8 +298,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
           yearsExperience: profile?.years_experience ?? null,
           rating: Number(profile?.rating || 0) > 0 ? Number(profile?.rating) : null,
           completedShifts: completed,
-          reliabilityScore: completed > 0 && profile?.reliability_score != null ? Number(profile.reliability_score) : null,
-          cancellations: null,
+          totalCancellations: stats?.totalCancellations ?? 0,
+          cancellationsUnder24h: stats?.cancellationsUnder24h ?? 0,
           skills: profile?.skills || null,
           software: profile?.skills || null,
           qualifications: [],
