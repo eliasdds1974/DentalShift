@@ -184,18 +184,27 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   });
   const calendarWeekdays = calendarDays.slice(0, 7).map((day) => day.toLocaleDateString("en-CA", { weekday: "short" }));
 
-  // Interest no longer changes availability or hides other qualifying office postings.
+  // Keep the blue calendar count aligned with the Dental Office cards actually visible for each day.
+  const declinedOfficeDateKeys = useMemo(() => new Set(
+    workflow.applications
+      .filter((item) => item.status === "declined" && item.shifts)
+      .map((item) => `${localDateKey(item.shifts!.starts_at)}|${item.shifts!.office_id}`),
+  ), [workflow.applications]);
+
   const countsByDate = useMemo(() => {
     const map = new Map<string, { open: number; invited: number; applied: number; booked: number }>();
     const ensure = (key: string) => {
       if (!map.has(key)) map.set(key, { open: 0, invited: 0, applied: 0, booked: 0 });
       return map.get(key)!;
     };
-    matchingOpen.forEach((shift) => { ensure(localDateKey(shift.starts_at)).open += 1; });
+    matchingOpen.forEach((shift) => {
+      const dateKey = localDateKey(shift.starts_at);
+      if (!declinedOfficeDateKeys.has(`${dateKey}|${shift.office_id}`)) ensure(dateKey).open += 1;
+    });
     applied.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).applied += 1; });
     booked.forEach((item) => { if (item.shifts) ensure(localDateKey(item.shifts.starts_at)).booked += 1; });
     return map;
-  }, [matchingOpen, applied, booked]);
+  }, [matchingOpen, applied, booked, declinedOfficeDateKeys]);
 
   const selectedOpen = matchingOpen
     .filter((shift) => localDateKey(shift.starts_at) === selectedDate)
@@ -215,8 +224,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const hasProfessionalInterest = selectedInterests.length > 0;
   const interestByShiftId = new Map(selectedInterests.map((item) => [item.shifts!.id, item]));
   const officeInterestByShiftId = new Map(workflow.applications.filter((item) => item.office_interested_at && item.shifts && localDateKey(item.shifts.starts_at) === selectedDate).map((item) => [item.shifts!.id, item]));
-  const declinedOfficeIdsForDate = new Set(workflow.applications.filter((item) => item.status === "declined" && item.shifts && localDateKey(item.shifts.starts_at) === selectedDate).map((item) => item.shifts!.office_id));
-  const visibleOpen = selectedOpen.filter((shift) => !declinedOfficeIdsForDate.has(shift.office_id));
+  const visibleOpen = selectedOpen.filter((shift) => !declinedOfficeDateKeys.has(`${selectedDate}|${shift.office_id}`));
 
   const run = async (key: string, action: () => Promise<unknown>) => {
     setBusy(key);
