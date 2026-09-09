@@ -111,7 +111,6 @@ export function AnonymousAvailableStaffPanel({
                   <span>Rate: <strong>{item.requestedRate != null ? `$${item.requestedRate.toFixed(2)}/hr` : (item.minimumHourlyRate != null ? `$${item.minimumHourlyRate.toFixed(2)}/hr` : "Not specified")}</strong></span>
                 </div>
                 {item.qualifications?.length ? <div className="mt-2 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Qualifications: </span>{item.qualifications.map((qualification) => `${qualification.label}${qualification.verified ? " ✓" : ""}`).join(", ")}</div> : null}
-                {item.skills?.length ? <div className="mt-1 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Skills: </span>{item.skills.join(", ")}</div> : null}
                 {item.software?.length ? <div className="mt-1 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Software: </span>{item.software.join(", ")}</div> : null}
                 <p className="mt-2 text-[10px] leading-4 text-slate-500">Identity and contact details are shared after booking confirmation.</p>
               </div>}
