@@ -342,9 +342,14 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
   const profileCompleteness = profileFields.length ? Math.round((profileFields.filter(Boolean).length / profileFields.length) * 100) : 0;
 
   return <div className="page-wrap">
-    <Pill tone="blue"><BadgeCheck size={13} /> Live professional workspace</Pill>
-    <h1 className="page-title">{view === "overview" ? "Find shifts" : view === "shifts" ? "My applications" : view === "bookings" ? "My schedule" : view === "talent" ? "Favourite offices" : "Profile & credentials"}</h1>
-    <p className="page-subtitle">{view === "overview" ? `Welcome, ${profile.first_name || "professional"}. Post availability and find matching shifts.` : view === "shifts" ? "Review invitations and track every application." : view === "bookings" ? "Manage confirmed shifts from arrival through completion." : view === "talent" ? "Keep your preferred dental offices organized." : "Manage the information offices use to evaluate and match with you."}</p>
+    <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
+      <div>
+        <Pill tone="blue"><BadgeCheck size={13} /> Live professional workspace</Pill>
+        <h1 className="page-title">{view === "overview" ? "Find shifts" : view === "shifts" ? "My applications" : view === "bookings" ? "My schedule" : view === "talent" ? "Favourite offices" : "Profile & credentials"}</h1>
+        <p className="page-subtitle">{view === "overview" ? `Welcome, ${profile.first_name || "professional"}. Post availability and find matching shifts.` : view === "shifts" ? "Review invitations and track every application." : view === "bookings" ? "Your confirmed shift details and office contact information are available here." : view === "talent" ? "Keep your preferred dental offices organized." : "Manage the information offices use to evaluate and match with you."}</p>
+      </div>
+      {view === "bookings" && <button type="button" onClick={() => onNavigate("overview")} className="secondary-btn shrink-0"><ChevronLeft size={17} />Back to calendar</button>}
+    </div>
     <ErrorNote text={error} />
     {loading && <p className="mt-4 text-xs font-bold text-slate-500">Updating live shift data…</p>}
     <>
@@ -418,8 +423,52 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
       </section>}
 
       {view === "bookings" && <section className="panel mt-7 overflow-hidden">
-        <div className="border-b border-slate-200 p-5"><h2 className="section-title">Confirmed schedule</h2><p className="text-sm text-slate-500">Manage arrival, completion, and protected office contact details.</p></div>
-        {upcomingBookings.length === 0 ? <div className="p-8 text-center"><CalendarDays size={26} className="mx-auto text-slate-300" /><p className="mt-3 font-extrabold text-[#002757]">No confirmed bookings yet</p><button type="button" onClick={() => onNavigate("overview")} className="primary-btn mt-4">Find available shifts</button></div> : <div className="divide-y divide-slate-100">{upcomingBookings.map((booking) => <article key={booking.id} className="p-5"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start"><div><div className="flex flex-wrap items-center gap-2"><strong className="text-lg text-[#002757]">{booking.contact?.name || booking.shifts?.offices?.name || "Confirmed office"}</strong><Pill tone={booking.professional_confirmed_completion ? "green" : booking.check_in_at ? "blue" : "amber"}>{booking.professional_confirmed_completion ? "Completed" : booking.check_out_at ? "Awaiting confirmation" : booking.check_in_at ? "In progress" : "Confirmed"}</Pill></div>{booking.shifts && <><p className="mt-1 text-sm font-bold text-slate-700">{booking.shifts.profession}</p><ShiftFacts shift={booking.shifts} /></>}{booking.contact && <div className="mt-3 rounded-xl bg-[#edf3fa] p-3 text-sm text-[#002757]"><strong>Confirmed office contact</strong><p className="mt-1">{booking.contact.phone || "No phone listed"} · {booking.contact.email || "No email listed"}</p><WebsiteLink website={booking.contact.website} className="mt-2" /></div>}</div><div className="flex shrink-0 flex-wrap gap-2">{!booking.check_in_at && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_in"))} className="primary-btn">Check in</button>}{booking.check_in_at && !booking.check_out_at && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_out"))} className="primary-btn">Check out</button>}{booking.check_out_at && !booking.professional_confirmed_completion && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "confirm_completion"))} className="primary-btn">Confirm completion</button>}</div></div><ReviewBox booking={booking} userId={userId} onDone={() => void refresh()} /></article>)}</div>}
+        <div className="border-b border-slate-200 p-5"><h2 className="section-title">Confirmed schedule</h2><p className="text-sm text-slate-500">Once a booking is confirmed, DentalShift releases the information you and the dental office need to coordinate the shift directly.</p></div>
+        {upcomingBookings.length === 0 ? <div className="p-8 text-center"><CalendarDays size={26} className="mx-auto text-slate-300" /><p className="mt-3 font-extrabold text-[#002757]">No confirmed bookings yet</p><button type="button" onClick={() => onNavigate("overview")} className="primary-btn mt-4">Back to calendar</button></div> : <div className="divide-y divide-slate-100">{upcomingBookings.map((booking) => <article key={booking.id} className="p-5">
+          <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2"><strong className="text-xl text-[#002757]">{booking.contact?.name || booking.shifts?.offices?.name || "Confirmed office"}</strong><Pill tone={booking.professional_confirmed_completion ? "green" : booking.check_in_at ? "blue" : "amber"}>{booking.professional_confirmed_completion ? "Completed" : booking.check_out_at ? "Awaiting confirmation" : booking.check_in_at ? "In progress" : "Confirmed"}</Pill></div>
+              {booking.shifts && <><p className="mt-1 text-sm font-bold text-slate-700">{booking.shifts.profession}</p><ShiftFacts shift={booking.shifts} /></>}
+
+              {booking.contact && <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-xl border border-[#002757]/10 bg-[#edf3fa] p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Office contact</p>
+                  <p className="mt-2 font-black text-[#002757]">{booking.contact.contact_name || booking.contact.name}</p>
+                  {booking.contact.contact_title && <p className="text-xs font-bold text-slate-500">{booking.contact.contact_title}</p>}
+                  <p className="mt-2 text-sm font-semibold text-slate-700">{booking.contact.direct_phone || booking.contact.phone || "No phone listed"}</p>
+                  {booking.contact.main_phone && booking.contact.main_phone !== booking.contact.direct_phone && <p className="mt-1 text-xs text-slate-500">Office: {booking.contact.main_phone}</p>}
+                  <p className="mt-1 break-all text-sm font-semibold text-slate-700">{booking.contact.email || "No email listed"}</p>
+                </div>
+
+                <div className="rounded-xl border border-slate-200 bg-white p-4">
+                  <p className="text-xs font-black uppercase tracking-wide text-slate-500">Shift location</p>
+                  <p className="mt-2 font-extrabold text-[#002757]">{booking.contact.address || "Address not listed"}</p>
+                  <p className="text-sm text-slate-600">{[booking.contact.city, booking.contact.province, booking.contact.postal_code].filter(Boolean).join(", ")}</p>
+                  {booking.contact.parking_info && <p className="mt-2 text-xs font-semibold leading-5 text-slate-500"><strong className="text-slate-700">Parking:</strong> {booking.contact.parking_info}</p>}
+                  {booking.contact.office_hours && <p className="mt-1 text-xs font-semibold leading-5 text-slate-500"><strong className="text-slate-700">Office hours:</strong> {booking.contact.office_hours}</p>}
+                </div>
+              </div>}
+
+              {booking.shifts && (booking.shifts.required_software || booking.shifts.notes || booking.contact?.software?.length) && <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm">
+                <p className="font-black text-[#002757]">Shift information</p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  <p className="text-slate-600"><strong className="text-slate-800">Software:</strong> {booking.shifts.required_software || booking.contact?.software?.join(", ") || "Not specified"}</p>
+                  {booking.shifts.notes && <p className="text-slate-600"><strong className="text-slate-800">Notes:</strong> {booking.shifts.notes}</p>}
+                </div>
+              </div>}
+
+              {booking.contact && <div className="mt-4 flex flex-wrap gap-2">
+                {booking.contact.phone && <a href={`tel:${booking.contact.phone}`} className="primary-btn">Call office</a>}
+                {booking.contact.email && <a href={`mailto:${booking.contact.email}`} className="secondary-btn">Email office</a>}
+                {booking.contact.address && <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent([booking.contact.address, booking.contact.city, booking.contact.province, booking.contact.postal_code].filter(Boolean).join(", "))}`} target="_blank" rel="noreferrer" className="secondary-btn"><MapPin size={16} />Directions</a>}
+                <WebsiteLink website={booking.contact.website} />
+              </div>}
+            </div>
+
+            <div className="flex shrink-0 flex-wrap gap-2">{!booking.check_in_at && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_in"))} className="primary-btn">Check in</button>}{booking.check_in_at && !booking.check_out_at && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "check_out"))} className="primary-btn">Check out</button>}{booking.check_out_at && !booking.professional_confirmed_completion && <button type="button" disabled={busy === booking.id} onClick={() => void act(booking.id, () => bookingAction(booking.id, "confirm_completion"))} className="primary-btn">Confirm completion</button>}</div>
+          </div>
+          <ReviewBox booking={booking} userId={userId} onDone={() => void refresh()} />
+        </article>)}</div>}
       </section>}
 
 

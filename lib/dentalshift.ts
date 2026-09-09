@@ -751,8 +751,27 @@ export type WorkflowBooking = {
 };
 
 export type BookingContact = {
-  name: string; contact_name?: string; phone: string | null; email: string | null; role: "office" | "professional";
-  address?: string; city?: string; province?: string; postal_code?: string; website?: string | null;
+  name: string;
+  contact_name?: string | null;
+  contact_title?: string | null;
+  phone: string | null;
+  direct_phone?: string | null;
+  main_phone?: string | null;
+  email: string | null;
+  role: "office" | "professional";
+  address?: string | null;
+  city?: string | null;
+  province?: string | null;
+  postal_code?: string | null;
+  website?: string | null;
+  parking_info?: string | null;
+  office_hours?: string | null;
+  software?: string[] | null;
+  languages?: string[] | null;
+  profession?: string | null;
+  licence_number?: string | null;
+  licence_province?: string | null;
+  licence_status?: string | null;
 };
 
 async function addBookingContacts(bookings: WorkflowBooking[]) {
