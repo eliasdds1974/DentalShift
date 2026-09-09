@@ -1,0 +1,34 @@
+name: Unify I'm Interested button colors
+
+on:
+  push:
+    paths:
+      - '.github/workflows/unify-im-interested-buttons.yml'
+      - '.github/scripts/unify-im-interested-buttons.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python .github/scripts/unify-im-interested-buttons.py
+      - name: Commit changes
+        run: |
+          if git diff --quiet; then
+            echo 'No changes needed.'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx components/AnonymousAvailableStaffPanel.tsx
+          git commit -m "Unify I'm Interested action button colors"
+          git push origin main
