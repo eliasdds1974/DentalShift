@@ -241,6 +241,41 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     }
   };
 
+  const expressProfessionalInterest = async (shift: LiveShift) => {
+    const key = `apply-${shift.id}`;
+    setBusy(key);
+    setError("");
+    try {
+      const applicationId = await applyForShift({ shiftId: shift.id, professionalId: userId });
+      if (!applicationId) throw new Error("DentalShift could not confirm your interest. Please try again.");
+
+      // Reflect the successful interest immediately so the availability card disappears
+      // without waiting for the follow-up reload.
+      setWorkflow((current) => ({
+        ...current,
+        applications: [
+          {
+            id: String(applicationId),
+            status: "applied",
+            proposed_rate: null,
+            application_kind: "application",
+            created_at: new Date().toISOString(),
+            office_interested_at: null,
+            professional_id: userId,
+            shifts: shift,
+          },
+          ...current.applications.filter((item) => !(item.professional_id === userId && item.shifts?.id === shift.id)),
+        ],
+      }));
+
+      await refresh();
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "DentalShift could not save your interest.");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const chooseDate = (date: Date) => {
     const key = localDateKey(date);
     if (key < localDateKey(new Date())) return;
@@ -372,7 +407,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
                     <span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={14} />{interestElapsed(interest.created_at, nowMs)}</span>
                   </div>
                   <button type="button" disabled={busy === `cancel-interest-${interest.id}`} onClick={() => void run(`cancel-interest-${interest.id}`, () => cancelShiftInterest(interest.id))} className="secondary-btn w-full justify-center border-[#01A32E]/35 font-black text-[#017f27] hover:bg-[#edf9f0]">{busy === `cancel-interest-${interest.id}` ? "Cancelling…" : "Cancel Interest"}</button>
-                </div> : officeInterest ? <div className="space-y-2"><div className="flex items-center justify-between gap-2 rounded-xl border border-[#EA4335]/35 bg-red-50 px-3 py-2"><span className="text-xs font-black text-[#EA4335]">✓ They are interested</span><span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#EA4335]"><Clock3 size={14} />{interestElapsed(officeInterest.office_interested_at!, nowMs)}</span></div><div className="grid grid-cols-2 gap-2"><button type="button" disabled={busy === `decline-office-${officeInterest.id}`} onClick={() => void run(`decline-office-${officeInterest.id}`, () => professionalDeclineOfficeInterest(officeInterest.id))} className="secondary-btn justify-center border-[#EA4335]/30 text-[#c9342d]">{busy === `decline-office-${officeInterest.id}` ? "Removing…" : "I’m not interested"}</button><button type="button" disabled={busy === `book-office-${officeInterest.id}`} onClick={() => void run(`book-office-${officeInterest.id}`, () => respondToInvitation(officeInterest.id, true))} className="primary-btn justify-center">{busy === `book-office-${officeInterest.id}` ? "Booking…" : "Book appointment"}</button></div></div> : <button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void run(`apply-${shift.id}`, () => applyForShift({ shiftId: shift.id, professionalId: userId }))} className="primary-btn w-full justify-center disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>} />;
+                </div> : officeInterest ? <div className="space-y-2"><div className="flex items-center justify-between gap-2 rounded-xl border border-[#EA4335]/35 bg-red-50 px-3 py-2"><span className="text-xs font-black text-[#EA4335]">✓ They are interested</span><span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#EA4335]"><Clock3 size={14} />{interestElapsed(officeInterest.office_interested_at!, nowMs)}</span></div><div className="grid grid-cols-2 gap-2"><button type="button" disabled={busy === `decline-office-${officeInterest.id}`} onClick={() => void run(`decline-office-${officeInterest.id}`, () => professionalDeclineOfficeInterest(officeInterest.id))} className="secondary-btn justify-center border-[#EA4335]/30 text-[#c9342d]">{busy === `decline-office-${officeInterest.id}` ? "Removing…" : "I’m not interested"}</button><button type="button" disabled={busy === `book-office-${officeInterest.id}`} onClick={() => void run(`book-office-${officeInterest.id}`, () => respondToInvitation(officeInterest.id, true))} className="primary-btn justify-center">{busy === `book-office-${officeInterest.id}` ? "Booking…" : "Book appointment"}</button></div></div> : <button type="button" disabled={busy === `apply-${shift.id}`} onClick={() => void expressProfessionalInterest(shift)} className="w-full rounded-xl bg-[#002757] px-3 py-2.5 text-sm font-black text-white transition hover:bg-[#0a3568] disabled:cursor-not-allowed disabled:opacity-45">{busy === `apply-${shift.id}` ? "Saving…" : "I’m Interested"}</button>} />;
               })}</div>
             </section>}
 

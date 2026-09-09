@@ -672,10 +672,15 @@ export async function createShiftSeries(input: {
 }
 
 export async function applyForShift(input: { shiftId: string; professionalId: string; proposedRate?: number }) {
-  void input.professionalId;
   void input.proposedRate;
+  const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+  if (sessionError) throw sessionError;
+  if (!sessionData.session?.user?.id || sessionData.session.user.id !== input.professionalId) {
+    throw new Error("Your DentalShift session does not match this professional account. Please sign in again.");
+  }
   const { data, error } = await supabase.rpc("professional_express_interest", { p_shift_id: input.shiftId });
   if (error) throw error;
+  if (!data) throw new Error("DentalShift could not confirm your interest. Please try again.");
   return data;
 }
 
