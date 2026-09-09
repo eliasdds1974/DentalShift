@@ -1,0 +1,33 @@
+name: Add office software to professional card
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-office-software-to-professional-card.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply office software details patch
+        run: python .github/scripts/add-office-software-to-professional-card.py
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Show dental software in professional office card"
+            git push
+          fi
