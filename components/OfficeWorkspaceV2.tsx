@@ -6,6 +6,7 @@ import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star,
 import {
   acceptApplication,
   cancelOfficeShift,
+  cancelConfirmedBooking,
   confirmInterestBooking,
   createShiftSeries,
   inviteProfessional,
@@ -306,6 +307,13 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     }
   };
 
+  const cancelOfficeBooking = async (bookingId: string) => {
+    const reason = window.prompt("Why do you need to cancel this booking? Examples: office closure, scheduling conflict, emergency, or other.");
+    if (!reason?.trim()) return;
+    if (!window.confirm("Cancel this booked appointment? The professional will be notified.")) return;
+    await act(`cancel-booking-${bookingId}`, () => cancelConfirmedBooking(bookingId, reason.trim()));
+  };
+
   const postSelectedShift = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (selectedDate < localDateKey(new Date())) {
@@ -464,7 +472,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
               </div>
             </form>
             {selectedShifts.length === 0 && selectedBookings.length === 0 && <p className="rounded-xl bg-slate-50 p-3 text-center text-xs font-bold text-slate-500">No other office activity on this date.</p>}
-            {selectedBookings.length > 0 && <section className="rounded-2xl bg-[#002757] p-2.5 shadow-sm"><h3 className="mb-2 text-center text-lg font-black text-white">BOOKED</h3><div className="space-y-2">{selectedBookings.map((booking) => <article key={booking.id} className="rounded-xl border border-white/30 bg-white p-3"><div className="flex items-center gap-2"><FileCheck2 size={17} className="text-[#04A62F]" /><strong className="text-[#032757]">Confirmed Professional</strong></div><p className="mt-1 text-sm font-bold text-slate-700">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{booking.shifts.profession} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}</article>)}</div></section>}
+            {selectedBookings.length > 0 && <section className="rounded-2xl bg-[#002757] p-2.5 shadow-sm"><h3 className="mb-2 text-center text-lg font-black text-white">BOOKED</h3><div className="space-y-2">{selectedBookings.map((booking) => <article key={booking.id} className="rounded-xl border border-white/30 bg-white p-3"><div className="flex items-center gap-2"><FileCheck2 size={17} className="text-[#04A62F]" /><strong className="text-[#032757]">Confirmed Professional</strong></div><p className="mt-1 text-sm font-bold text-slate-700">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{booking.shifts.profession} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}<button type="button" disabled={busy === `cancel-booking-${booking.id}`} onClick={() => void cancelOfficeBooking(booking.id)} className="secondary-btn mt-3 w-full justify-center border-rose-200 text-rose-700 hover:bg-rose-50">{busy === `cancel-booking-${booking.id}` ? "Cancelling…" : "Cancel Booking"}</button></article>)}</div></section>}
             <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="secondary-btn mt-4 w-full justify-center lg:hidden">↑ Back to calendar</button>
           </div>
           </div>

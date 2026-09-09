@@ -6,6 +6,7 @@ import {
   addProfessionalAvailability,
   applyForShift,
   cancelShiftInterest,
+  cancelConfirmedBooking,
   confirmInterestBooking,
   loadAccountDetails,
   loadProfessionalWorkflow,
@@ -299,6 +300,13 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     }
   };
 
+  const cancelProfessionalBooking = async (bookingId: string) => {
+    const reason = window.prompt("Why do you need to cancel this booking? Examples: illness, family emergency, scheduling conflict, or other.");
+    if (!reason?.trim()) return;
+    if (!window.confirm("Cancel this booked appointment? The dental office will be notified.")) return;
+    await run(`cancel-booking-${bookingId}`, () => cancelConfirmedBooking(bookingId, reason.trim()));
+  };
+
   const chooseDate = (date: Date) => {
     const key = localDateKey(date);
     if (key < localDateKey(new Date())) return;
@@ -417,7 +425,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
 
             {selectedBooked.length > 0 && <section className="rounded-3xl bg-[#002757] p-2.5 shadow-md">
               <h4 className="mb-2 flex items-center justify-center gap-2 font-black text-white"><span className="grid h-5 w-5 place-items-center rounded-full bg-white text-[11px] text-[#002757]">✓</span>BOOKED</h4>
-              <div className="space-y-3 rounded-2xl bg-white p-1">{selectedBooked.map((booking) => booking.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={booking.id} shift={booking.shifts} tone="navy" status="Booked" action={<button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn w-full justify-center">View booked shift</button>} /> : null)}</div>
+              <div className="space-y-3 rounded-2xl bg-white p-1">{selectedBooked.map((booking) => booking.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={booking.id} shift={booking.shifts} tone="navy" status="Booked" action={<div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn justify-center">View booked shift</button><button type="button" disabled={busy === `cancel-booking-${booking.id}`} onClick={() => void cancelProfessionalBooking(booking.id)} className="secondary-btn justify-center border-rose-200 text-rose-700 hover:bg-rose-50">{busy === `cancel-booking-${booking.id}` ? "Cancelling…" : "Cancel Booking"}</button></div>} /> : null)}</div>
             </section>}
 
             {visibleOpen.length > 0 && <section>

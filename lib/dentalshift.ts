@@ -892,6 +892,14 @@ export async function confirmInterestBooking(applicationId: string) {
   return data;
 }
 
+export async function cancelConfirmedBooking(bookingId: string, reason: string) {
+  const cleanReason = reason.trim();
+  if (cleanReason.length < 3) throw new Error("Please provide a cancellation reason.");
+  const { data, error } = await supabase.rpc("cancel_confirmed_booking", { p_booking_id: bookingId, p_reason: cleanReason });
+  if (error) throw error;
+  return data;
+}
+
 export async function officeExpressInterest(shiftId: string, professionalId: string) {
   const { data, error } = await supabase.rpc("office_express_interest", { p_shift_id: shiftId, p_professional_id: professionalId });
   if (error) throw error;
