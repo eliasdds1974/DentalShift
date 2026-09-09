@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Applies factual booking statistics to the existing professional cards.
 lib = Path('lib/dentalshift.ts')
 s = lib.read_text()
 old = '''  const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[], "office");
