@@ -217,7 +217,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     const localAnesthetic = Boolean(profile?.local_anesthetic) && roleCode(profile?.profession) === "RDH";
     const interest = applicantByProfessional.get(slot.professional_id);
     const officeInterest = officeInterestByProfessional.get(slot.professional_id);
-    const matchingShift = selectedShifts.find((shift) => shift.status === "open" && shift.profession === profile?.profession && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at));
+    const matchingShift = selectedShifts.find((shift) => shift.status === "open" && roleCode(shift.profession) === roleCode(profile?.profession));
     return {
       id: slot.professional_id,
       role: roleCode(profile?.profession),
