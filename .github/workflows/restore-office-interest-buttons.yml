@@ -1,0 +1,25 @@
+name: Restore office interest buttons
+on:
+  push:
+    paths:
+      - '.github/workflows/restore-office-interest-buttons.yml'
+      - '.github/scripts/restore-office-interest-buttons.py'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restore interest buttons
+        run: python .github/scripts/restore-office-interest-buttons.py
+      - name: Commit source changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx components/AnonymousAvailableStaffPanel.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Restore office interest buttons"
+          git push origin main
