@@ -212,6 +212,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const selectedAvailability = workflow.availability.filter((slot) => slot.available && localDateKey(slot.starts_at) === selectedDate);
 
   const selectedInterests = selectedApplied.filter((item) => item.application_kind === "application" && item.shifts);
+  const hasProfessionalInterest = selectedInterests.length > 0;
   const interestByShiftId = new Map(selectedInterests.map((item) => [item.shifts!.id, item]));
   const officeInterestByShiftId = new Map(workflow.applications.filter((item) => item.office_interested_at && item.shifts && localDateKey(item.shifts.starts_at) === selectedDate).map((item) => [item.shifts!.id, item]));
   const visibleOpen = selectedOpen;
@@ -335,10 +336,10 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
           </div>
 
           <div className="mt-4 space-y-5">
-            {selectedAvailability.length > 0 ? <section className="overflow-hidden rounded-2xl border-2 border-[#01A32E] bg-white shadow-sm">
+            {selectedAvailability.length > 0 && !hasProfessionalInterest ? <section className="overflow-hidden rounded-2xl border-2 border-[#01A32E] bg-white shadow-sm">
               <div className="flex items-center gap-2 bg-[#01A32E] px-4 py-2.5"><span className="grid h-6 w-6 place-items-center rounded-full bg-white text-sm font-black text-[#017f27]">✓</span><p className="text-sm font-black tracking-wide text-white">I’m Available</p></div>
               <div className="flex items-center justify-between gap-3 p-4"><div className="min-w-0 space-y-2">{selectedAvailability.map((slot) => <div key={slot.id} className="flex flex-wrap items-center gap-x-3 gap-y-1"><span className="inline-flex items-center gap-1.5 text-sm font-black text-[#002757]"><Clock3 size={15} className="text-[#017f27]" />{shortTime(slot.starts_at)}–{shortTime(slot.ends_at)}</span><span className="rounded-full bg-[#eaf8ee] px-2.5 py-1 text-xs font-black text-[#017f27]">${Number(slot.hourly_rate).toFixed(2)}/hr</span></div>)}</div><button type="button" disabled={busy === selectedAvailability[0].id} onClick={() => void run(selectedAvailability[0].id, () => removeProfessionalAvailability(selectedAvailability[0].id)).then((removed) => { if (removed) setAvailabilityOpen(true); })} className="secondary-btn shrink-0 border-[#01A32E]/30 text-[#017f27] hover:bg-[#edf9f0]">Cancel / Repost</button></div>
-            </section> : <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button>}
+            </section> : selectedAvailability.length === 0 ? <button type="button" onClick={() => setAvailabilityOpen(true)} className="secondary-btn w-full justify-center"><CalendarDays size={17} />Set my availability for this day</button> : null}
 
 
 
