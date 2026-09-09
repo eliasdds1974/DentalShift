@@ -1,0 +1,22 @@
+name: Show all booked office details
+on:
+  push:
+    paths:
+      - '.github/workflows/show-all-booked-office-details.yml'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - run: python .github/scripts/show-all-booked-office-details.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add lib/dentalshift.ts components/WorkflowWorkspace.tsx
+          git diff --cached --quiet || git commit -m "Show all confirmed office details"
+          git push
