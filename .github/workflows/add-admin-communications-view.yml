@@ -1,0 +1,23 @@
+name: Add admin communications view
+on:
+  push:
+    paths:
+      - '.github/scripts/add-admin-communications-view.py'
+      - '.github/workflows/add-admin-communications-view.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add admin communications view
+        run: python .github/scripts/add-admin-communications-view.py
+      - name: Commit source changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/page.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Add admin communications view"
+          git push
