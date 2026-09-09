@@ -1,0 +1,23 @@
+name: Add shift communication safeguards
+on:
+  push:
+    paths:
+      - '.github/scripts/add-shift-communication-safeguards.py'
+      - '.github/workflows/add-shift-communication-safeguards.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Add communication safeguards
+        run: python .github/scripts/add-shift-communication-safeguards.py
+      - name: Commit source changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add lib/dentalshift.ts components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "Add shift communication safeguards"
+          git push
