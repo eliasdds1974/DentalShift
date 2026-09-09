@@ -765,7 +765,6 @@ export type AvailableProfessionalSlot = {
   hourly_rate: number;
   notes?: string | null;
   distance_km?: number | null;
-  notes?: string | null;
   professional_profiles: { profession: string; licence_province: string; licence_status?: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; travel_radius_km: number; years_experience: number | null; skills: string[] | null; local_anesthetic: boolean; local_anesthetic_status: string; profiles: { latitude: number | null; longitude: number | null } | null } | null;
 };
 
