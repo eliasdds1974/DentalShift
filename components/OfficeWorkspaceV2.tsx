@@ -106,6 +106,64 @@ function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | 
   return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+
+function OfficeCancellationModal({ booking, busy, close, confirm }: { booking: WorkflowBooking; busy: boolean; close: () => void; confirm: (reason: string) => Promise<{ cancelled: boolean; emailSent: boolean; actorParty: string }> }) {
+  const [reason, setReason] = useState("");
+  const [complete, setComplete] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
+  const [localError, setLocalError] = useState("");
+
+  const submit = async () => {
+    const cleanReason = reason.trim();
+    if (cleanReason.length < 3) {
+      setLocalError("Please enter the reason for cancelling this appointment.");
+      return;
+    }
+    setLocalError("");
+    try {
+      const result = await confirm(cleanReason);
+      setEmailSent(Boolean(result.emailSent));
+      setComplete(true);
+    } catch (value) {
+      setLocalError(value instanceof Error ? value.message : "The booking could not be cancelled.");
+    }
+  };
+
+  const shift = booking.shifts;
+  return <div className="fixed inset-0 z-[130] grid place-items-center bg-[#002757]/60 p-4">
+    <button type="button" aria-label="Close cancellation" onClick={complete ? close : undefined} className="absolute inset-0" />
+    <section role="dialog" aria-modal="true" aria-labelledby="office-cancellation-title" className="relative z-10 w-full max-w-lg rounded-3xl bg-white p-6 shadow-2xl sm:p-7">
+      {complete ? <>
+        <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E]"><Check size={28} strokeWidth={3} /></div>
+        <h2 id="office-cancellation-title" className="mt-4 text-center text-2xl font-black text-[#002757]">Cancelled appointment</h2>
+        <p className="mt-2 text-center text-sm leading-6 text-slate-600">This booking has been cancelled and removed from your active schedule.</p>
+        {shift && <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <p className="font-black text-[#002757]">{shift.profession}</p>
+          <p className="mt-1">{new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</p>
+          <p>{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
+          <p className="mt-3"><strong>Reason:</strong> {reason.trim()}</p>
+        </div>}
+        <div className={`mt-4 rounded-2xl p-4 text-sm leading-6 ${emailSent ? "bg-[#eaf8ee] text-[#017f27]" : "bg-amber-50 text-amber-900"}`}>
+          {emailSent
+            ? "An email has been sent to the professional with the office name, shift details, and cancellation reason. Their availability for this date remains unchanged."
+            : "The appointment was cancelled, but the email could not be delivered. DentalShift still recorded the cancellation and notified the professional inside the platform."}
+        </div>
+        <button type="button" onClick={close} className="primary-btn mt-5 w-full justify-center">Back to calendar</button>
+      </> : <>
+        <h2 id="office-cancellation-title" className="text-2xl font-black text-[#002757]">Cancel booking</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">This will cancel the confirmed appointment. The professional will be notified immediately, and their availability will remain available for other offices.</p>
+        {shift && <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+          <p className="font-black text-[#002757]">{shift.profession}</p>
+          <p className="mt-1">{new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" })} · {shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
+        </div>}
+        <label className="mt-5 block"><span className="text-sm font-black text-[#002757]">Reason for cancellation</span><textarea value={reason} onChange={(event) => setReason(event.target.value)} rows={4} maxLength={1000} placeholder="Please explain why the office needs to cancel this appointment." className="mt-2 w-full rounded-xl border border-slate-300 p-3 text-sm outline-none focus:border-[#01A32E]" /></label>
+        {localError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{localError}</p>}
+        <div className="mt-5 grid grid-cols-2 gap-3"><button type="button" disabled={busy} onClick={close} className="secondary-btn justify-center">Keep booking</button><button type="button" disabled={busy || reason.trim().length < 3} onClick={() => void submit()} className="rounded-xl bg-rose-600 px-4 py-2.5 text-sm font-black text-white hover:bg-rose-700 disabled:opacity-50">{busy ? "Cancelling…" : "Cancel appointment"}</button></div>
+      </>}
+    </section>
+  </div>;
+}
+
 function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string; office: OfficeDetails; onPost: () => void; refreshKey: number }) {
   const [data, setData] = useState<OfficeWorkflow>({ shifts: [], bookings: [], directory: [], availability: [], preferredProfessionals: [], reliabilityStats: {} });
   const [loading, setLoading] = useState(true);
@@ -116,6 +174,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [calendarOffsetDays, setCalendarOffsetDays] = useState(0);
   const [postShiftOpen, setPostShiftOpen] = useState(false);
+  const [cancelBookingTarget, setCancelBookingTarget] = useState<WorkflowBooking | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
   const resultsRef = useRef<HTMLElement | null>(null);
   const [officeCoordinates, setOfficeCoordinates] = useState<{ latitude: number; longitude: number } | null>(() =>
@@ -333,11 +392,19 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     }
   };
 
-  const cancelOfficeBooking = async (bookingId: string) => {
-    const reason = window.prompt("Why do you need to cancel this booking? Examples: office closure, scheduling conflict, emergency, or other.");
-    if (!reason?.trim()) return;
-    if (!window.confirm("Cancel this booked appointment? The professional will be notified.")) return;
-    await act(`cancel-booking-${bookingId}`, () => cancelConfirmedBooking(bookingId, reason.trim()));
+  const cancelOfficeBooking = async (booking: WorkflowBooking, reason: string) => {
+    setBusy(`cancel-booking-${booking.id}`);
+    setError("");
+    try {
+      const result = await cancelConfirmedBooking(booking.id, reason);
+      await refresh(false);
+      return result;
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "The booking could not be cancelled.");
+      throw value;
+    } finally {
+      setBusy("");
+    }
   };
 
   const postSelectedShift = async (event: React.FormEvent<HTMLFormElement>) => {
@@ -399,6 +466,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
   };
 
   return <div className="page-wrap">
+    {cancelBookingTarget && <OfficeCancellationModal booking={cancelBookingTarget} busy={busy === `cancel-booking-${cancelBookingTarget.id}`} close={() => setCancelBookingTarget(null)} confirm={(reason) => cancelOfficeBooking(cancelBookingTarget, reason)} />}
     <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div>
         <h1 className="page-title">{office.name} schedule</h1>
@@ -501,7 +569,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
               </div>
             </form>
             {selectedShifts.length === 0 && selectedBookings.length === 0 && <p className="rounded-xl bg-slate-50 p-3 text-center text-xs font-bold text-slate-500">No other office activity on this date.</p>}
-            {selectedBookings.length > 0 && <section className="rounded-2xl bg-[#002757] p-2.5 shadow-sm"><h3 className="mb-2 text-center text-lg font-black text-white">BOOKED</h3><div className="space-y-2">{selectedBookings.map((booking) => <article key={booking.id} className="rounded-xl border border-white/30 bg-white p-3"><div className="flex items-center gap-2"><FileCheck2 size={17} className="text-[#04A62F]" /><strong className="text-[#032757]">Confirmed Professional</strong></div><p className="mt-1 text-sm font-bold text-slate-700">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{booking.shifts.profession} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}<button type="button" disabled={busy === `cancel-booking-${booking.id}`} onClick={() => void cancelOfficeBooking(booking.id)} className="secondary-btn mt-3 w-full justify-center border-rose-200 text-rose-700 hover:bg-rose-50">{busy === `cancel-booking-${booking.id}` ? "Cancelling…" : "Cancel Booking"}</button></article>)}</div></section>}
+            {selectedBookings.length > 0 && <section className="rounded-2xl bg-[#002757] p-2.5 shadow-sm"><h3 className="mb-2 text-center text-lg font-black text-white">BOOKED</h3><div className="space-y-2">{selectedBookings.map((booking) => <article key={booking.id} className="rounded-xl border border-white/30 bg-white p-3"><div className="flex items-center gap-2"><FileCheck2 size={17} className="text-[#04A62F]" /><strong className="text-[#032757]">Confirmed Professional</strong></div><p className="mt-1 text-sm font-bold text-slate-700">{booking.contact?.name || "Confirmed professional"}</p>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{booking.shifts.profession} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}<button type="button" disabled={busy === `cancel-booking-${booking.id}`} onClick={() => setCancelBookingTarget(booking)} className="secondary-btn mt-3 w-full justify-center border-rose-200 text-rose-700 hover:bg-rose-50">{busy === `cancel-booking-${booking.id}` ? "Cancelling…" : "Cancel Booking"}</button></article>)}</div></section>}
             <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="secondary-btn mt-4 w-full justify-center lg:hidden">↑ Back to calendar</button>
           </div>
           </div>
