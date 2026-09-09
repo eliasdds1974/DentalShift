@@ -778,10 +778,10 @@ export type BookingContact = {
   licence_status?: string | null;
 };
 
-async function addBookingContacts(bookings: WorkflowBooking[]) {
+async function addBookingContacts(bookings: WorkflowBooking[], viewerRole: "professional" | "office") {
   return Promise.all(bookings.map(async (booking) => {
     const result = await Promise.race([
-      supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id }),
+      supabase.rpc("get_confirmed_booking_contact", { p_booking_id: booking.id, p_viewer_role: viewerRole }),
       new Promise<null>((resolve) => setTimeout(() => resolve(null), 2500)),
     ]);
     return { ...booking, contact: !result || result.error ? null : result.data as BookingContact | null };
@@ -872,7 +872,7 @@ export async function loadProfessionalWorkflow(userId: string) {
   if (bookingsResult.error) throw bookingsResult.error;
   if (availabilityResult.error) throw availabilityResult.error;
   if (favouritesResult.error) throw favouritesResult.error;
-  const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[]);
+  const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[], "professional");
   return { open, applications: (applicationsResult.data ?? []) as unknown as WorkflowApplication[], bookings, availability: (availabilityResult.data ?? []) as ProfessionalAvailability[], favourites: (favouritesResult.data ?? []) as unknown as FavouriteOffice[] };
 }
 
@@ -887,7 +887,7 @@ export async function loadOfficeWorkflow(officeId: string) {
   if (bookingsResult.error) throw bookingsResult.error;
   if (directoryResult.error) throw directoryResult.error;
   if (availabilityResult.error) throw availabilityResult.error;
-  const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[]);
+  const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[], "office");
   return { shifts: (shiftsResult.data ?? []) as unknown as OfficeShift[], bookings, directory: directoryResult.data ?? [], availability: (availabilityResult.data ?? []) as unknown as AvailableProfessionalSlot[] };
 }
 
