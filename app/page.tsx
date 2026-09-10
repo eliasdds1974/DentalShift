@@ -1462,6 +1462,16 @@ export default function Home() {
   const [office, setOffice] = useState<OfficeDetails | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("signin") !== "1") return;
+    setAccountIntent({ mode: "signin", role: "office" });
+    setAccountOpen(true);
+    const clean = new URL(window.location.href);
+    clean.searchParams.delete("signin");
+    window.history.replaceState(null, "", `${clean.pathname}${clean.search}${clean.hash}`);
+  }, []);
+
   const navigate = useCallback((nextRole: Role, nextView: View) => {
     window.localStorage.setItem("dentalshift_portal_role", nextRole);
     setRole(nextRole);
