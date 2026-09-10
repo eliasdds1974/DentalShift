@@ -1,0 +1,34 @@
+name: Google blue DentalJobs search bar
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/google-blue-search-bar.py'
+      - '.github/workflows/google-blue-search-bar.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Google blue search bar
+        run: python .github/scripts/google-blue-search-bar.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Commit verified application change
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No application change needed"
+          else
+            git commit -m "Use Google blue for DentalJobs search bar"
+            git push
+          fi
