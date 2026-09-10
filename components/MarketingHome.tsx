@@ -53,7 +53,7 @@ export function MarketingHome({ onSignIn, onGetStarted, onWorkspace = onSignIn, 
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#01A32E]/20 bg-[#eaf8ee] px-3 py-1.5 text-xs font-extrabold text-[#017f27]"><Sparkles size={14} /> Canadian dental staffing made simple</div>
             <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[1.03] tracking-[-0.05em] text-[#002757] sm:text-5xl lg:text-[4rem]">Temporary dental staffing and permanent dental jobs — <span className="text-[#01A32E]">without expensive subscriptions.</span></h1>
-            <p className="mt-5 max-w-2xl text-lg font-medium leading-8 text-slate-600">DentalShift connects dental offices with dental professionals for temporary coverage and permanent employment across Canada.</p>
+            <div className="mt-5 max-w-3xl rounded-2xl border border-[#002757]/10 bg-white/85 p-5 shadow-sm"><p className="text-lg font-black leading-8 text-[#002757]">Either side can make the first move.</p><p className="mt-1 text-base font-medium leading-7 text-slate-600 sm:text-lg">Professionals can apply to shifts, and offices can invite professionals. Once both sides agree, the shift is confirmed.</p></div>
             <div className="mt-5 rounded-2xl border border-[#01A32E]/20 bg-white/90 p-4 shadow-sm"><p className="text-base font-black leading-7 text-[#002757]">No subscription. No monthly fee. Pay only when you use it — <span className="text-[#01A32E]">at a fraction of the cost of traditional staffing.</span></p></div>
 
             <div className="mt-7 grid gap-3 lg:grid-cols-3">
@@ -78,17 +78,17 @@ export function MarketingHome({ onSignIn, onGetStarted, onWorkspace = onSignIn, 
 
       <section id="how-it-works" className="border-y border-slate-200 bg-white py-14 sm:py-16">
         <div className="mx-auto max-w-6xl px-5 sm:px-8">
-          <div className="text-center"><p className="text-sm font-black uppercase tracking-[.14em] text-[#01A32E]">It’s this simple</p><h2 className="mt-2 text-3xl font-black tracking-[-.035em] text-[#002757] sm:text-4xl">From staffing need to confirmed match.</h2></div>
+          <div className="text-center"><p className="text-sm font-black uppercase tracking-[.14em] text-[#01A32E]">It’s this simple</p><h2 className="mt-2 text-3xl font-black tracking-[-.035em] text-[#002757] sm:text-4xl">A match only happens when it works for both sides.</h2></div>
           <div className="mx-auto mt-6 flex w-fit rounded-2xl bg-slate-100 p-1"><button onClick={()=>setAudience('office')} className={`rounded-xl px-4 py-2 text-sm font-black ${audience==='office'?'bg-white text-[#002757] shadow-sm':'text-slate-500'}`}>For Offices</button><button onClick={()=>setAudience('professional')} className={`rounded-xl px-4 py-2 text-sm font-black ${audience==='professional'?'bg-white text-[#002757] shadow-sm':'text-slate-500'}`}>For Professionals</button></div>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {(audience==='office' ? [
-              ['1','Post','Add the date, role, hours and rate in minutes.'],
-              ['2','Match','See available professionals who fit your shift.'],
-              ['3','Confirm','Choose your preferred professional and confirm coverage.']
+              ['1','Post or Invite','Post your shift, then invite professionals who match your needs — or wait for professionals to apply.'],
+              ['2','Connect','Review interested professionals and choose the people who fit your office, schedule and role.'],
+              ['3','Both Confirm','Either side can make the first move. Once the office and professional both agree, the shift is confirmed.']
             ] : [
-              ['1','Set Availability','Choose the days and hours you want to work.'],
-              ['2','Find Shifts','See nearby opportunities with rates upfront.'],
-              ['3','Apply','Apply, get confirmed and keep everything in one place.']
+              ['1','Set Availability','Choose the days and hours you want to work so offices can see when you are available.'],
+              ['2','Apply or Get Invited','Apply to shifts you want — or receive invitations from offices looking for someone like you.'],
+              ['3','Both Confirm','Once you and the office both agree, the shift is confirmed and everything stays organized in DentalShift.']
             ]).map(([step,title,detail])=><article key={step} className="rounded-2xl border border-slate-200 bg-[#f8fbff] p-5"><div className="grid h-9 w-9 place-items-center rounded-full bg-[#002757] text-sm font-black text-white">{step}</div><h3 className="mt-4 text-xl font-black text-[#002757]">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-500">{detail}</p></article>)}
           </div>
         </div>
