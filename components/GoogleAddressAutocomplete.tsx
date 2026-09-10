@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Check, MapPin, Search } from "lucide-react";
+import { Check, MapPin, Plus, Search } from "lucide-react";
 
 type Suggestion = { placeId: string; label: string; mainText: string; secondaryText: string };
 type SelectedPlace = {
@@ -20,15 +20,16 @@ type SelectedPlace = {
 
 export type GoogleOfficeSelection = Pick<SelectedPlace, "placeId" | "name" | "formattedAddress" | "city" | "province" | "website">;
 
-export function GoogleOfficeFavouriteSearch({ onAdd, disabled }: { onAdd: (office: GoogleOfficeSelection) => Promise<void>; disabled?: boolean }) {
+export function GoogleOfficeFavouriteSearch({ onAdd, disabled, actionLabel = "Add office", tone = "preferred" }: { onAdd: (office: GoogleOfficeSelection) => Promise<void>; disabled?: boolean; actionLabel?: string; tone?: "preferred" | "excluded" }) {
   const [query, setQuery] = useState("");
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [selectedOffice, setSelectedOffice] = useState<GoogleOfficeSelection | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const sessionToken = useRef(typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now()));
 
   useEffect(() => {
-    if (query.trim().length < 3) { setSuggestions([]); return; }
+    if (selectedOffice || query.trim().length < 3) { setSuggestions([]); return; }
     const controller = new AbortController();
     const timer = window.setTimeout(async () => {
       setLoading(true); setError("");
@@ -41,7 +42,7 @@ export function GoogleOfficeFavouriteSearch({ onAdd, disabled }: { onAdd: (offic
       finally { setLoading(false); }
     }, 300);
     return () => { window.clearTimeout(timer); controller.abort(); };
-  }, [query]);
+  }, [query, selectedOffice]);
 
   const choose = async (suggestion: Suggestion) => {
     setLoading(true); setError(""); setSuggestions([]);
@@ -49,16 +50,33 @@ export function GoogleOfficeFavouriteSearch({ onAdd, disabled }: { onAdd: (offic
       const response = await fetch("/api/google/places/details", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ placeId: suggestion.placeId, sessionToken: sessionToken.current }) });
       const office = await response.json() as GoogleOfficeSelection & { error?: string };
       if (!response.ok) throw new Error(office.error || "The selected office could not be verified.");
-      await onAdd(office);
+      setSelectedOffice(office);
+      setQuery(office.name || suggestion.mainText);
+    } catch (value) { setError(value instanceof Error ? value.message : "The office could not be selected."); }
+    finally { setLoading(false); }
+  };
+
+  const addSelected = async () => {
+    if (!selectedOffice || disabled || loading) return;
+    setLoading(true); setError("");
+    try {
+      await onAdd(selectedOffice);
+      setSelectedOffice(null);
       setQuery("");
+      setSuggestions([]);
       sessionToken.current = typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : String(Date.now());
     } catch (value) { setError(value instanceof Error ? value.message : "The office could not be added."); }
     finally { setLoading(false); }
   };
 
+  const actionClass = tone === "excluded"
+    ? "inline-flex items-center justify-center gap-2 rounded-xl bg-[#E81E12] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:bg-[#C81910] disabled:cursor-not-allowed disabled:opacity-50"
+    : "inline-flex items-center justify-center gap-2 rounded-xl bg-[#FDB605] px-3 py-2 text-xs font-black text-[#9A6D00] shadow-sm transition hover:bg-[#F2AC00] disabled:cursor-not-allowed disabled:opacity-50";
+
   return <div className="relative">
-    <label className="field"><span>Search for a dental office by name</span><div className="relative"><Search size={18} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={query} disabled={disabled} onChange={(event) => { setQuery(event.target.value); setError(""); }} className="pl-10!" autoComplete="off" placeholder="Start typing an office name" />{loading && <span className="absolute right-3 top-3.5 text-xs font-bold text-slate-400">Searching…</span>}</div></label>
+    <label className="field"><span>Search for a dental office by name</span><div className="relative"><Search size={18} className="pointer-events-none absolute left-3 top-3.5 text-slate-400" /><input value={query} disabled={disabled || loading} onChange={(event) => { setQuery(event.target.value); setSelectedOffice(null); setError(""); }} className="pl-10!" autoComplete="off" placeholder="Start typing an office name" />{loading && <span className="absolute right-3 top-3.5 text-xs font-bold text-slate-400">Working…</span>}</div></label>
     {suggestions.length > 0 && <div className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-[#0078FE]/25 bg-white shadow-xl">{suggestions.map((suggestion) => <button type="button" key={suggestion.placeId} onClick={() => void choose(suggestion)} className="flex w-full items-start gap-3 border-b border-slate-100 px-4 py-3 text-left last:border-0 hover:bg-[#edf3fa]"><MapPin size={18} className="mt-0.5 shrink-0 text-[#0078FE]" /><span><strong className="block text-sm text-[#002757]">{suggestion.mainText}</strong><span className="mt-0.5 block text-xs text-slate-500">{suggestion.secondaryText}</span></span></button>)}<p className="bg-slate-50 px-4 py-2 text-right text-[10px] font-bold text-slate-400">Powered by Google</p></div>}
+    {selectedOffice && <div className="mt-2 flex flex-col gap-2 rounded-xl border border-slate-200 bg-slate-50 p-2.5 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><p className="truncate text-xs font-extrabold text-[#002757]">{selectedOffice.name}</p><p className="truncate text-[11px] text-slate-500">{selectedOffice.formattedAddress}</p></div><button type="button" disabled={disabled || loading} onClick={() => void addSelected()} className={actionClass}><Plus size={14} strokeWidth={3} />{actionLabel}</button></div>}
     {error && <p className="mt-2 rounded-xl bg-red-50 p-3 text-sm font-bold text-[#F21C13]">{error}</p>}
   </div>;
 }
