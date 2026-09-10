@@ -1,0 +1,33 @@
+name: Rename scheduled card buttons
+
+on:
+  push:
+    paths:
+      - '.github/scripts/rename-scheduled-card-buttons.py'
+      - '.github/workflows/rename-scheduled-card-buttons.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply scheduled card wording
+        run: python .github/scripts/rename-scheduled-card-buttons.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit scheduled card wording
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Use View Shift and Cancel Shift on scheduled cards"
+            git push
+          fi
