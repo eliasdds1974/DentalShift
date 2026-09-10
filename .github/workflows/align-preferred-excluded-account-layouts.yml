@@ -1,0 +1,32 @@
+name: Align preferred and excluded account layouts
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/align-preferred-excluded-account-layouts.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply account layout patch
+        run: python .github/scripts/align-preferred-excluded-account-layouts.py
+      - name: Commit changes
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Align preferred and excluded account layouts"
+            git push
+          fi
