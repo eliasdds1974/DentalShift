@@ -736,6 +736,40 @@ export async function removeOfficePreferredProfessional(officeId: string, id: st
   if (error) throw error;
 }
 
+export type OfficeExcludedProfessional = {
+  id: string;
+  office_id: string;
+  first_name: string;
+  last_name: string;
+  profession: string;
+  licence_province: string;
+  licence_number: string;
+  matched_professional_id: string | null;
+  created_at: string;
+};
+
+export async function loadOfficeExcludedProfessionals(officeId: string) {
+  const { data, error } = await supabase.from("office_excluded_professionals")
+    .select("id,office_id,first_name,last_name,profession,licence_province,licence_number,matched_professional_id,created_at")
+    .eq("office_id", officeId).order("created_at", { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as OfficeExcludedProfessional[];
+}
+
+export async function addOfficeExcludedProfessional(input: { officeId: string; firstName: string; lastName: string; profession: string; licenceProvince: string; licenceNumber: string }) {
+  const { data, error } = await supabase.rpc("office_add_excluded_professional", {
+    p_office_id: input.officeId, p_first_name: input.firstName.trim(), p_last_name: input.lastName.trim(),
+    p_profession: input.profession, p_licence_province: input.licenceProvince, p_licence_number: input.licenceNumber.trim(),
+  });
+  if (error) throw error;
+  return data as OfficeExcludedProfessional;
+}
+
+export async function removeOfficeExcludedProfessional(officeId: string, id: string) {
+  const { error } = await supabase.from("office_excluded_professionals").delete().eq("id", id).eq("office_id", officeId);
+  if (error) throw error;
+}
+
 
 export type WorkflowApplication = {
   id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string; office_interested_at?: string | null;
@@ -857,6 +891,36 @@ export async function removeFavouriteOffice(userId: string, favouriteId: string)
   if (error) throw error;
 }
 
+export type ExcludedOffice = { id: string; professional_id: string; office_id: string | null; google_place_id: string | null; name: string | null; formatted_address: string | null; city: string | null; province: string | null; website: string | null; created_at: string };
+
+export async function loadProfessionalExcludedOffices(userId: string) {
+  const { data, error } = await supabase.from("professional_excluded_offices")
+    .select("id,professional_id,office_id,google_place_id,name,formatted_address,city,province,website,created_at")
+    .eq("professional_id", userId).order("created_at", { ascending: false });
+  if (error) throw error;
+  return (data ?? []) as ExcludedOffice[];
+}
+
+export async function addGoogleExcludedOffice(userId: string, office: { placeId: string; name: string; formattedAddress: string; city: string; province: string; website?: string }) {
+  const { data: sessionData } = await supabase.auth.getSession();
+  if (sessionData.session?.user?.id !== userId) throw new Error("Your DentalShift session does not match this professional account.");
+  const { data, error } = await supabase.rpc("professional_add_excluded_office", {
+    p_google_place_id: office.placeId,
+    p_name: office.name,
+    p_formatted_address: office.formattedAddress,
+    p_city: office.city,
+    p_province: office.province,
+    p_website: normalizeWebsite(office.website),
+  });
+  if (error) throw error;
+  return data as ExcludedOffice;
+}
+
+export async function removeExcludedOffice(userId: string, id: string) {
+  const { error } = await supabase.from("professional_excluded_offices").delete().eq("id", id).eq("professional_id", userId);
+  if (error) throw error;
+}
+
 export async function loadProfessionalWorkflow(userId: string) {
   const workflowPromise = Promise.all([
     loadOpenShifts(),
@@ -864,9 +928,10 @@ export async function loadProfessionalWorkflow(userId: string) {
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)),reviews(id,reviewer_id,rating,comment)").eq("professional_id", userId).order("confirmed_at", { ascending: false }),
     supabase.from("availability").select("id,starts_at,ends_at,available,hourly_rate,notes").eq("professional_id", userId).order("starts_at", { ascending: true }),
     supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,address,city,province,postal_code,google_place_id,latitude,longitude,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
+    supabase.from("professional_excluded_offices").select("office_id,google_place_id").eq("professional_id", userId),
   ]);
 
-  const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult] = await Promise.race([
+  const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult, excludedResult] = await Promise.race([
     workflowPromise,
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error("DentalShift could not finish loading your workflow. Please refresh and try again.")), 10000)),
   ]);
@@ -874,11 +939,23 @@ export async function loadProfessionalWorkflow(userId: string) {
   if (bookingsResult.error) throw bookingsResult.error;
   if (availabilityResult.error) throw availabilityResult.error;
   if (favouritesResult.error) throw favouritesResult.error;
+  if (excludedResult.error) throw excludedResult.error;
+  const excludedOfficeIds = new Set((excludedResult.data ?? []).map((item: any) => item.office_id).filter(Boolean));
+  const excludedPlaceIds = new Set((excludedResult.data ?? []).map((item: any) => item.google_place_id).filter(Boolean));
+  const visibleOpen = open.filter((shift) => !excludedOfficeIds.has(shift.office_id) && !(shift.offices?.google_place_id && excludedPlaceIds.has(shift.offices.google_place_id)));
+  const visibleApplications = ((applicationsResult.data ?? []) as unknown as WorkflowApplication[]).filter((application) => {
+    const shift = application.shifts;
+    return !shift || (!excludedOfficeIds.has(shift.office_id) && !(shift.offices?.google_place_id && excludedPlaceIds.has(shift.offices.google_place_id)));
+  });
   const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[], "professional");
-  return { open, applications: (applicationsResult.data ?? []) as unknown as WorkflowApplication[], bookings, availability: (availabilityResult.data ?? []) as ProfessionalAvailability[], favourites: (favouritesResult.data ?? []) as unknown as FavouriteOffice[] };
+  return { open: visibleOpen, applications: visibleApplications, bookings, availability: (availabilityResult.data ?? []) as ProfessionalAvailability[], favourites: (favouritesResult.data ?? []) as unknown as FavouriteOffice[] };
 }
 
 export async function loadOfficeWorkflow(officeId: string) {
+  const { data: excludedRows, error: excludedError } = await supabase.from("office_excluded_professionals")
+    .select("matched_professional_id").eq("office_id", officeId);
+  if (excludedError) throw excludedError;
+  const excludedProfessionalIds = new Set((excludedRows ?? []).map((row: any) => row.matched_professional_id).filter(Boolean));
   const [shiftsResult, bookingsResult, directoryResult, availabilityResult] = await Promise.all([
     supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits),applications(id,status,proposed_rate,application_kind,created_at,office_interested_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,years_experience,skills,hourly_rate,local_anesthetic,local_anesthetic_status,profiles(latitude,longitude)))").eq("office_id", officeId).order("starts_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
@@ -890,8 +967,12 @@ export async function loadOfficeWorkflow(officeId: string) {
   if (directoryResult.error) throw directoryResult.error;
   if (availabilityResult.error) throw availabilityResult.error;
   const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[], "office");
-  const shifts = (shiftsResult.data ?? []) as unknown as OfficeShift[];
-  const availability = (availabilityResult.data ?? []) as unknown as AvailableProfessionalSlot[];
+  const shifts = ((shiftsResult.data ?? []) as unknown as OfficeShift[]).map((shift) => ({
+    ...shift,
+    applications: (shift.applications || []).filter((application) => !excludedProfessionalIds.has(application.professional_id)),
+  }));
+  const availability = ((availabilityResult.data ?? []) as unknown as AvailableProfessionalSlot[]).filter((slot) => !excludedProfessionalIds.has(slot.professional_id));
+  const directory = (directoryResult.data ?? []).filter((person: any) => !excludedProfessionalIds.has(person.user_id));
   const professionalIds = Array.from(new Set([
     ...availability.map((slot) => slot.professional_id),
     ...shifts.flatMap((shift) => (shift.applications || []).map((application) => application.professional_id)),
@@ -906,7 +987,7 @@ export async function loadOfficeWorkflow(officeId: string) {
       cancellationsUnder24h: Number(row.cancellations_under_24h || 0),
     }]));
   }
-  return { shifts, bookings, directory: directoryResult.data ?? [], availability, reliabilityStats };
+  return { shifts, bookings, directory, availability, reliabilityStats };
 }
 
 export async function withdrawApplication(applicationId: string) {

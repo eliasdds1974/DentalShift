@@ -6,7 +6,7 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { BadgeCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronRight, Clock3, ExternalLink, FileCheck2, FileText, Heart, LayoutDashboard, LogOut, MapPin, Menu, MessageCircle, Plus, Search, ShieldCheck, Sparkles, Star, Upload, UserRound, UsersRound, X } from "lucide-react";
 import { supabase } from "@/lib/supabase";
-import { addGoogleFavouriteOffice, addOfficePreferredProfessional, addVerificationInternalNote, applyForShift, cancelAdminShift, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadOfficePreferredProfessionals, loadProfessionalWorkflow, loadVerificationCase, loadVerificationQueue, openProfessionalResume, removeFavouriteOffice, removeOfficePreferredProfessional, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, uploadProfessionalResume, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type FavouriteOffice, type OfficePreferredProfessional, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
+import { addGoogleExcludedOffice, addGoogleFavouriteOffice, addOfficeExcludedProfessional, addOfficePreferredProfessional, addVerificationInternalNote, applyForShift, cancelAdminShift, createProfessionalWorkspace, createShiftSeries, loadAccountDetails, loadAdminDisputes, loadAdminShifts, loadOpenShifts, loadOfficeExcludedProfessionals, loadOfficePreferredProfessionals, loadProfessionalExcludedOffices, loadProfessionalWorkflow, loadVerificationCase, loadVerificationQueue, openProfessionalResume, removeExcludedOffice, removeFavouriteOffice, removeOfficeExcludedProfessional, removeOfficePreferredProfessional, requestVerificationReview, resolveAdminDispute, saveAccountDetails, setVerificationStatus, updateOfficeProfile, uploadOfficeLogo, uploadProfessionalResume, normalizeWebsite, type AccountDetails, type AccountProfile, type AdminDispute, type AdminShift, type ExcludedOffice, type FavouriteOffice, type OfficeExcludedProfessional, type OfficePreferredProfessional, type LiveShift, type VerificationCase, type VerificationItem } from "@/lib/dentalshift";
 import { OfficeWorkspace, ProfessionalWorkspace } from "@/components/WorkflowWorkspaceV2";
 import { GoogleAddressAutocomplete, GoogleOfficeFavouriteSearch, type GoogleOfficeSelection } from "@/components/GoogleAddressAutocomplete";
 import { MarketingHome } from "@/components/MarketingHome";
@@ -505,6 +505,15 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
   const [preferredProfession, setPreferredProfession] = useState("Registered Dental Hygienist");
   const [preferredProvince, setPreferredProvince] = useState("AB");
   const [preferredLicence, setPreferredLicence] = useState("");
+  const [excludedProfessionals, setExcludedProfessionals] = useState<OfficeExcludedProfessional[]>([]);
+  const [excludedLoading, setExcludedLoading] = useState(false);
+  const [excludedFirstName, setExcludedFirstName] = useState("");
+  const [excludedLastName, setExcludedLastName] = useState("");
+  const [excludedProfession, setExcludedProfession] = useState("Registered Dental Hygienist");
+  const [excludedProvince, setExcludedProvince] = useState("AB");
+  const [excludedLicence, setExcludedLicence] = useState("");
+  const [excludedOffices, setExcludedOffices] = useState<ExcludedOffice[]>([]);
+  const [excludedOfficesLoading, setExcludedOfficesLoading] = useState(false);
 
   useEffect(() => {
     if (!session) return;
@@ -532,6 +541,24 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
       .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load preferred professionals."))
       .finally(() => setPreferredLoading(false));
   }, [session, activeRole, details?.office?.id]);
+
+  useEffect(() => {
+    if (!session || activeRole !== "office" || !details?.office?.id) return;
+    setExcludedLoading(true);
+    loadOfficeExcludedProfessionals(details.office.id)
+      .then(setExcludedProfessionals)
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load excluded professionals."))
+      .finally(() => setExcludedLoading(false));
+  }, [session, activeRole, details?.office?.id]);
+
+  useEffect(() => {
+    if (!session || activeRole !== "professional") return;
+    setExcludedOfficesLoading(true);
+    loadProfessionalExcludedOffices(session.user.id)
+      .then(setExcludedOffices)
+      .catch((loadError) => setError(loadError instanceof Error ? loadError.message : "Could not load excluded offices."))
+      .finally(() => setExcludedOfficesLoading(false));
+  }, [session, activeRole]);
 
   const removeSavedOffice = async (favouriteId: string) => {
     if (!session) return;
@@ -579,6 +606,56 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
       setNotice("Preferred professional removed.");
       onSaved();
     } catch (value) { setError(value instanceof Error ? value.message : "Could not remove this preferred professional."); }
+    finally { setBusy(false); }
+  };
+
+
+  const addExcludedProfessional = async () => {
+    if (!details?.office || !excludedFirstName.trim() || !excludedLastName.trim() || !excludedLicence.trim()) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await addOfficeExcludedProfessional({ officeId: details.office.id, firstName: excludedFirstName, lastName: excludedLastName, profession: excludedProfession, licenceProvince: excludedProvince, licenceNumber: excludedLicence });
+      setExcludedProfessionals(await loadOfficeExcludedProfessionals(details.office.id));
+      setExcludedFirstName(""); setExcludedLastName(""); setExcludedLicence("");
+      setNotice("Excluded professional saved. They will no longer appear in this office's professional results.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "Could not save this excluded professional."); }
+    finally { setBusy(false); }
+  };
+
+  const removeExcludedProfessional = async (id: string) => {
+    if (!details?.office) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await removeOfficeExcludedProfessional(details.office.id, id);
+      setExcludedProfessionals((current) => current.filter((item) => item.id !== id));
+      setNotice("Excluded professional removed.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "Could not remove this excluded professional."); }
+    finally { setBusy(false); }
+  };
+
+  const addExcludedOfficeFromGoogle = async (office: GoogleOfficeSelection) => {
+    if (!session) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await addGoogleExcludedOffice(session.user.id, office);
+      setExcludedOffices(await loadProfessionalExcludedOffices(session.user.id));
+      setNotice(`${office.name} was added to your excluded offices.`);
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "Could not exclude this office."); }
+    finally { setBusy(false); }
+  };
+
+  const removeProfessionalExcludedOffice = async (id: string) => {
+    if (!session) return;
+    setBusy(true); setError(""); setNotice("");
+    try {
+      await removeExcludedOffice(session.user.id, id);
+      setExcludedOffices((current) => current.filter((item) => item.id !== id));
+      setNotice("Excluded office removed. Its shifts can appear again.");
+      onSaved();
+    } catch (value) { setError(value instanceof Error ? value.message : "Could not remove this excluded office."); }
     finally { setBusy(false); }
   };
 
@@ -898,29 +975,29 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">{notice}</p>}
           </div>
         ) : session && activeRole === "office" && (details?.office || officeFallback) ? (
-          <form onSubmit={saveOfficeAccount} className="grid gap-4 p-6 sm:grid-cols-2">
-            <div className="flex flex-col gap-4 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-5 sm:col-span-2 sm:flex-row sm:items-center">
+          <form onSubmit={saveOfficeAccount} className="grid gap-3 p-4 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="flex flex-col gap-4 rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-4 sm:col-span-2 sm:flex-row lg:col-span-4 sm:items-center">
               <div role="img" aria-label={`${(details?.office || officeFallback)!.name} logo`} className="grid h-24 w-24 shrink-0 place-items-center rounded-2xl border border-slate-200 bg-white bg-contain bg-center bg-no-repeat text-2xl font-black text-[#002757] shadow-sm" style={(details?.office || officeFallback)!.logo_url ? { backgroundImage: `url(${(details?.office || officeFallback)!.logo_url})` } : undefined}>{(details?.office || officeFallback)!.logo_url ? null : (details?.office || officeFallback)!.name.slice(0, 2).toUpperCase()}</div>
               <div className="flex-1"><div className="flex flex-wrap items-center gap-2"><h3 className="text-lg font-black text-[#002757]">{(details?.office || officeFallback)!.name}</h3><StatusPill tone={(details?.office || officeFallback)!.verification_status === "verified" ? "green" : "amber"}>Office {(details?.office || officeFallback)!.verification_status.replace("_", " ")}</StatusPill></div><p className="mt-1 text-sm text-slate-600">{session.user.email}</p><label className="secondary-btn mt-3 w-fit cursor-pointer"><span>{busy ? "Please wait…" : (details?.office || officeFallback)!.logo_url ? "Replace office logo" : "Upload office logo"}</span><input type="file" accept="image/png,image/jpeg,image/webp" className="sr-only" disabled={busy} onChange={(event) => void uploadAccountLogo(event.target.files?.[0])} /></label><p className="mt-2 text-xs leading-5 text-slate-500"><strong className="text-[#002757]">Best result:</strong> square PNG with a transparent background, 600 × 600 px. JPG or WebP also accepted; maximum 5 MB.</p></div>
             </div>
-            <div className="sm:col-span-2"><h3 className="font-black text-[#002757]">Dental office account</h3><p className="mt-1 text-sm text-slate-500">Information used for your clinic profile and staffing activity.</p></div>
-            <div className="rounded-2xl border border-[#0078FE]/15 bg-white p-4 sm:col-span-2">
-              <div className="mb-3"><h4 className="font-black text-[#002757]">Clinic location</h4><p className="mt-1 text-xs leading-5 text-slate-500">Search Google for your dental office and select the correct result. DentalShift uses that selection to populate the clinic name and verified address for accurate distance matching.</p></div>
+            <div className="sm:col-span-2 lg:col-span-4"><h3 className="font-black text-[#002757]">Dental office account</h3><p className="mt-1 text-sm text-slate-500">Information used for your clinic profile and staffing activity.</p></div>
+            <div className="rounded-2xl border border-[#0078FE]/15 bg-white p-3 sm:col-span-2 lg:col-span-4">
+              <div className="mb-2"><h4 className="font-black text-[#002757]">Clinic location</h4><p className="mt-1 text-xs leading-5 text-slate-500">Search Google for your dental office and select the correct result. DentalShift uses that selection to populate the clinic name and verified address for accurate distance matching.</p></div>
               <GoogleAddressAutocomplete kind="office" initialAddress={{ name: (details?.office || officeFallback)!.name, address: (details?.office || officeFallback)!.address, city: (details?.office || officeFallback)!.city, province: (details?.office || officeFallback)!.province, postalCode: (details?.office || officeFallback)!.postal_code, googlePlaceId: (details?.office || officeFallback)!.google_place_id, latitude: (details?.office || officeFallback)!.latitude, longitude: (details?.office || officeFallback)!.longitude }} />
             </div>
             <label className="field"><span>Main phone</span><input name="office_phone" type="tel" defaultValue={(details?.office || officeFallback)!.phone || ""} /></label>
             <label className="field"><span>Communication email</span><input name="communication_email" type="email" inputMode="email" autoComplete="email" placeholder="office@example.com" defaultValue={(details?.office || officeFallback)!.communication_email || ""} /><small className="mt-1 block text-xs text-slate-500">DentalShift will send booking, cancellation and other office communications to this address.</small></label>
             <label className="field"><span>Staff search radius (km)</span><input name="search_radius_km" type="number" min="1" max="500" defaultValue={(details?.office || officeFallback)!.search_radius_km || 25} /></label>
-            <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={(details?.office || officeFallback)!.website || ""} /></label>
+            <label className="field sm:col-span-2 lg:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={(details?.office || officeFallback)!.website || ""} /></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={(details?.office || officeFallback)!.contact_name || ""} /></label>
             <label className="field"><span>Contact position</span><input name="contact_title" placeholder="Office manager, owner…" defaultValue={(details?.office || officeFallback)!.contact_title || ""} /></label>
-            <label className="field sm:col-span-2"><span>Primary contact direct phone</span><input name="contact_phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="e.g. 780-555-0123" defaultValue={(details?.office || officeFallback)!.contact_phone || ""} /></label>
-            <fieldset className="rounded-2xl border border-slate-200 bg-white p-4 sm:col-span-2"><legend className="px-1 text-sm font-black text-[#002757]">Dental software used by your office</legend><p className="mb-3 text-xs text-slate-500">Select every system used in the clinic.</p><div className="grid gap-2 sm:grid-cols-3">{dentalSoftwareOptions.map((software) => <label key={software} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700 hover:border-[#0078FE]/40 hover:bg-[#edf3fa]"><input name="software" type="checkbox" value={software} defaultChecked={((details?.office || officeFallback)!.software || []).includes(software)} className="h-4 w-4 accent-[#0078FE]" />{software}</label>)}</div><input name="other_software" type="text" defaultValue={((details?.office || officeFallback)!.software || []).filter((item) => !dentalSoftwareOptions.includes(item)).join(", ")} placeholder="Other software (comma separated)" className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-[#0078FE]" /></fieldset>
-            <div className="rounded-2xl border border-[#0078FE]/15 bg-[#f8fbff] p-4 sm:col-span-2"><h4 className="font-black text-[#002757]">Office details shown to professionals</h4><p className="mt-1 text-xs leading-5 text-slate-500">These details help professionals decide whether a shift is a good fit. Your office identity and contact information remain protected until booking.</p></div>
-            <label className="field sm:col-span-2"><span>Languages spoken in the office</span><input name="languages" type="text" defaultValue={((details?.office || officeFallback)!.languages || []).join(", ")} placeholder="English, French, Spanish…" /><small className="mt-1 block text-xs text-slate-500">Separate multiple languages with commas.</small></label>
-            <label className="field sm:col-span-2"><span>Parking information</span><textarea name="parking_info" rows={2} defaultValue={(details?.office || officeFallback)!.parking_info || ""} placeholder="e.g. Free staff parking behind the office, street parking nearby…" /></label>
-            <label className="field sm:col-span-2"><span>Office highlights / benefits</span><textarea name="benefits" rows={3} defaultValue={(details?.office || officeFallback)!.benefits || ""} placeholder="e.g. Friendly team, modern clinic, staff room, transit accessible, uniform provided…" /></label>
-            <div className="rounded-2xl border border-[#FDB605]/45 bg-amber-50/50 p-5 sm:col-span-2">
+            <label className="field sm:col-span-2 lg:col-span-2"><span>Primary contact direct phone</span><input name="contact_phone" type="tel" inputMode="tel" autoComplete="tel" placeholder="e.g. 780-555-0123" defaultValue={(details?.office || officeFallback)!.contact_phone || ""} /></label>
+            <fieldset className="rounded-2xl border border-slate-200 bg-white p-3 sm:col-span-2 lg:col-span-4"><legend className="px-1 text-sm font-black text-[#002757]">Dental software used by your office</legend><p className="mb-3 text-xs text-slate-500">Select every system used in the clinic.</p><div className="grid gap-2 sm:grid-cols-3">{dentalSoftwareOptions.map((software) => <label key={software} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold text-slate-700 hover:border-[#0078FE]/40 hover:bg-[#edf3fa]"><input name="software" type="checkbox" value={software} defaultChecked={((details?.office || officeFallback)!.software || []).includes(software)} className="h-4 w-4 accent-[#0078FE]" />{software}</label>)}</div><input name="other_software" type="text" defaultValue={((details?.office || officeFallback)!.software || []).filter((item) => !dentalSoftwareOptions.includes(item)).join(", ")} placeholder="Other software (comma separated)" className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-[#0078FE]" /></fieldset>
+            <div className="rounded-xl border border-[#0078FE]/15 bg-[#f8fbff] px-3 py-2.5 sm:col-span-2 lg:col-span-4"><h4 className="font-black text-[#002757]">Office details shown to professionals</h4><p className="mt-1 text-xs leading-5 text-slate-500">These details help professionals decide whether a shift is a good fit. Your office identity and contact information remain protected until booking.</p></div>
+            <label className="field sm:col-span-2 lg:col-span-2"><span>Languages spoken in the office</span><input name="languages" type="text" defaultValue={((details?.office || officeFallback)!.languages || []).join(", ")} placeholder="English, French, Spanish…" /><small className="mt-1 block text-xs text-slate-500">Separate multiple languages with commas.</small></label>
+            <label className="field sm:col-span-2 lg:col-span-2"><span>Parking information</span><textarea name="parking_info" rows={2} defaultValue={(details?.office || officeFallback)!.parking_info || ""} placeholder="e.g. Free staff parking behind the office, street parking nearby…" /></label>
+            <label className="field sm:col-span-2 lg:col-span-4"><span>Office highlights / benefits</span><textarea name="benefits" rows={3} defaultValue={(details?.office || officeFallback)!.benefits || ""} placeholder="e.g. Friendly team, modern clinic, staff room, transit accessible, uniform provided…" /></label>
+            <div className="rounded-2xl border border-[#FDB605]/45 bg-amber-50/50 p-4 sm:col-span-2 lg:col-span-2">
               <div className="flex items-center gap-2"><Star size={19} className="fill-[#FDB605] text-[#FDB605]" /><h3 className="font-black text-[#002757]">Preferred professionals</h3></div>
               <p className="mt-1 text-xs leading-5 text-slate-600">Add professionals your office prefers. DentalShift matches province + licence number, then validates the name and position.</p>
               <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -932,7 +1009,20 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
               </div>
               <button type="button" disabled={busy || !preferredFirstName.trim() || !preferredLastName.trim() || !preferredLicence.trim()} onClick={() => void addPreferredProfessional()} className="mt-3 inline-flex items-center gap-2 rounded-xl bg-[#FDB605] px-4 py-2.5 text-sm font-black text-white shadow-sm"><Star size={16} />Add preferred professional</button>
             </div>
-            <div className="sm:col-span-2">{preferredLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading preferred professionals…</p> : preferredProfessionals.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">No preferred professionals added yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{preferredProfessionals.map((person) => <div key={person.id} className="rounded-2xl border border-[#FDB605]/35 bg-white p-4"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-[#002757]">{person.first_name} {person.last_name}</p><p className="mt-1 text-xs font-bold text-slate-500">{person.profession} · {person.licence_province}</p><p className="mt-1 text-xs text-slate-500">Licence: {person.licence_number}</p></div><button type="button" disabled={busy} onClick={() => void removePreferredProfessional(person.id)} className="text-xs font-black text-slate-500 underline">Remove</button></div></div>)}</div>}</div>
+            <div className="max-h-44 overflow-y-auto sm:col-span-2 lg:col-span-2">{preferredLoading ? <p className="rounded-xl bg-white p-3 text-sm text-slate-500">Loading preferred professionals…</p> : preferredProfessionals.length === 0 ? <p className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-500">No preferred professionals added yet.</p> : <div className="grid gap-2">{preferredProfessionals.map((person) => <div key={person.id} className="rounded-xl border border-[#FDB605]/35 bg-white p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-[#002757]">{person.first_name} {person.last_name}</p><p className="mt-1 text-xs font-bold text-slate-500">{person.profession} · {person.licence_province} · {person.licence_number}</p></div><button type="button" disabled={busy} onClick={() => void removePreferredProfessional(person.id)} className="text-xs font-black text-slate-500 underline">Remove</button></div></div>)}</div>}</div>
+            <div className="rounded-2xl border border-slate-300 bg-slate-50 p-4 sm:col-span-2 lg:col-span-2">
+              <h3 className="font-black text-[#002757]">Excluded professionals</h3>
+              <p className="mt-1 text-xs leading-5 text-slate-600">Professionals added here will not appear in your available professional results. This list is private and is not visible to professionals.</p>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <label className="field"><span>First name</span><input value={excludedFirstName} onChange={(e) => setExcludedFirstName(e.target.value)} /></label>
+                <label className="field"><span>Last name</span><input value={excludedLastName} onChange={(e) => setExcludedLastName(e.target.value)} /></label>
+                <label className="field"><span>Position</span><select value={excludedProfession} onChange={(e) => setExcludedProfession(e.target.value)}><option>Registered Dental Hygienist</option><option>Dental Administrator</option><option>Certified Dental Assistant</option><option>Sterilization Technician</option></select></label>
+                <label className="field"><span>Province</span><select value={excludedProvince} onChange={(e) => setExcludedProvince(e.target.value)}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
+                <label className="field sm:col-span-2"><span>Licence / registration number</span><input value={excludedLicence} onChange={(e) => setExcludedLicence(e.target.value)} /></label>
+              </div>
+              <button type="button" disabled={busy || !excludedFirstName.trim() || !excludedLastName.trim() || !excludedLicence.trim()} onClick={() => void addExcludedProfessional()} className="mt-3 secondary-btn justify-center">Add excluded professional</button>
+            </div>
+            <div className="max-h-44 overflow-y-auto sm:col-span-2 lg:col-span-2">{excludedLoading ? <p className="rounded-xl bg-white p-3 text-sm text-slate-500">Loading excluded professionals…</p> : excludedProfessionals.length === 0 ? <p className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-500">No excluded professionals added.</p> : <div className="grid gap-2">{excludedProfessionals.map((person) => <div key={person.id} className="rounded-xl border border-slate-200 bg-white p-3"><div className="flex items-start justify-between gap-3"><div><p className="font-black text-[#002757]">{person.first_name} {person.last_name}</p><p className="mt-1 text-xs font-bold text-slate-500">{person.profession} · {person.licence_province} · {person.licence_number}</p></div><button type="button" disabled={busy} onClick={() => void removeExcludedProfessional(person.id)} className="text-xs font-black text-slate-500 underline">Remove</button></div></div>)}</div>}</div>
             {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700 sm:col-span-2">{error}</p>}
             {notice && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27] sm:col-span-2">{notice}</p>}
             <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-5 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={close} className="secondary-btn justify-center">Close</button><button disabled={busy} className="primary-btn justify-center"><Check size={17} />{busy ? "Saving…" : "Save office account"}</button></div>
@@ -959,8 +1049,8 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
                 {details.professional.profession.toLowerCase().includes("hygien") && <label className="flex items-start gap-3 rounded-xl border border-blue-200 bg-blue-50 p-3 sm:col-span-2 lg:col-span-3"><input name="local_anesthetic" type="checkbox" defaultChecked={Boolean(details.professional.local_anesthetic)} className="mt-0.5 h-4 w-4 accent-[#0078FE]" /><span><strong className="block text-sm text-[#002757]">Local Anesthetic</strong><span className="mt-1 block text-xs text-slate-600">RDH qualification. {details.professional.local_anesthetic_status === "verified" ? "Verified by DentalShift." : details.professional.local_anesthetic ? "Self-declared until verified." : "Select if this qualification applies to you."}</span></span></label>}
                 <fieldset className="rounded-xl border border-slate-200 bg-white p-3 sm:col-span-2 lg:col-span-4"><legend className="px-1 text-sm font-extrabold text-[#002757]">Dental software experience</legend><p className="mb-3 text-xs text-slate-500">Select every system you are comfortable using.</p><div className="grid gap-1.5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">{dentalSoftwareOptions.map((software) => <label key={software} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-2.5 py-2 text-xs font-bold text-slate-700 hover:border-[#0078FE]/40 hover:bg-[#edf3fa]"><input name="software" type="checkbox" value={software} defaultChecked={details.professional?.skills?.includes(software)} className="h-4 w-4 accent-[#0078FE]" />{software}</label>)}<label className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 px-2.5 py-2 text-xs font-bold text-slate-700 hover:border-[#0078FE]/40 hover:bg-[#edf3fa]"><input name="software" type="checkbox" value="Other" defaultChecked={(details.professional?.skills || []).some((item) => !dentalSoftwareOptions.includes(item))} className="h-4 w-4 accent-[#0078FE]" />Other</label></div><input name="other_software" type="text" defaultValue={(details.professional?.skills || []).filter((item) => !dentalSoftwareOptions.includes(item)).join(", ")} placeholder="Type other software name" className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-2.5 py-2 text-xs font-bold text-slate-700 outline-none focus:border-[#0078FE]" /></fieldset>
                 <div className="rounded-xl border border-dashed border-[#0078FE]/40 bg-[#edf3fa] p-3 sm:col-span-2 lg:col-span-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#0078FE] shadow-sm"><FileText size={23} /></span><div className="min-w-0 flex-1"><h3 className="font-extrabold text-[#002757]">Professional résumé/CV</h3><p className="mt-1 text-xs leading-5 text-slate-500">Upload a PDF, DOC or DOCX file. Maximum size 5 MB. Your document is stored privately.</p>{details.professional.resume_path && <p className="mt-2 text-xs font-extrabold text-[#017f27]"><Check size={14} className="mr-1 inline" />Résumé/CV on file</p>}</div><div className="flex flex-wrap gap-2"><label className="primary-btn cursor-pointer justify-center"><Upload size={16} />{busy ? "Please wait…" : details.professional.resume_path ? "Replace CV" : "Upload CV"}<input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={busy} onChange={(event) => void uploadResume(event.target.files?.[0])} /></label>{details.professional.resume_path && <button type="button" onClick={() => void viewResume()} className="secondary-btn">View CV</button>}</div></div></div>
-                                <div className="rounded-xl border border-[#01A32E]/20 bg-white p-3 sm:col-span-2 lg:col-span-4"><div className="flex items-center gap-2"><Heart size={18} className="fill-[#01A32E] text-[#01A32E]" /><h3 className="font-extrabold text-[#002757]">Preferred offices</h3></div><p className="mt-1 text-xs text-slate-500">Search Google by office name, then select an office to mark it as preferred.</p><div className="mt-4"><GoogleOfficeFavouriteSearch onAdd={addFavouriteFromGoogle} disabled={busy} /></div></div>
-                <div className="max-h-56 overflow-y-auto sm:col-span-2 lg:col-span-4">{favouritesLoading ? <p className="rounded-2xl bg-white p-4 text-sm text-slate-500">Loading preferred offices…</p> : favouriteOffices.length === 0 ? <p className="rounded-2xl border border-slate-200 bg-white p-4 text-sm text-slate-500">You have not saved any preferred offices yet.</p> : <div className="grid gap-2 sm:grid-cols-2">{favouriteOffices.map((favourite) => { const office = favourite.offices; const name = office?.name || favourite.name || "Dental office"; const city = office?.city || favourite.city; const province = office?.province || favourite.province; const website = office?.website || favourite.website; const fullAddress = office ? [office.address, [office.city, office.province].filter(Boolean).join(", "), office.postal_code].filter(Boolean).join(", ") : favourite.formatted_address || [city, province].filter(Boolean).join(", "); return <div key={favourite.id} className="flex flex-col justify-between gap-3 rounded-2xl border border-slate-200 bg-white p-4"><div><p className="font-extrabold text-[#002757]">{name}</p><p className="mt-1 text-xs font-bold leading-5 text-slate-500">{fullAddress || "Location not listed"}</p>{website && <WebsiteLink website={website} className="mt-2" />}</div><button type="button" disabled={busy} onClick={() => void removeSavedOffice(favourite.id)} className="secondary-btn w-fit justify-center">Remove</button></div>; })}</div>}</div>
+                <div className="rounded-xl border border-[#01A32E]/20 bg-white p-3 sm:col-span-2 lg:col-span-2"><div className="flex items-center gap-2"><Heart size={18} className="fill-[#01A32E] text-[#01A32E]" /><h3 className="font-extrabold text-[#002757]">Preferred offices</h3></div><p className="mt-1 text-xs text-slate-500">Search Google by office name, then select an office to mark it as preferred.</p><div className="mt-2"><GoogleOfficeFavouriteSearch onAdd={addFavouriteFromGoogle} disabled={busy} /></div><div className="mt-2 max-h-40 overflow-y-auto">{favouritesLoading ? <p className="text-xs text-slate-500">Loading…</p> : favouriteOffices.length === 0 ? <p className="text-xs text-slate-500">No preferred offices yet.</p> : <div className="grid gap-2">{favouriteOffices.map((favourite) => { const office = favourite.offices; const name = office?.name || favourite.name || "Dental office"; const city = office?.city || favourite.city; const province = office?.province || favourite.province; return <div key={favourite.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2"><div className="min-w-0"><p className="truncate text-xs font-extrabold text-[#002757]">{name}</p><p className="truncate text-[11px] text-slate-500">{[city,province].filter(Boolean).join(", ")}</p></div><button type="button" disabled={busy} onClick={() => void removeSavedOffice(favourite.id)} className="text-xs font-black text-slate-500 underline">Remove</button></div>; })}</div>}</div></div>
+                <div className="rounded-xl border border-slate-300 bg-white p-3 sm:col-span-2 lg:col-span-2"><h3 className="font-extrabold text-[#002757]">Excluded offices</h3><p className="mt-1 text-xs leading-5 text-slate-500">Shifts from offices added here will not appear in your available shift results. This list is private and is not visible to offices.</p><div className="mt-2"><GoogleOfficeFavouriteSearch onAdd={addExcludedOfficeFromGoogle} disabled={busy} /></div><div className="mt-2 max-h-40 overflow-y-auto">{excludedOfficesLoading ? <p className="text-xs text-slate-500">Loading…</p> : excludedOffices.length === 0 ? <p className="text-xs text-slate-500">No excluded offices.</p> : <div className="grid gap-2">{excludedOffices.map((office) => <div key={office.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 p-2"><div className="min-w-0"><p className="truncate text-xs font-extrabold text-[#002757]">{office.name || "Dental office"}</p><p className="truncate text-[11px] text-slate-500">{office.formatted_address || [office.city,office.province].filter(Boolean).join(", ")}</p></div><button type="button" disabled={busy} onClick={() => void removeProfessionalExcludedOffice(office.id)} className="text-xs font-black text-slate-500 underline">Remove</button></div>)}</div>}</div></div>
               </>}
               {!details.professional && details.office && <>
                 <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2 lg:col-span-4"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Keep the same email address, then complete a separate professional verification profile. Choose the Professional workspace when signing in by email.</p></div>
