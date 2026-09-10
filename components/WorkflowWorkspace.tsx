@@ -170,7 +170,9 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
     .sort((first, second) => new Date(first.shifts!.starts_at).getTime() - new Date(second.shifts!.starts_at).getTime());
   const nextBooking = bookedShifts[0];
   const activeApplications = data.applications.filter((application) => ["applied", "invited"].includes(application.status));
-  const favouriteOfficeIds = new Set(data.favourites.map((favourite) => favourite.office_id));
+  const favouriteOfficeIds = new Set(data.favourites.map((favourite) => favourite.office_id).filter((value): value is string => Boolean(value)));
+  const favouritePlaceIds = new Set(data.favourites.map((favourite) => favourite.google_place_id).filter((value): value is string => Boolean(value)));
+  const isFavouriteOffice = (shift?: LiveShift | null) => Boolean(shift && (favouriteOfficeIds.has(shift.office_id) || (shift.offices?.google_place_id && favouritePlaceIds.has(shift.offices.google_place_id))));
   const matchesAvailability = (shift: LiveShift) => data.availability.some((slot) => slot.available && new Date(slot.starts_at) <= new Date(shift.starts_at) && new Date(slot.ends_at) >= new Date(shift.ends_at));
   const hasScheduleConflict = (shift: LiveShift) => upcomingBookings.some((booking) => booking.shifts && new Date(booking.shifts.starts_at) < new Date(shift.ends_at) && new Date(booking.shifts.ends_at) > new Date(shift.starts_at));
   const visibleShifts = data.open
@@ -232,7 +234,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
     const application = existing.get(shift.id);
     const available = matchesAvailability(shift);
     const conflict = hasScheduleConflict(shift);
-    const favourite = favouriteOfficeIds.has(shift.office_id);
+    const favourite = isFavouriteOffice(shift);
     const expanded = expandedShift === shift.id;
     const role = shiftRoles.find((item) => item.code === shiftRoleCode(shift.profession))!;
     const officeDistanceKm = distanceKm(profile.latitude, profile.longitude, shift.offices?.latitude, shift.offices?.longitude);
@@ -351,7 +353,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
       {view === "overview" && nextBooking?.shifts && <section aria-label="Upcoming booked shift" className="mt-5 overflow-hidden rounded-2xl border border-[#01A32E]/30 bg-white shadow-sm">
         <div className="flex flex-col gap-4 p-4 sm:flex-row sm:items-center sm:p-5">
           <div className="flex shrink-0 items-center gap-3 sm:w-44"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#eaf8ee] text-[#017f27]"><CalendarDays size={21} /></span><div><p className="text-[11px] font-black uppercase tracking-[.1em] text-[#017f27]">Upcoming booking</p><p className="mt-0.5 text-sm font-extrabold text-[#002757]">{bookedShifts.length} confirmed</p></div></div>
-          <div className="min-w-0 flex-1 border-slate-200 sm:border-l sm:pl-5"><div className="flex flex-wrap items-center gap-2"><h2 className="font-black text-[#002757]">{nextBooking.shifts.offices?.name || nextBooking.contact?.name || "Dental office"}</h2><Pill tone="green">Confirmed</Pill></div><p className="mt-1 text-sm font-extrabold text-slate-700">{nextBooking.shifts.profession}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-500"><span>{dateLabel(nextBooking.shifts.starts_at)}–{new Date(nextBooking.shifts.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><strong className="text-[#002757]">${Number(nextBooking.shifts.hourly_rate)}/hr</strong>{nextBooking.shifts.offices && <span><MapPin size={13} className="mr-1 inline" />{nextBooking.shifts.offices.city}, {nextBooking.shifts.offices.province}</span>}</div></div>
+          <div className="min-w-0 flex-1 border-slate-200 sm:border-l sm:pl-5"><div className="flex flex-wrap items-center gap-2"><h2 className="font-black text-[#002757]">{nextBooking.shifts.offices?.name || nextBooking.contact?.name || "Dental office"}</h2>{isFavouriteOffice(nextBooking.shifts) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2.5 py-1 text-[11px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={12} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}<Pill tone="green">Confirmed</Pill></div><p className="mt-1 text-sm font-extrabold text-slate-700">{nextBooking.shifts.profession}</p><div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs font-bold text-slate-500"><span>{dateLabel(nextBooking.shifts.starts_at)}–{new Date(nextBooking.shifts.ends_at).toLocaleTimeString("en-CA", { hour: "numeric", minute: "2-digit" })}</span><strong className="text-[#002757]">${Number(nextBooking.shifts.hourly_rate)}/hr</strong>{nextBooking.shifts.offices && <span><MapPin size={13} className="mr-1 inline" />{nextBooking.shifts.offices.city}, {nextBooking.shifts.offices.province}</span>}</div></div>
           <div className="flex shrink-0 flex-wrap gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn">{bookedShifts.length > 1 ? "View all bookings" : "View booking"}</button></div>
         </div>
       </section>}
@@ -410,7 +412,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
         {upcomingBookings.length === 0 ? <div className="p-8 text-center"><CalendarDays size={26} className="mx-auto text-slate-300" /><p className="mt-3 font-extrabold text-[#002757]">No confirmed bookings yet</p><button type="button" onClick={() => onNavigate("overview")} className="primary-btn mt-4">Back to calendar</button></div> : <div className="divide-y divide-slate-100">{upcomingBookings.map((booking) => <article key={booking.id} className="p-5">
           <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-2"><strong className="text-xl text-[#002757]">{booking.contact?.name || booking.shifts?.offices?.name || "Confirmed office"}</strong><Pill tone="green">Confirmed</Pill></div>
+              <div className="flex flex-wrap items-center gap-2"><strong className="text-xl text-[#002757]">{booking.contact?.name || booking.shifts?.offices?.name || "Confirmed office"}</strong>{isFavouriteOffice(booking.shifts) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2.5 py-1 text-[11px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={12} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}<Pill tone="green">Confirmed</Pill></div>
               {booking.shifts && <><p className="mt-1 text-sm font-bold text-slate-700">{booking.shifts.profession}</p><ShiftFacts shift={booking.shifts} /></>}
 
               {booking.contact && <div className="mt-4 grid gap-3 sm:grid-cols-2">

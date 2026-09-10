@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BriefcaseBusiness, CalendarDays, Check, ChevronRight, Clock3, MapPin, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Check, ChevronRight, Clock3, MapPin, ShieldCheck, Star } from "lucide-react";
 import {
   addProfessionalAvailability,
   applyForShift,
@@ -15,6 +15,7 @@ import {
   respondToInvitation,
   type AccountProfile,
   type LiveShift,
+  type FavouriteOffice,
   type ProfessionalAvailability,
   type WorkflowApplication,
   type WorkflowBooking,
@@ -30,6 +31,7 @@ type WorkflowState = {
   applications: WorkflowApplication[];
   bookings: WorkflowBooking[];
   availability: ProfessionalAvailability[];
+  favourites: FavouriteOffice[];
 };
 
 function localDateKey(value: Date | string) {
@@ -82,8 +84,8 @@ function weekStart(value: Date) {
   return date;
 }
 
-function officeName(shift?: LiveShift | null) {
-  return "Dental Office";
+function officeName(shift?: LiveShift | null, reveal = false) {
+  return reveal ? (shift?.offices?.name || "Dental Office") : "Dental Office";
 }
 
 function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null) {
@@ -96,7 +98,7 @@ function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | 
   return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude, professionalLongitude, officeHeader = false }: { shift: LiveShift; action?: React.ReactNode; tone?: "blue" | "red" | "green" | "navy"; status?: string; professionalLatitude?: number | null; professionalLongitude?: number | null; officeHeader?: boolean }) {
+function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude, professionalLongitude, officeHeader = false, preferredOffice = false, revealOfficeName = false }: { shift: LiveShift; action?: React.ReactNode; tone?: "blue" | "red" | "green" | "navy"; status?: string; professionalLatitude?: number | null; professionalLongitude?: number | null; officeHeader?: boolean; preferredOffice?: boolean; revealOfficeName?: boolean }) {
   const [expanded, setExpanded] = useState(false);
   const officeDistanceKm = distanceKm(professionalLatitude, professionalLongitude, shift.offices?.latitude, shift.offices?.longitude);
   const tones = {
@@ -110,10 +112,10 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         {officeHeader ? <div className="mb-2 inline-flex rounded-lg bg-[#0078FE] px-3 py-1.5 shadow-sm">
-          <strong className="truncate text-sm font-black text-white sm:text-base">{officeName(shift)}</strong>
+          <strong className="truncate text-sm font-black text-white sm:text-base">{officeName(shift, revealOfficeName)}</strong>{preferredOffice && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
         </div> : <div className="flex items-center gap-2">
           <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
-          <strong className="truncate text-sm text-[#002757] sm:text-base">{officeName(shift)}</strong>
+          <strong className="truncate text-sm text-[#002757] sm:text-base">{officeName(shift, revealOfficeName)}</strong>{preferredOffice && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
         </div>}
         <p className="mt-1 text-xs font-black text-slate-700">{shift.profession}</p>
         <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-600"><Clock3 size={14} />{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
@@ -188,7 +190,7 @@ function ProfessionalCancellationModal({ booking, busy, close, confirm }: { book
 }
 
 function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate }: { userId: string; profile: AccountProfile; refreshKey: number; onNavigate: (view: ProfessionalView) => void }) {
-  const [workflow, setWorkflow] = useState<WorkflowState>({ open: [], applications: [], bookings: [], availability: [] });
+  const [workflow, setWorkflow] = useState<WorkflowState>({ open: [], applications: [], bookings: [], availability: [], favourites: [] });
   const [profession, setProfession] = useState("Dental Professional");
   const [profileHourlyRate, setProfileHourlyRate] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -218,6 +220,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         applications: nextWorkflow.applications,
         bookings: nextWorkflow.bookings,
         availability: nextWorkflow.availability,
+        favourites: nextWorkflow.favourites,
       });
     } catch (value) {
       setError(value instanceof Error ? value.message : "DentalShift could not load your shifts.");
@@ -246,6 +249,9 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const invitations = workflow.applications.filter((application) => application.status === "invited" && !application.office_interested_at && application.shifts && roleCode(application.shifts.profession) === signedRole);
   const applied = workflow.applications.filter((application) => application.status === "applied" && application.shifts && roleCode(application.shifts.profession) === signedRole);
   const booked = workflow.bookings.filter((booking) => booking.shifts && !booking.cancelled_at && new Date(booking.shifts.ends_at).getTime() >= Date.now());
+  const preferredOfficeIds = new Set(workflow.favourites.map((favourite) => favourite.office_id).filter((value): value is string => Boolean(value)));
+  const preferredPlaceIds = new Set(workflow.favourites.map((favourite) => favourite.google_place_id).filter((value): value is string => Boolean(value)));
+  const isPreferredOffice = (shift?: LiveShift | null) => Boolean(shift && (preferredOfficeIds.has(shift.office_id) || (shift.offices?.google_place_id && preferredPlaceIds.has(shift.offices.google_place_id))));
 
   const CALENDAR_HORIZON_DAYS = 400;
   const CALENDAR_PAGE_DAYS = 35;
@@ -476,7 +482,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
       {calendarView === "list" ? <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-3">
         <section><h3 className="text-lg font-black text-[#002757]">Open shifts</h3><div className="mt-3 space-y-3">{matchingOpen.length ? matchingOpen.slice().sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()).map((shift) => <button type="button" key={shift.id} onClick={() => { const date = new Date(shift.starts_at); setSelectedDate(localDateKey(date)); setCalendarOffsetDays(Math.max(0, Math.floor((date.getTime() - new Date().setHours(12,0,0,0)) / 86400000 / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{shift.profession}</strong><span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-[#2f6fd0]">Open</span></div><p className="mt-1 text-xs text-slate-500">{new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p><p className="mt-1 text-xs font-black text-[#002757]">${Number(shift.hourly_rate)}/hr</p></button>) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No open shifts right now.</p>}</div></section>
         <section><h3 className="text-lg font-black text-[#002757]">Interested</h3><div className="mt-3 space-y-3">{applied.length ? applied.slice().sort((a, b) => new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime()).map((application) => application.shifts ? <button type="button" key={application.id} onClick={() => { const date = new Date(application.shifts!.starts_at); setSelectedDate(localDateKey(date)); setCalendarOffsetDays(Math.max(0, Math.floor((date.getTime() - new Date().setHours(12,0,0,0)) / 86400000 / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{application.shifts.profession}</strong><span className="rounded-full bg-green-50 px-2 py-1 text-[10px] font-black text-[#278841]">Interested</span></div><p className="mt-1 text-xs text-slate-500">{new Date(application.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(application.shifts.starts_at)}–{shortTime(application.shifts.ends_at)}</p></button> : null) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No active interests right now.</p>}</div></section>
-        <section><h3 className="text-lg font-black text-[#002757]">Confirmed bookings</h3><div className="mt-3 space-y-3">{booked.length ? booked.slice().sort((a, b) => new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime()).map((booking) => booking.shifts ? <button type="button" key={booking.id} onClick={() => { const date = new Date(booking.shifts!.starts_at); setSelectedDate(localDateKey(date)); setCalendarOffsetDays(Math.max(0, Math.floor((date.getTime() - new Date().setHours(12,0,0,0)) / 86400000 / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{booking.shifts.profession}</strong><span className="rounded-full bg-[#002757] px-2 py-1 text-[10px] font-black text-white">Booked</span></div><p className="mt-1 text-xs text-slate-500">{new Date(booking.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p></button> : null) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No upcoming bookings right now.</p>}</div></section>
+        <section><h3 className="text-lg font-black text-[#002757]">Confirmed bookings</h3><div className="mt-3 space-y-3">{booked.length ? booked.slice().sort((a, b) => new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime()).map((booking) => booking.shifts ? <button type="button" key={booking.id} onClick={() => { const date = new Date(booking.shifts!.starts_at); setSelectedDate(localDateKey(date)); setCalendarOffsetDays(Math.max(0, Math.floor((date.getTime() - new Date().setHours(12,0,0,0)) / 86400000 / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><div className="flex min-w-0 flex-wrap items-center gap-2"><strong className="text-[#002757]">{booking.shifts.offices?.name || booking.shifts.profession}</strong>{isPreferredOffice(booking.shifts) && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}</div><span className="rounded-full bg-[#002757] px-2 py-1 text-[10px] font-black text-white">Booked</span></div><p className="mt-1 text-xs text-slate-500">{new Date(booking.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p></button> : null) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No upcoming bookings right now.</p>}</div></section>
       </div> : <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,.75fr)]">
         <div className="p-2.5 sm:p-5 lg:border-r lg:border-slate-200">
           <div className="grid grid-cols-7">{calendarWeekdays.map((day) => <div key={day} className="pb-2 text-center text-[10px] font-black uppercase tracking-wide text-slate-400 sm:text-xs">{day}</div>)}</div>
@@ -520,7 +526,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
 
             {selectedBooked.length > 0 && <section className="rounded-3xl bg-[#002757] p-2.5 shadow-md">
               <h4 className="mb-2 flex items-center justify-center gap-2 font-black text-white"><span className="grid h-5 w-5 place-items-center rounded-full bg-white text-[11px] text-[#002757]">✓</span>BOOKED</h4>
-              <div className="space-y-3 rounded-2xl bg-white p-1">{selectedBooked.map((booking) => booking.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={booking.id} shift={booking.shifts} tone="navy" status="Booked" action={<div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn justify-center">View booked shift</button><button type="button" disabled={busy === `cancel-booking-${booking.id}`} onClick={() => setCancelBookingTarget(booking)} className="secondary-btn justify-center border-rose-200 text-rose-700 hover:bg-rose-50">{busy === `cancel-booking-${booking.id}` ? "Cancelling…" : "Cancel Booking"}</button></div>} /> : null)}</div>
+              <div className="space-y-3 rounded-2xl bg-white p-1">{selectedBooked.map((booking) => booking.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={booking.id} shift={booking.shifts} tone="navy" status="Booked" preferredOffice={isPreferredOffice(booking.shifts)} revealOfficeName action={<div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => onNavigate("bookings")} className="secondary-btn justify-center">View booked shift</button><button type="button" disabled={busy === `cancel-booking-${booking.id}`} onClick={() => setCancelBookingTarget(booking)} className="secondary-btn justify-center border-rose-200 text-rose-700 hover:bg-rose-50">{busy === `cancel-booking-${booking.id}` ? "Cancelling…" : "Cancel Booking"}</button></div>} /> : null)}</div>
             </section>}
 
             {selectedBooked.length === 0 && visibleOpen.length > 0 && <section>
