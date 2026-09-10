@@ -20,9 +20,5 @@ if end == -1:
 
 text = text[:start] + '          <MarketingCalendarPreview />' + text[end:]
 
-# Clean icons used only by the old generic hero mock, retaining MapPin for DentalJobs cards below.
-text = text.replace('ArrowRight, BadgeCheck, BriefcaseBusiness, CalendarCheck2, Check, Clock3, DollarSign, MapPin, Menu, Search, ShieldCheck, Sparkles, UserCheck, X',
-                    'ArrowRight, BriefcaseBusiness, CalendarCheck2, Check, DollarSign, MapPin, Menu, Search, ShieldCheck, Sparkles, UserCheck, X')
-
 path.write_text(text)
 print('Installed real-calendar homepage preview')
