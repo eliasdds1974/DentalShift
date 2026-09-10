@@ -1,0 +1,28 @@
+name: Clean professional scheduled card
+on:
+  push:
+    paths:
+      - '.github/workflows/clean-professional-scheduled-card.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional scheduled card cleanup
+        run: python .github/scripts/clean-professional-scheduled-card.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit professional scheduled card cleanup
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Clean up Professional Portal scheduled card"
+          git push
