@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, MapPin, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, MapPin, ShieldCheck } from "lucide-react";
 import {
   addProfessionalAvailability,
   applyForShift,
@@ -444,7 +444,6 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     <div className="flex flex-col gap-2">
       <h1 className="page-title">{profile.first_name ? `${profile.first_name}, find your next shift` : "Find your next shift"}</h1>
       <p className="page-subtitle">Tap a date to see matching offices, invitations, applications and booked shifts.</p>
-      <button type="button" onClick={() => setAvailabilityOpen(true)} className="mt-2 inline-flex w-fit items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30"><CalendarDays size={18} />Post Availability</button>
     </div>
 
     {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
@@ -452,23 +451,23 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
 
     <section className="mt-5 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 p-3 sm:p-5">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <button type="button" disabled={!canGoBack} onClick={goCalendarBack} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous 35 days"><ChevronLeft size={16} />Previous</button>
-              <button type="button" onClick={goCalendarToday} className="secondary-btn">Today</button>
-              <button type="button" disabled={!canGoForward} onClick={goCalendarForward} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next 35 days">Next<ChevronRight size={16} /></button>
-              
-            </div>
-            <p className="text-xs font-black uppercase tracking-[.12em] text-slate-400">{signedRole} opportunities</p>
-            <h2 className="mt-1 text-2xl font-black text-[#002757]">{calendarRangeLabel}</h2>
-          </div>
+        <div>
+          <p className="text-xs font-black uppercase tracking-[.12em] text-slate-400">{signedRole} opportunities</p>
+          <h2 className="mt-1 text-2xl font-black text-[#002757]">{calendarRangeLabel}</h2>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-xs font-extrabold text-slate-600">
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />Open shifts</span>
           <span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#34A853]" />Interested</span>
           <span className="inline-flex items-center gap-1.5"><span className="grid h-3 w-3 place-items-center rounded-full bg-[#002757] text-[8px] text-white">✓</span>Booked</span>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button type="button" disabled={!canGoBack} onClick={goCalendarBack} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous 35 days"><ChevronLeft size={16} />Previous</button>
+          <button type="button" onClick={goCalendarToday} className="secondary-btn">Today</button>
+          <button type="button" disabled={!canGoForward} onClick={goCalendarForward} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next 35 days">Next<ChevronRight size={16} /></button>
+          <button type="button" onClick={() => setAvailabilityOpen(true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30"><CalendarDays size={18} />Post Availability</button>
+          <button type="button" onClick={() => { window.localStorage.setItem("dentalshift_portal_role", "professional"); window.location.href = "/classifieds?post=professional"; }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#002757] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#001f46] focus:outline-none focus:ring-2 focus:ring-[#002757]/25"><BriefcaseBusiness size={18} />Post a Position</button>
         </div>
       </div>
 
