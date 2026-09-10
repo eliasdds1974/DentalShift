@@ -158,32 +158,49 @@ def patch_legacy_professional_calendar() -> None:
 
 
 def validate() -> None:
-    files = {
-        "app/page.tsx": Path("app/page.tsx").read_text(),
-        "components/OfficeWorkspaceV2.tsx": Path("components/OfficeWorkspaceV2.tsx").read_text(),
-        "components/AnonymousAvailableStaffPanel.tsx": Path("components/AnonymousAvailableStaffPanel.tsx").read_text(),
-        "components/WorkflowWorkspace.tsx": Path("components/WorkflowWorkspace.tsx").read_text(),
-    }
+    app_page = Path("app/page.tsx").read_text()
+    office_workspace = Path("components/OfficeWorkspaceV2.tsx").read_text()
+    staff_panel = Path("components/AnonymousAvailableStaffPanel.tsx").read_text()
+    legacy_workspace = Path("components/WorkflowWorkspace.tsx").read_text()
 
-    if files["app/page.tsx"].count(ASSOCIATE) < 5:
-        raise RuntimeError("Associate Dentist was not added to all expected account/shift selectors in app/page.tsx")
-    if '"DT"' not in files["components/OfficeWorkspaceV2.tsx"] or 'bg-[#7C3AED]' not in files["components/OfficeWorkspaceV2.tsx"]:
-        raise RuntimeError("Office calendar dentist role/color validation failed")
-    if 'title: "Associate Dentist"' not in files["components/AnonymousAvailableStaffPanel.tsx"]:
-        raise RuntimeError("Available staff dentist role validation failed")
-    if '{ code: "DT", label: "Associate Dentist"' not in files["components/WorkflowWorkspace.tsx"]:
-        raise RuntimeError("Professional calendar dentist role validation failed")
+    # There are six user-facing profession selectors in app/page.tsx today:
+    # signup, profile, secondary-workspace creation, preferred/excluded lists and ShiftModal.
+    if app_page.count(OPTION_BLOCK_WITH_DENTIST) != 6:
+        raise RuntimeError(f"Expected 6 extended profession selectors in app/page.tsx, found {app_page.count(OPTION_BLOCK_WITH_DENTIST)}")
 
-    # Existing profession labels must remain present everywhere they were extended.
-    for existing in ["Registered Dental Hygienist", "Certified Dental Assistant", "Dental Administrator", "Sterilization Technician"]:
-        for file_name, content in files.items():
-            if file_name == "components/AnonymousAvailableStaffPanel.tsx" and existing == "Dental Administrator":
-                # This legacy panel labels the DA role as Dental Assistant; do not alter that existing behavior here.
-                continue
-            if existing not in content:
-                raise RuntimeError(f"Existing profession unexpectedly missing after patch: {existing} in {file_name}")
+    # Both current office-calendar shift forms must expose the same fifth profession.
+    if office_workspace.count(OPTION_BLOCK_WITH_DENTIST) != 2:
+        raise RuntimeError(f"Expected 2 extended shift selectors in OfficeWorkspaceV2.tsx, found {office_workspace.count(OPTION_BLOCK_WITH_DENTIST)}")
 
-    print("Associate Dentist validation passed; existing profession labels remain intact.")
+    if 'type RoleCode = "RDH" | "CDA" | "DA" | "ST" | "DT";' not in office_workspace:
+        raise RuntimeError("Office calendar role union is missing DT")
+    if 'DT: { label: "DT", solid: "bg-[#7C3AED]"' not in office_workspace:
+        raise RuntimeError("Office calendar dentist color validation failed")
+    if 'if (value.includes("dentist")) return "DT";' not in office_workspace:
+        raise RuntimeError("Office calendar dentist role detection validation failed")
+    if '>DT</span>' not in office_workspace:
+        raise RuntimeError("Office calendar legend is missing DT")
+
+    if 'export type AvailableStaffRole = "RDH" | "CDA" | "DA" | "ST" | "DT";' not in staff_panel:
+        raise RuntimeError("Available staff role union is missing DT")
+    if 'DT: { title: "Associate Dentist", badge: "bg-[#7C3AED]"' not in staff_panel:
+        raise RuntimeError("Available staff dentist styling validation failed")
+    if '["RDH", "CDA", "DA", "ST", "DT"] as AvailableStaffRole[]' not in staff_panel:
+        raise RuntimeError("Available staff dentist grouping validation failed")
+
+    if 'type ShiftRoleCode = "RDH" | "CDA" | "DA" | "ST" | "DT";' not in legacy_workspace:
+        raise RuntimeError("Legacy professional calendar role union is missing DT")
+    if '{ code: "DT", label: "Associate Dentist", dot: "bg-[#7C3AED]"' not in legacy_workspace:
+        raise RuntimeError("Legacy professional calendar dentist role/color validation failed")
+
+    # Existing roles must still be represented in their existing maps/lists.
+    for code in ["RDH", "CDA", "DA", "ST"]:
+        if f'{code}:' not in office_workspace:
+            raise RuntimeError(f"Existing office-calendar role unexpectedly missing: {code}")
+        if f'code: "{code}"' not in legacy_workspace:
+            raise RuntimeError(f"Existing professional-calendar role unexpectedly missing: {code}")
+
+    print("Associate Dentist validation passed; all existing calendar role codes and profession options remain intact.")
 
 
 patch_app_page()
