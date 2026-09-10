@@ -29,6 +29,11 @@ export type ProfessionalDetails = {
   bio: string | null;
   skills: string[] | null;
   cpr_path: string | null;
+  cpr_status: string;
+  cpr_expiry_month: string | null;
+  cpr_submitted_at: string | null;
+  cpr_grace_until: string | null;
+  cpr_verified_at: string | null;
   resume_path: string | null;
   available_for_work: boolean;
   local_anesthetic?: boolean;
@@ -205,7 +210,7 @@ async function loadAccountDetailsOnce(userId: string): Promise<AccountDetails> {
   const [{ data: professionalData, error: professionalError }, { data: officeData, error: officeError }] = await Promise.all([
     supabase
       .from("professional_profiles")
-      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,cpr_path,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
+      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,cpr_path,cpr_status,cpr_expiry_month,cpr_submitted_at,cpr_grace_until,cpr_verified_at,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
@@ -291,7 +296,7 @@ export async function createProfessionalWorkspace(input: Pick<ProfessionalDetail
       travel_radius_km: 25,
       available_for_work: false,
     })
-    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,cpr_path,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
+    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,cpr_path,cpr_status,cpr_expiry_month,cpr_submitted_at,cpr_grace_until,cpr_verified_at,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
     .single();
   if (error) throw error;
   return data as ProfessionalDetails;
@@ -380,20 +385,25 @@ export async function uploadProfessionalCpr(userId: string, file: File) {
     .from("professional-cpr")
     .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
   if (uploadError) throw new Error(`Your CPR certificate could not be uploaded: ${uploadError.message}`);
-  const { data, error } = await supabase
-    .from("professional_profiles")
-    .update({ cpr_path: path })
-    .eq("user_id", userId)
-    .select("cpr_path")
-    .single();
-  if (error || !data?.cpr_path) throw new Error(`The CPR certificate uploaded, but it could not be saved to your profile: ${error?.message || "No path returned"}`);
-  return data.cpr_path as string;
+  const { data, error } = await supabase.rpc("submit_professional_cpr", { p_path: path });
+  if (error) throw new Error(`The CPR certificate uploaded, but it could not be submitted for review: ${error.message}`);
+  const result = data as { cprPath?: string } | null;
+  return result?.cprPath || path;
 }
 
 export async function openProfessionalCpr(path: string) {
   const { data, error } = await supabase.storage.from("professional-cpr").createSignedUrl(path, 60);
   if (error || !data?.signedUrl) throw new Error(error?.message || "Your CPR certificate could not be opened.");
   return data.signedUrl;
+}
+
+export async function verifyProfessionalCpr(professionalId: string, expiryMonth: string) {
+  if (!/^\d{4}-\d{2}$/.test(expiryMonth)) throw new Error("Enter the CPR expiry month and year.");
+  const { error } = await supabase.rpc("admin_verify_professional_cpr", {
+    p_professional_id: professionalId,
+    p_expiry_month: `${expiryMonth}-01`,
+  });
+  if (error) throw error;
 }
 
 export async function uploadProfessionalResume(userId: string, file: File) {
@@ -515,8 +525,8 @@ export async function loadVerificationQueue() {
   const [{ data: professionals, error: professionalError }, { data: offices, error: officeError }] = await Promise.all([
     supabase
       .from("professional_profiles")
-      .select("user_id,profession,licence_number,licence_province,licence_status,created_at,profiles!professional_profiles_user_id_fkey(first_name,last_name)")
-      .in("licence_status", ["pending", "needs_review"])
+      .select("user_id,profession,licence_number,licence_province,licence_status,cpr_status,cpr_expiry_month,cpr_submitted_at,created_at,profiles!professional_profiles_user_id_fkey(first_name,last_name)")
+      .or("licence_status.in.(pending,needs_review),cpr_status.eq.pending")
       .order("created_at", { ascending: true }),
     supabase
       .from("offices")
@@ -537,8 +547,8 @@ export async function loadVerificationQueue() {
       type: row.profession,
       province: row.licence_province,
       reference: row.licence_number,
-      status: row.licence_status,
-      submittedAt: row.created_at,
+      status: row.cpr_status === "pending" && row.licence_status === "verified" ? "CPR pending" : row.licence_status,
+      submittedAt: row.cpr_status === "pending" && row.cpr_submitted_at ? row.cpr_submitted_at : row.created_at,
     };
   });
   const officeItems = (offices ?? []).map((row) => ({
@@ -588,7 +598,13 @@ export async function loadVerificationCase(item: VerificationItem): Promise<Veri
     p_target_id: item.id,
   });
   if (error) throw error;
-  return data as VerificationCase;
+  const record = data as VerificationCase;
+  if (item.kind === "professional") {
+    const { data: cprData, error: cprError } = await supabase.rpc("admin_get_professional_cpr", { p_professional_id: item.id });
+    if (cprError) throw cprError;
+    record.details = { ...record.details, ...((cprData as Record<string, unknown> | null) || {}) };
+  }
+  return record;
 }
 
 export async function addVerificationInternalNote(item: VerificationItem, body: string) {
