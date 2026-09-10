@@ -8,8 +8,8 @@ files = [
 changed = 0
 for path in files:
     text = path.read_text()
-    old = 'focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30 lg:hidden'>Back To Calendar</button>'
-    new = 'focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30'>Back To Calendar</button>'
+    old = "focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30 lg:hidden\">Back To Calendar</button>"
+    new = "focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30\">Back To Calendar</button>"
     if old in text:
         text = text.replace(old, new)
         path.write_text(text)
