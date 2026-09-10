@@ -461,7 +461,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               <span className="text-xs font-black text-slate-500">{calendarRangeLabel}</span>
             </div>
             <p className="text-xs font-black uppercase tracking-[.12em] text-slate-400">{signedRole} opportunities</p>
-            <h2 className="mt-1 text-2xl font-black text-[#002757]">Next 400 days</h2>
+            <h2 className="mt-1 text-2xl font-black text-[#002757]">{calendarRangeLabel}</h2>
           </div>
         </div>
 

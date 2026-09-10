@@ -494,7 +494,6 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         </div>
 
         <div className="flex flex-wrap items-center gap-2 md:col-start-1 md:row-start-2 md:self-end">
-          <button type="button" disabled={!canGoBack} onClick={goCalendarBack} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous 35 days"><ChevronLeft size={16} />Previous</button>
           <button type="button" onClick={goCalendarToday} className="secondary-btn">Today</button>
           <button type="button" disabled={!canGoForward} onClick={goCalendarForward} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next 35 days">Next<ChevronRight size={16} /></button>
           <span className="mr-1 text-xs font-black text-slate-500">{calendarRangeLabel}</span>
@@ -511,7 +510,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         <section><h3 className="text-lg font-black text-[#002757]">Confirmed bookings</h3><div className="mt-3 space-y-3">{upcomingBookings.length ? upcomingBookings.map((booking) => <button type="button" key={booking.id} onClick={() => { if (!booking.shifts) return; setSelectedDate(localDateKey(booking.shifts.starts_at)); setCalendarCursor(new Date(booking.shifts.starts_at)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{booking.shifts?.profession || "Booked shift"}</strong><span className="rounded-full bg-[#eaf8ee] px-2 py-1 text-[10px] font-black text-[#017f27]">Booked</span></div>{booking.shifts && <p className="mt-1 text-xs text-slate-500">{new Date(booking.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p>}</button>) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No upcoming bookings right now.</p>}</div></section>
       </div> : <div className="grid lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]">
         <div className="border-b border-slate-200 p-3 sm:p-5 lg:border-b-0 lg:border-r">
-          <h3 className="mb-3 text-xl font-black text-[#0f172a]">Next 400 days</h3>
+          <h3 className="mb-3 text-xl font-black text-[#0f172a]">{calendarRangeLabel}</h3>
           <div className="grid grid-cols-7">{calendarWeekdays.map((day) => <div key={day} className="px-1 pb-2 text-center text-[11px] font-black uppercase tracking-wide text-slate-500">{day}</div>)}</div>
           <div className="grid grid-cols-7 gap-1.5 rounded-2xl bg-slate-100 p-1.5 sm:gap-2 sm:p-2">{calendarDays.map((day) => {
             const key = localDateKey(day);
