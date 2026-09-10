@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star, UsersRound, X } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Check, ChevronLeft, ChevronRight, FileCheck2, Plus, Star, UsersRound, X } from "lucide-react";
 import {
   acceptApplication,
   cancelOfficeShift,
@@ -502,6 +502,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             {(["month", "list"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}>{mode === "month" ? "Calendar" : "List"}</button>)}
           </div>
           <button type="button" onClick={() => setPostShiftOpen(true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30"><Plus size={18} />Post a Shift</button>
+          <button type="button" onClick={() => { window.localStorage.setItem("dentalshift_portal_role", "office"); window.location.href = "/classifieds?post=office"; }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#002757] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#001f46] focus:outline-none focus:ring-2 focus:ring-[#002757]/25"><BriefcaseBusiness size={18} />Post a Position</button>
         </div>
       </div>
 

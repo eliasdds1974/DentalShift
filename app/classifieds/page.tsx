@@ -33,6 +33,11 @@ export default function DentalJobsPage() {
   useEffect(() => {
     const portalRole = window.localStorage.getItem("dentalshift_portal_role");
     setBackHref(portalRole === "office" ? "/office/overview" : "/professionals/find-shifts");
+    const params = new URLSearchParams(window.location.search);
+    if (portalRole === "office" && params.get("post") === "office") {
+      setPostingMode("office");
+      setSubmitted(false);
+    }
   }, []);
 
   const visibleAds = useMemo(() => ads.filter((ad) => {
