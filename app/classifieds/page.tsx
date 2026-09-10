@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BriefcaseBusiness, Building2, Check, ChevronLeft, Clock3, FileText, Filter, MapPin, Search, ShieldCheck, Star, UserRound, X } from "lucide-react";
+import { loadAccountDetails } from "@/lib/dentalshift";
+import { supabase } from "@/lib/supabase";
 
 const ads = [
   { id: 1, kind: "office", title: "Registered Dental Hygienist — Permanent Full-Time", name: "Verified Dental Office", city: "Kelowna, BC", distance: 4.8, profession: "Registered Dental Hygienist", employment: "Full-Time", pay: "$55–$62/hr", posted: "Today", featured: true, description: "Modern, established family practice seeking an RDH to join a supportive team four days per week. Strong recall program, modern operatories and an experienced hygiene team." },
@@ -41,6 +43,7 @@ export default function DentalJobsPage() {
   const [postingMode, setPostingMode] = useState<PostingMode>(null);
   const [submitted, setSubmitted] = useState(false);
   const [preview, setPreview] = useState<PostingPreview | null>(null);
+  const [officeLocation, setOfficeLocation] = useState({ city: "", province: "AB" });
 
   useEffect(() => {
     const portalRole = window.localStorage.getItem("dentalshift_portal_role");
@@ -49,6 +52,21 @@ export default function DentalJobsPage() {
     if (portalRole === "office" && params.get("post") === "office") {
       setPostingMode("office");
       setSubmitted(false);
+    }
+
+    if (portalRole === "office") {
+      void (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        try {
+          const details = await loadAccountDetails(user.id);
+          const city = details.office?.city || details.profile.city || "";
+          const province = details.office?.province || details.profile.province || "AB";
+          setOfficeLocation({ city, province });
+        } catch {
+          // Leave the fields editable if account details cannot be loaded.
+        }
+      })();
     }
   }, []);
 
@@ -118,8 +136,8 @@ export default function DentalJobsPage() {
       {submitted && preview ? <div className="p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#01A32E]">Posting Preview</p><h3 className="mt-1 text-2xl font-black text-[#002757]">Review your listing</h3><p className="mt-1 text-sm text-slate-500">This is how your anonymous DentalJobs posting will be presented.</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#eaf8ee] text-[#01A32E]"><Check size={24} strokeWidth={3} /></div></div><article className="mt-5 overflow-hidden rounded-2xl border-2 border-[#002757]/15 bg-white shadow-sm"><div className="border-b border-slate-100 bg-[#f8fafc] p-5"><span className="rounded-full bg-[#edf3fa] px-2.5 py-1 text-[11px] font-black text-[#002757]">{postingMode === "office" ? "OFFICE HIRING" : "PROFESSIONAL LOOKING FOR AN OFFICE"}</span><h4 className="mt-3 text-xl font-black text-slate-900">{preview.position}</h4><p className="mt-1 text-sm font-bold text-slate-600">{postingMode === "office" ? "Verified Dental Office" : "Verified DentalShift Professional"}</p></div><div className="grid gap-4 p-5 sm:grid-cols-2"><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Employment</p><p className="mt-1 font-bold text-[#002757]">{preview.employment}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Location</p><p className="mt-1 font-bold text-[#002757]">{preview.city}, {preview.province}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Days / week</p><p className="mt-1 font-bold text-[#002757]">{preview.days || "Not specified"}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Compensation</p><p className="mt-1 font-bold text-[#002757]">{preview.payFrom || preview.payTo ? `${preview.payFrom ? `$${preview.payFrom}` : ""}${preview.payFrom && preview.payTo ? " – " : ""}${preview.payTo ? `$${preview.payTo}` : ""}/hr` : "Not specified"}</p></div>{preview.schedule && <div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Schedule / hours</p><p className="mt-1 font-bold text-[#002757]">{preview.schedule}</p></div>}<div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">About the opportunity</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{preview.description}</p></div></div></article><div className="mt-5 rounded-2xl border border-[#01A32E]/25 bg-[#f3fbf5] p-4"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-[#01A32E]" /><div><p className="font-black text-[#002757]">Anonymous preview</p><p className="mt-1 text-sm leading-6 text-slate-600">Your identity and direct contact information remain hidden from this public listing.</p></div></div></div><div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setSubmitted(false)} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-[#002757]">Back to Edit</button><button type="button" onClick={() => setPostingMode(null)} className="rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white">Close Preview</button></div></div> : <form onSubmit={submitPreview} className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
         <label className="field sm:col-span-2"><span>Position</span><select name="position" required defaultValue=""><option value="" disabled>Select a position</option>{jobProfessions.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label className="field"><span>{postingMode === "office" ? "Employment type" : "Position wanted"}</span><select name="employment" required defaultValue="Full-Time">{employmentOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label className="field"><span>City / Area</span><input name="city" required placeholder="e.g. Calgary NW" /></label>
-        <label className="field"><span>Province</span><select name="province" required defaultValue="AB">{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="field"><span>City / Area</span><input key={`${postingMode}-${officeLocation.city}`} name="city" required defaultValue={postingMode === "office" ? officeLocation.city : ""} placeholder="e.g. Calgary NW" /></label>
+        <label className="field"><span>Province</span><select key={`${postingMode}-${officeLocation.province}`} name="province" required defaultValue={postingMode === "office" ? officeLocation.province : "AB"}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((item) => <option key={item}>{item}</option>)}</select></label>
         <label className="field"><span>{postingMode === "office" ? "Approximate days / week" : "Days / week wanted"}</span><select name="days" defaultValue="4"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>Flexible</option></select></label>
         <label className="field"><span>{postingMode === "office" ? "Pay from" : "Desired pay from"}</span><input name="pay_from" type="number" min="0" step="1" placeholder="$ / hour" /></label>
         <label className="field"><span>{postingMode === "office" ? "Pay to" : "Desired pay / target"}</span><input name="pay_to" type="number" min="0" step="1" placeholder="$ / hour" /></label>
