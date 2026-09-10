@@ -442,7 +442,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   return <div className="page-wrap">
     {cancelBookingTarget && <ProfessionalCancellationModal booking={cancelBookingTarget} busy={busy === `cancel-booking-${cancelBookingTarget.id}`} close={() => setCancelBookingTarget(null)} confirm={(reason) => cancelProfessionalBooking(cancelBookingTarget, reason)} />}
     <div className="flex flex-col gap-2">
-      <h1 className="page-title">{profile.first_name ? `${profile.first_name}, find your next shift` : "Find your next shift"}</h1>
+      <h1 className="page-title">{profile.first_name ? `${profile.first_name}, let's find your next shift` : "Let's find your next shift"}</h1>
       <p className="page-subtitle">Tap a date to see matching offices, invitations, applications and booked shifts.</p>
     </div>
 
