@@ -50,12 +50,15 @@ export async function POST(request: Request) {
   const card = paymentMethod?.card;
   const { error } = await admin.from("office_billing_profiles").upsert({
     office_id: officeId,
-    stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
-    stripe_payment_method_id: paymentMethodId,
+    provider: "stripe",
+    provider_customer_id: typeof session.customer === "string" ? session.customer : null,
+    provider_payment_method_id: paymentMethodId,
+    payment_method_on_file: true,
     card_brand: card?.brand ?? null,
     card_last4: card?.last4 ?? null,
     card_exp_month: card?.exp_month ?? null,
     card_exp_year: card?.exp_year ?? null,
+    autopay_enabled: true,
     billing_status: "active",
     updated_at: new Date().toISOString(),
   }, { onConflict: "office_id" });
