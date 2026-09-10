@@ -1,0 +1,35 @@
+name: Standardize account width and move professional email
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/standardize-account-width-and-move-professional-email.py'
+      - '.github/workflows/standardize-account-width-and-move-professional-email.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Apply patch
+        run: python .github/scripts/standardize-account-width-and-move-professional-email.py
+      - name: Commit changes
+        run: |
+          git config user.name 'dentalshift-bot'
+          git config user.email 'bot@users.noreply.github.com'
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo 'No changes to commit.'
+          else
+            git commit -m 'Standardize account widths and move professional login email'
+            git push
+          fi
