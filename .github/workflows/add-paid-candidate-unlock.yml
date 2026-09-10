@@ -1,0 +1,28 @@
+name: Add paid Candidate Unlock
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-paid-candidate-unlock.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply paid Candidate Unlock UI
+        run: python .github/scripts/add-paid-candidate-unlock.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Commit verified Candidate Unlock
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/classifieds/page.tsx app/api/dentaljobs/unlock/checkout/route.ts app/api/dentaljobs/unlock/webhook/route.ts app/api/dentaljobs/unlock/details/route.ts
+          git commit -m "Add paid Candidate Unlock"
+          git push
