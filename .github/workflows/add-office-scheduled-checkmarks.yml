@@ -1,0 +1,33 @@
+name: Add office scheduled checkmarks
+
+on:
+  push:
+    paths:
+      - '.github/scripts/add-office-scheduled-checkmarks.py'
+      - '.github/workflows/add-office-scheduled-checkmarks.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply scheduled checkmarks
+        run: python .github/scripts/add-office-scheduled-checkmarks.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit scheduled checkmarks
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Add Scheduled checkmarks to Office Portal"
+            git push
+          fi
