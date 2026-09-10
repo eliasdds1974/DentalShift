@@ -807,6 +807,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
       latitude: String(form.get("latitude") || "") ? Number(form.get("latitude")) : currentOffice.latitude,
       longitude: String(form.get("longitude") || "") ? Number(form.get("longitude")) : currentOffice.longitude,
       phone: String(form.get("office_phone") || "") || null,
+      communication_email: String(form.get("communication_email") || "").trim() || null,
       website: String(form.get("website") || "") || null,
       contact_name: String(form.get("contact_name") || "") || null,
       contact_title: String(form.get("contact_title") || "") || null,
@@ -908,6 +909,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
               <GoogleAddressAutocomplete kind="office" initialAddress={{ name: (details?.office || officeFallback)!.name, address: (details?.office || officeFallback)!.address, city: (details?.office || officeFallback)!.city, province: (details?.office || officeFallback)!.province, postalCode: (details?.office || officeFallback)!.postal_code, googlePlaceId: (details?.office || officeFallback)!.google_place_id, latitude: (details?.office || officeFallback)!.latitude, longitude: (details?.office || officeFallback)!.longitude }} />
             </div>
             <label className="field"><span>Main phone</span><input name="office_phone" type="tel" defaultValue={(details?.office || officeFallback)!.phone || ""} /></label>
+            <label className="field"><span>Communication email</span><input name="communication_email" type="email" inputMode="email" autoComplete="email" placeholder="office@example.com" defaultValue={(details?.office || officeFallback)!.communication_email || ""} /><small className="mt-1 block text-xs text-slate-500">DentalShift will send booking, cancellation and other office communications to this address.</small></label>
             <label className="field"><span>Staff search radius (km)</span><input name="search_radius_km" type="number" min="1" max="500" defaultValue={(details?.office || officeFallback)!.search_radius_km || 25} /></label>
             <label className="field sm:col-span-2"><span>Website</span><input name="website" type="text" inputMode="url" autoComplete="url" placeholder="www.yourclinic.ca" defaultValue={(details?.office || officeFallback)!.website || ""} /></label>
             <label className="field"><span>Primary contact</span><input name="contact_name" defaultValue={(details?.office || officeFallback)!.contact_name || ""} /></label>
