@@ -4,6 +4,9 @@ on:
     paths:
       - '.github/scripts/add-dentaljobs-sharing.py'
       - '.github/workflows/add-dentaljobs-sharing.yml'
+      - 'components/ShareListingButton.tsx'
+      - 'app/jobs/**'
+      - 'app/api/dentaljobs/share-card/**'
 permissions:
   contents: write
 jobs:
