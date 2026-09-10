@@ -1,0 +1,33 @@
+name: Finalize CPR renewal state
+
+on:
+  push:
+    paths:
+      - '.github/workflows/finalize-cpr-renewal-state.yml'
+      - '.github/scripts/finalize-cpr-renewal-state.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Finalize CPR renewal state synchronization
+        run: python .github/scripts/finalize-cpr-renewal-state.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Finalize CPR renewal state synchronization"
+            git push
+          fi
