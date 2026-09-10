@@ -1,0 +1,33 @@
+name: Stack scheduled checkmark
+
+on:
+  push:
+    paths:
+      - '.github/scripts/stack-scheduled-checkmark.py'
+      - '.github/workflows/stack-scheduled-checkmark.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Stack scheduled checkmarks
+        run: python .github/scripts/stack-scheduled-checkmark.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit stacked scheduled checkmarks
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Stack Scheduled checkmark above calendar label"
+            git push
+          fi
