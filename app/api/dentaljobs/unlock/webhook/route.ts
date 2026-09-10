@@ -7,6 +7,7 @@ export const runtime = "nodejs";
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://pvugjtlmtlyfzyvvhcik.supabase.co";
 const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY;
 
 function verifyStripeSignature(payload: string, header: string, secret: string) {
   const parts = header.split(",").map((part) => part.trim());
@@ -24,7 +25,7 @@ function verifyStripeSignature(payload: string, header: string, secret: string) 
 }
 
 export async function POST(request: Request) {
-  if (!serviceRoleKey || !webhookSecret) return NextResponse.json({ error: "Webhook is not configured." }, { status: 503 });
+  if (!serviceRoleKey || !webhookSecret || !stripeSecretKey) return NextResponse.json({ error: "Webhook is not configured." }, { status: 503 });
   const payload = await request.text();
   const signature = request.headers.get("stripe-signature") ?? "";
   if (!verifyStripeSignature(payload, signature, webhookSecret)) return NextResponse.json({ error: "Invalid signature." }, { status: 400 });
@@ -32,21 +33,32 @@ export async function POST(request: Request) {
   const event = JSON.parse(payload) as any;
   if (event?.type !== "checkout.session.completed") return NextResponse.json({ received: true });
   const session = event.data?.object;
-  const unlockId = session?.metadata?.unlock_id;
-  const applicationId = session?.metadata?.application_id;
-  if (!unlockId || !applicationId || session?.payment_status !== "paid") return NextResponse.json({ received: true });
+  if (session?.mode !== "setup" || !session?.setup_intent) return NextResponse.json({ received: true });
 
+  const setupResponse = await fetch(`https://api.stripe.com/v1/setup_intents/${session.setup_intent}`, { headers: { Authorization: `Bearer ${stripeSecretKey}` } });
+  const setupIntent = await setupResponse.json() as any;
+  const paymentMethodId = typeof setupIntent?.payment_method === "string" ? setupIntent.payment_method : null;
+  if (!setupResponse.ok || !paymentMethodId) return NextResponse.json({ error: "Could not confirm saved card." }, { status: 400 });
+
+  const pmResponse = await fetch(`https://api.stripe.com/v1/payment_methods/${paymentMethodId}`, { headers: { Authorization: `Bearer ${stripeSecretKey}` } });
+  const paymentMethod = await pmResponse.json() as any;
+  if (!pmResponse.ok) return NextResponse.json({ error: "Could not load saved card." }, { status: 400 });
+
+  const officeId = session?.metadata?.office_id;
+  if (!officeId) return NextResponse.json({ error: "Office billing profile was not identified." }, { status: 400 });
   const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
-  const now = new Date().toISOString();
-  const { error: unlockError } = await admin.from("candidate_unlocks").update({
-    status: "paid",
-    stripe_session_id: session.id,
-    stripe_payment_intent_id: typeof session.payment_intent === "string" ? session.payment_intent : null,
-    paid_at: now,
-    updated_at: now,
-  }).eq("id", unlockId);
-  if (unlockError) return NextResponse.json({ error: unlockError.message }, { status: 500 });
-
-  await admin.from("job_applications").update({ status: "interested", responded_at: now, updated_at: now }).eq("id", applicationId);
+  const card = paymentMethod?.card;
+  const { error } = await admin.from("office_billing_profiles").upsert({
+    office_id: officeId,
+    stripe_customer_id: typeof session.customer === "string" ? session.customer : null,
+    stripe_payment_method_id: paymentMethodId,
+    card_brand: card?.brand ?? null,
+    card_last4: card?.last4 ?? null,
+    card_exp_month: card?.exp_month ?? null,
+    card_exp_year: card?.exp_year ?? null,
+    billing_status: "active",
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "office_id" });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ received: true });
 }
