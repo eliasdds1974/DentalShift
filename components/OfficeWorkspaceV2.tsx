@@ -347,7 +347,9 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         const profile = application.professional_profiles;
         const stats = data.reliabilityStats[application.professional_id];
         const completed = stats?.completedBookings ?? 0;
-        const km = distanceKm(officeCoordinates?.latitude, officeCoordinates?.longitude, profile?.profiles?.latitude, profile?.profiles?.longitude);
+        const km = application.distance_km != null && Number.isFinite(Number(application.distance_km))
+          ? Number(application.distance_km)
+          : distanceKm(officeCoordinates?.latitude, officeCoordinates?.longitude, profile?.profiles?.latitude, profile?.profiles?.longitude);
         return {
           id: application.professional_id,
           role: roleCode(profile?.profession || shift.profession),

@@ -823,6 +823,7 @@ export async function removeOfficeExcludedProfessional(officeId: string, id: str
 export type WorkflowApplication = {
   id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string; office_interested_at?: string | null;
   professional_id: string;
+  distance_km?: number | null;
   professional_profiles?: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number; years_experience?: number | null; skills?: string[] | null; hourly_rate?: number | null; local_anesthetic?: boolean; local_anesthetic_status?: string; profiles?: { latitude: number | null; longitude: number | null } | null } | null;
   shifts?: LiveShift | null;
 };
@@ -1027,16 +1028,31 @@ export async function loadOfficeWorkflow(officeId: string) {
     ...shifts.flatMap((shift) => (shift.applications || []).map((application) => application.professional_id)),
   ])).filter(Boolean);
   let reliabilityStats: Record<string, { completedBookings: number; totalCancellations: number; cancellationsUnder24h: number }> = {};
+  let distanceByProfessional: Record<string, number | null> = {};
   if (professionalIds.length) {
-    const { data: statsData, error: statsError } = await supabase.rpc("professional_reliability_stats", { p_professional_ids: professionalIds });
+    const [{ data: statsData, error: statsError }, { data: distanceData, error: distanceError }] = await Promise.all([
+      supabase.rpc("professional_reliability_stats", { p_professional_ids: professionalIds }),
+      supabase.rpc("office_professional_distances", { p_office_id: officeId, p_professional_ids: professionalIds }),
+    ]);
     if (statsError) throw statsError;
+    if (distanceError) throw distanceError;
     reliabilityStats = Object.fromEntries((statsData ?? []).map((row: any) => [row.professional_id, {
       completedBookings: Number(row.completed_bookings || 0),
       totalCancellations: Number(row.total_cancellations || 0),
       cancellationsUnder24h: Number(row.cancellations_under_24h || 0),
     }]));
+    distanceByProfessional = Object.fromEntries((distanceData ?? []).map((row: any) => [row.professional_id, row.distance_km == null ? null : Number(row.distance_km)]));
   }
-  return { shifts, bookings, directory, availability, reliabilityStats };
+  const shiftsWithDistances = shifts.map((shift) => ({
+    ...shift,
+    applications: (shift.applications || []).map((application) => ({
+      ...application,
+      distance_km: Object.prototype.hasOwnProperty.call(distanceByProfessional, application.professional_id)
+        ? distanceByProfessional[application.professional_id]
+        : null,
+    })),
+  }));
+  return { shifts: shiftsWithDistances, bookings, directory, availability, reliabilityStats };
 }
 
 export async function withdrawApplication(applicationId: string) {
