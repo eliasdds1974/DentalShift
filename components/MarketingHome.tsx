@@ -31,6 +31,7 @@ export function MarketingHome({ onSignIn, onGetStarted, onAdmin = onSignIn, onWo
           <a href="#how-it-works" className="transition hover:text-[#002757]">How it works</a>
           <a href="#why-dentalshift" className="transition hover:text-[#002757]">Why DentalShift</a>
           <a href="#trust" className="transition hover:text-[#002757]">Trust & safety</a>
+          <a href="/jobs" className="rounded-full bg-[#eaf8ee] px-3 py-1.5 font-black text-[#017f27] transition hover:bg-[#d7f3df]">DentalJobs</a>
         </nav>
         <div className="hidden items-center gap-3 sm:flex">
           <button onClick={onAdmin} className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2.5 text-xs font-extrabold text-amber-800 hover:bg-amber-100">Temporary admin</button>
@@ -43,6 +44,7 @@ export function MarketingHome({ onSignIn, onGetStarted, onAdmin = onSignIn, onWo
         <div className="grid gap-2">
           <a onClick={() => setMenuOpen(false)} href="#how-it-works" className="rounded-xl px-3 py-3 font-bold text-slate-700">How it works</a>
           <a onClick={() => setMenuOpen(false)} href="#why-dentalshift" className="rounded-xl px-3 py-3 font-bold text-slate-700">Why DentalShift</a>
+          <a onClick={() => setMenuOpen(false)} href="/jobs" className="rounded-xl bg-[#eaf8ee] px-3 py-3 font-black text-[#017f27]">DentalJobs · Browse permanent opportunities</a>
           <button onClick={onAdmin} className="rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-left font-extrabold text-amber-800">Temporary admin</button>
           <button onClick={onSignIn} className="rounded-xl border border-[#002757]/15 px-4 py-3 text-left font-extrabold text-[#002757]">Sign in</button>
           <button onClick={() => start("office")} className="rounded-xl bg-[#002757] px-4 py-3 font-extrabold text-white">Get started</button>
@@ -60,6 +62,7 @@ export function MarketingHome({ onSignIn, onGetStarted, onAdmin = onSignIn, onWo
             <div className="mt-8 grid gap-3 sm:flex">
               <button onClick={() => start("office")} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-[#002757] px-6 py-4 text-base font-black text-white shadow-[0_12px_30px_rgba(0,39,87,.18)] transition hover:-translate-y-0.5 hover:bg-[#003d80]">I need dental staff <ArrowRight size={18} /></button>
               <button onClick={() => start("professional")} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-[#002757]/12 bg-white px-6 py-4 text-base font-black text-[#002757] transition hover:border-[#01A32E] hover:bg-[#f7fcf8]">I want to find shifts <Search size={18} /></button>
+              <a href="/jobs" className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl border-2 border-[#01A32E]/25 bg-[#f7fcf8] px-6 py-4 text-base font-black text-[#017f27] transition hover:border-[#01A32E] hover:bg-[#eaf8ee]">Browse DentalJobs <BriefcaseBusiness size={18} /></a>
             </div>
             <div className="mt-7 flex flex-wrap gap-x-5 gap-y-2 text-sm font-bold text-slate-500">
               <span className="flex items-center gap-1.5"><ShieldCheck size={17} className="text-[#01A32E]" /> Verified profiles</span>
