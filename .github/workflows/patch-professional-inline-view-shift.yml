@@ -1,0 +1,26 @@
+name: Patch professional inline View Shift
+on:
+  push:
+    paths:
+      - 'scripts/patch-professional-inline-view-shift.py'
+      - '.github/workflows/patch-professional-inline-view-shift.yml'
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply inline View Shift patch
+        run: python scripts/patch-professional-inline-view-shift.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit inline View Shift
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m "Show Professional Portal shift details inline"
+          git push
