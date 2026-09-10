@@ -21,7 +21,7 @@ jobs:
         run: python .github/scripts/add-professional-office-action-buttons.py
       - name: Validate build
         run: |
-          npm ci
+          npm install --no-audit --no-fund
           npm run build
       - name: Commit changes
         run: |
