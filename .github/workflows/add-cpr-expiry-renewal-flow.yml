@@ -19,7 +19,17 @@ jobs:
       - name: Install dependencies
         run: npm install --no-audit --no-fund
       - name: Build
-        run: npm run build
+        shell: bash
+        run: |
+          set -o pipefail
+          npm run build 2>&1 | tee cpr-renewal-build.log
+      - name: Upload build log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpr-renewal-build-log
+          path: cpr-renewal-build.log
+          if-no-files-found: ignore
       - name: Commit changes
         run: |
           git config user.name "dentalshift-bot"
