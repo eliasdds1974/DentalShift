@@ -28,6 +28,7 @@ export type ProfessionalDetails = {
   years_experience: number | null;
   bio: string | null;
   skills: string[] | null;
+  cpr_path: string | null;
   resume_path: string | null;
   available_for_work: boolean;
   local_anesthetic?: boolean;
@@ -204,7 +205,7 @@ async function loadAccountDetailsOnce(userId: string): Promise<AccountDetails> {
   const [{ data: professionalData, error: professionalError }, { data: officeData, error: officeError }] = await Promise.all([
     supabase
       .from("professional_profiles")
-      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
+      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,cpr_path,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
@@ -290,7 +291,7 @@ export async function createProfessionalWorkspace(input: Pick<ProfessionalDetail
       travel_radius_km: 25,
       available_for_work: false,
     })
-    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
+    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,cpr_path,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
     .single();
   if (error) throw error;
   return data as ProfessionalDetails;
@@ -361,6 +362,38 @@ export async function uploadOfficeLogo(userId: string, officeId: string, file: F
   if (officeError) throw new Error(`The logo uploaded, but it could not be saved to the clinic profile: ${officeError.message}`);
   if (!updatedOffice?.logo_url) throw new Error("The logo uploaded, but the clinic profile did not return a saved logo.");
   return updatedOffice.logo_url;
+}
+
+export async function uploadProfessionalCpr(userId: string, file: File) {
+  const extensions: Record<string, string> = {
+    "application/pdf": "pdf",
+    "image/jpeg": "jpg",
+    "image/png": "png",
+    "image/webp": "webp",
+  };
+  if (!file || file.size === 0) throw new Error("Choose a CPR certificate to upload.");
+  const extension = extensions[file.type];
+  if (!extension) throw new Error("Choose a PDF, JPG, PNG or WebP CPR certificate.");
+  if (file.size > 5 * 1024 * 1024) throw new Error("Your CPR certificate must be smaller than 5 MB.");
+  const path = `${userId}/cpr.${extension}`;
+  const { error: uploadError } = await supabase.storage
+    .from("professional-cpr")
+    .upload(path, file, { upsert: true, contentType: file.type, cacheControl: "3600" });
+  if (uploadError) throw new Error(`Your CPR certificate could not be uploaded: ${uploadError.message}`);
+  const { data, error } = await supabase
+    .from("professional_profiles")
+    .update({ cpr_path: path })
+    .eq("user_id", userId)
+    .select("cpr_path")
+    .single();
+  if (error || !data?.cpr_path) throw new Error(`The CPR certificate uploaded, but it could not be saved to your profile: ${error?.message || "No path returned"}`);
+  return data.cpr_path as string;
+}
+
+export async function openProfessionalCpr(path: string) {
+  const { data, error } = await supabase.storage.from("professional-cpr").createSignedUrl(path, 60);
+  if (error || !data?.signedUrl) throw new Error(error?.message || "Your CPR certificate could not be opened.");
+  return data.signedUrl;
 }
 
 export async function uploadProfessionalResume(userId: string, file: File) {
