@@ -1607,7 +1607,7 @@ export default function Home() {
         : session && profile?.role === "admin"
           ? view === "shifts" ? <AdminShiftsDashboard userId={session.user.id} /> : view === "bookings" ? <AdminDisputesDashboard userId={session.user.id} /> : view === "talent" ? <AdminDashboard userId={session.user.id} /> : <AdminCommandCenter onNavigate={(nextView) => navigate("admin", nextView)} />
           : <OfficeDashboard onPost={() => setPost(true)} onRebook={() => setRebook(true)} />,
-    [role, session, profile, office, refreshKey, view, navigate],
+    [role, session, profile, professionalDetails, office, refreshKey, view, navigate],
   );
 
   if (session === undefined) {
@@ -1634,7 +1634,7 @@ export default function Home() {
       {accountOpen && <AccountModal close={() => setAccountOpen(false)} session={session ?? null} profile={profile} officeFallback={office} activeRole={role} initialMode={accountIntent.mode} initialRole={accountIntent.role} passwordRecovery={passwordRecovery} onPasswordRecoveryComplete={completePasswordRecovery} onSaved={() => {
         setRefreshKey((key) => key + 1);
         if (session) void loadAccountDetails(session.user.id).then((details) => {
-          setProfile(details.profile); setOfficeId(details.office?.id ?? null); setOffice(details.office);
+          setProfile(details.profile); setProfessionalDetails(details.professional); setOfficeId(details.office?.id ?? null); setOffice(details.office);
           const workspaceReady = (role === "office" && Boolean(details.office)) || (role === "professional" && Boolean(details.professional));
           if (workspaceReady) { setAccountOpen(false); navigate(role, "overview"); }
         });
