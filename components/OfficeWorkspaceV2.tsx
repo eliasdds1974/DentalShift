@@ -27,7 +27,7 @@ import { AnonymousAvailableStaffPanel, type AnonymousAvailableStaff } from "./An
 
 type OfficeView = "overview" | "shifts" | "bookings" | "talent" | "profile";
 type CalendarView = "month" | "week" | "list";
-type RoleCode = "RDH" | "CDA" | "DA" | "ST";
+type RoleCode = "RDH" | "CDA" | "DA" | "ST" | "DT";
 
 type DirectoryPerson = {
   user_id: string;
@@ -54,6 +54,7 @@ const roleStyles: Record<RoleCode, { label: string; solid: string; soft: string;
   CDA: { label: "CDA", solid: "bg-[#EA4335]", soft: "bg-red-50", text: "text-[#c9342d]" },
   DA: { label: "DA", solid: "bg-[#FBBC05]", soft: "bg-amber-50", text: "text-amber-700" },
   ST: { label: "ST", solid: "bg-[#34A853]", soft: "bg-green-50", text: "text-[#278841]" },
+  DT: { label: "DT", solid: "bg-[#7C3AED]", soft: "bg-violet-50", text: "text-violet-700" },
 };
 
 function roleCode(profession?: string | null): RoleCode {
@@ -61,11 +62,12 @@ function roleCode(profession?: string | null): RoleCode {
   if (value.includes("hygien")) return "RDH";
   if (value.includes("admin")) return "DA";
   if (value.includes("steril")) return "ST";
+  if (value.includes("dentist")) return "DT";
   return "CDA";
 }
 
 function roleSortRank(profession?: string | null) {
-  const rank: Record<RoleCode, number> = { RDH: 0, CDA: 1, DA: 2, ST: 3 };
+  const rank: Record<RoleCode, number> = { RDH: 0, CDA: 1, DA: 2, ST: 3, DT: 4 };
   return rank[roleCode(profession)];
 }
 
@@ -482,7 +484,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         <div className="contents">
           <div className="min-w-0 md:col-start-1 md:row-start-1">
             <h2 className="text-xl font-black tracking-tight text-[#032757] sm:text-2xl">Office calendar</h2>
-            <p className="mt-1 text-xs font-bold text-[#032757]">Professionals available to cover shifts</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-extrabold text-slate-600"><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />RDH</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />CDA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#FBBC05]" />DA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#34A853]" />ST</span></div>
+            <p className="mt-1 text-xs font-bold text-[#032757]">Professionals available to cover shifts</p><div className="mt-3 flex flex-wrap gap-x-4 gap-y-2 text-xs font-extrabold text-slate-600"><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#4285F4]" />RDH</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#EA4335]" />CDA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#FBBC05]" />DA</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#34A853]" />ST</span><span className="inline-flex items-center gap-1.5"><span className="h-3 w-3 rounded-full bg-[#7C3AED]" />DT</span></div>
           </div>
 <div className="hidden">
             <button type="button" onClick={onPost} className="group flex h-9 w-full items-center gap-2 rounded-xl border-2 border-[#0078FE]/35 bg-gradient-to-r from-blue-50 to-white px-2.5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#0078FE]/70 hover:shadow-md focus:outline-none focus:ring-2 focus:ring-[#0078FE]/25"><CalendarDays size={15} className="text-[#0078FE]" /><span><span className="block text-[10px] font-extrabold text-slate-500">Open shifts</span><strong className="block text-sm leading-none text-[#002757]">{openShifts.length}</strong></span></button>
@@ -519,7 +521,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             const dayShifts = allDayShifts.filter((shift) => !shift.interest_only);
             const dayBookings = upcomingBookings.filter((booking) => booking.shifts && localDateKey(booking.shifts.starts_at) === key);
             const dayAvailability = data.availability.filter((slot) => localDateKey(slot.starts_at) === key);
-            const availableByRole = (["RDH", "CDA", "DA", "ST"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
+            const availableByRole = (["RDH", "CDA", "DA", "ST", "DT"] as RoleCode[]).map((code) => ({ code, count: dayAvailability.filter((slot) => roleCode(slot.professional_profiles?.profession) === code).length })).filter((item) => item.count > 0);
             const incomingInterestCount = allDayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => item.status === "applied" && item.application_kind === "application").length, 0);
             const outgoingInterestCount = allDayShifts.reduce((total, shift) => total + (shift.applications || []).filter((item) => Boolean(item.office_interested_at)).length, 0);
             return <button type="button" key={key} disabled={isPast} aria-disabled={isPast} title={isPast ? "Past dates are read-only" : undefined} onClick={() => { if (!isPast) chooseDate(day); }} className={`relative min-h-[132px] rounded-xl border border-slate-200 bg-white p-1 text-left shadow-sm transition sm:min-h-[148px] sm:p-2 ${isPast ? "cursor-not-allowed bg-slate-50 text-slate-300 opacity-45 grayscale" : "hover:border-[#0078FE]/30 hover:bg-blue-50"} text-slate-800 ${selected ? "z-10 border-[#0078FE] bg-blue-50/50 ring-2 ring-inset ring-[#0078FE]" : ""}`}>
@@ -560,7 +562,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
             <form onSubmit={postSelectedShift} className="hidden">
               <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-wide text-[#0078FE]">Post a shift</p><p className="mt-1 text-sm font-extrabold text-[#032757]">Cover this date</p></div><CalendarDays size={20} className="text-[#0078FE]" /></div>
               <div className="mt-4 space-y-3">
-                <label className="block text-xs font-black text-slate-600">Professional needed<select name="profession" defaultValue="Registered Dental Hygienist" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+                <label className="block text-xs font-black text-slate-600">Professional needed<select name="profession" defaultValue="Registered Dental Hygienist" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option><option>Associate Dentist</option></select></label>
                 <div className="grid grid-cols-2 gap-2"><label className="text-xs font-black text-slate-600">Start<input name="start_time" type="time" defaultValue="08:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label><label className="text-xs font-black text-slate-600">End<input name="end_time" type="time" defaultValue="17:00" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label></div>
                 <label className="block text-xs font-black text-slate-600">Hourly rate<input name="hourly_rate" type="number" min="1" step="0.50" placeholder="$ / hr" required className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]" /></label>
                 <label className="block text-xs font-black text-slate-600">Software<select name="software" defaultValue="Any software" className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold text-[#032757] outline-none focus:border-[#0078FE]"><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
@@ -590,7 +592,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
 
           <form onSubmit={postSelectedShift} className="mt-6">
             <div className="space-y-3">
-              <label className="field"><span>Professional needed</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+              <label className="field"><span>Professional needed</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option><option>Associate Dentist</option></select></label>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label className="field"><span>Start</span><input name="start_time" type="time" defaultValue="08:00" required /></label>
                 <label className="field"><span>End</span><input name="end_time" type="time" defaultValue="17:00" required /></label>

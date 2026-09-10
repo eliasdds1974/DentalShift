@@ -50,13 +50,14 @@ function dateLabel(value: string) {
 }
 
 type CalendarView = "month" | "week" | "list";
-type ShiftRoleCode = "RDH" | "CDA" | "DA" | "ST";
+type ShiftRoleCode = "RDH" | "CDA" | "DA" | "ST" | "DT";
 
 const shiftRoles: { code: ShiftRoleCode; label: string; dot: string; soft: string }[] = [
   { code: "RDH", label: "Dental Hygienist", dot: "bg-[#0078FE]", soft: "bg-blue-50 text-[#0064d8]" },
   { code: "CDA", label: "Dental Assistant", dot: "bg-[#F21C13]", soft: "bg-red-50 text-[#d9160f]" },
   { code: "DA", label: "Dental Administrator", dot: "bg-amber-400", soft: "bg-amber-50 text-amber-700" },
   { code: "ST", label: "Sterilization Technician", dot: "bg-[#01A32E]", soft: "bg-[#eaf8ee] text-[#017f27]" },
+  { code: "DT", label: "Associate Dentist", dot: "bg-[#7C3AED]", soft: "bg-violet-50 text-violet-700" },
 ];
 
 function shiftRoleCode(profession: string): ShiftRoleCode {
@@ -64,6 +65,7 @@ function shiftRoleCode(profession: string): ShiftRoleCode {
   if (value.includes("hygien")) return "RDH";
   if (value.includes("admin")) return "DA";
   if (value.includes("steril")) return "ST";
+  if (value.includes("dentist")) return "DT";
   return "CDA";
 }
 
@@ -184,7 +186,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
 
       // Default card priority in the professional portal:
       // 1) shifts that match "I'm Available"
-      // 2) RDH, 3) CDA, 4) DT/DA, 5) ST
+      // 2) RDH, 3) CDA, 4) DA, 5) ST, 6) Associate Dentist
       const firstAvailable = matchesAvailability(first);
       const secondAvailable = matchesAvailability(second);
       if (firstAvailable !== secondAvailable) return firstAvailable ? -1 : 1;
@@ -195,9 +197,8 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
         if (code === "CDA") return 1;
         if (code === "DA") return 2;
         if (code === "ST") return 3;
-        const value = shift.profession.toLowerCase();
-        if (value.includes("dentist") || value.includes("dental therapist")) return 2;
-        return 4;
+        if (code === "DT") return 4;
+        return 5;
       };
 
       const roleDifference = rolePriority(first) - rolePriority(second);
@@ -392,7 +393,7 @@ export function ProfessionalWorkspace({ userId, profile, refreshKey, view, onNav
 
           <aside className="bg-white p-4 sm:p-5">
             <div className="flex items-start justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[.12em] text-[#0078FE]">Selected date</p><h3 className="mt-1 text-xl font-black text-[#0f172a]">{new Date(`${selectedDate}T12:00:00`).toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric" })}</h3></div><Pill tone="blue">{selectedDayShifts.length} shifts</Pill></div>
-            <div className="mt-4 grid grid-cols-4 gap-2">{selectedRoleCounts.map((role) => <button type="button" key={role.code} onClick={() => setRoleFilter(roleFilter === role.code ? "all" : role.code)} className={`rounded-xl p-2 text-center transition ${role.soft} ${roleFilter === role.code ? "ring-2 ring-current" : ""}`}><strong className="block text-xl font-black">{role.count}</strong><span className="text-[10px] font-black">{role.code}</span></button>)}</div>
+            <div className="mt-4 grid grid-cols-5 gap-2">{selectedRoleCounts.map((role) => <button type="button" key={role.code} onClick={() => setRoleFilter(roleFilter === role.code ? "all" : role.code)} className={`rounded-xl p-2 text-center transition ${role.soft} ${roleFilter === role.code ? "ring-2 ring-current" : ""}`}><strong className="block text-xl font-black">{role.count}</strong><span className="text-[10px] font-black">{role.code}</span></button>)}</div>
             <div className="my-5 border-t border-slate-200" />
             {selectedDayShifts.length ? <div className="space-y-3">{selectedDayShifts.map((shift) => renderShiftCard(shift, true))}</div> : <div className="rounded-2xl bg-slate-50 p-6 text-center"><CalendarDays size={24} className="mx-auto text-slate-400" /><p className="mt-3 text-sm font-extrabold text-[#002757]">No available shifts</p><p className="mt-1 text-xs leading-5 text-slate-500">Choose another date or adjust the role and search filters.</p></div>}
           </aside>

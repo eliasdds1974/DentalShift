@@ -1044,7 +1044,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <label className="field"><span>First name</span><input value={preferredFirstName} onChange={(e) => setPreferredFirstName(e.target.value)} /></label>
                 <label className="field"><span>Last name</span><input value={preferredLastName} onChange={(e) => setPreferredLastName(e.target.value)} /></label>
-                <label className="field"><span>Position</span><select value={preferredProfession} onChange={(e) => setPreferredProfession(e.target.value)}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+                <label className="field"><span>Position</span><select value={preferredProfession} onChange={(e) => setPreferredProfession(e.target.value)}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option><option>Associate Dentist</option></select></label>
                 <label className="field"><span>Province</span><select value={preferredProvince} onChange={(e) => setPreferredProvince(e.target.value)}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
                 <label className="field sm:col-span-2"><span>Licence / registration number</span><input value={preferredLicence} onChange={(e) => setPreferredLicence(e.target.value)} /></label>
               </div>
@@ -1057,7 +1057,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 <label className="field"><span>First name</span><input value={excludedFirstName} onChange={(e) => setExcludedFirstName(e.target.value)} /></label>
                 <label className="field"><span>Last name</span><input value={excludedLastName} onChange={(e) => setExcludedLastName(e.target.value)} /></label>
-                <label className="field"><span>Position</span><select value={excludedProfession} onChange={(e) => setExcludedProfession(e.target.value)}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+                <label className="field"><span>Position</span><select value={excludedProfession} onChange={(e) => setExcludedProfession(e.target.value)}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option><option>Associate Dentist</option></select></label>
                 <label className="field"><span>Province</span><select value={excludedProvince} onChange={(e) => setExcludedProvince(e.target.value)}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
                 <label className="field sm:col-span-2"><span>Licence / registration number</span><input value={excludedLicence} onChange={(e) => setExcludedLicence(e.target.value)} /></label>
               </div>
@@ -1083,7 +1083,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
               <div className="rounded-xl border border-[#002757]/15 bg-white p-3 sm:col-span-2 lg:col-span-4"><div className="flex flex-col gap-2 lg:flex-row lg:items-end"><div className="min-w-0 lg:w-56"><h3 className="text-sm font-extrabold text-[#002757]">Login email</h3><p className="mt-0.5 truncate text-xs font-bold text-slate-500">{session.user.email}</p></div><div className="flex min-w-0 flex-1 gap-2"><input name="account_new_email" type="email" placeholder="New email address" className="min-w-0 flex-1 rounded-xl border border-slate-200 px-3 py-2 text-sm font-bold outline-none focus:border-[#0078FE]" /><button type="button" disabled={busy} onClick={(event) => { const input = event.currentTarget.parentElement?.querySelector('input[name=account_new_email]') as HTMLInputElement | null; if (input) void changeAccountEmail(input.value); }} className="secondary-btn shrink-0 justify-center py-2">{busy ? "Updating…" : "Change email"}</button></div></div></div>
               {details.professional && <>
                 <div className="rounded-xl border border-[#0078FE]/15 bg-white px-3 py-2.5 sm:col-span-2 lg:col-span-4"><h3 className="font-extrabold text-[#002757]">Professional qualifications</h3><p className="mt-1 text-xs text-slate-500">Licence identity changes automatically trigger a fresh review.</p></div>
-                <label className="field"><span>Profession</span><select name="profession" defaultValue={details.professional.profession}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+                <label className="field"><span>Profession</span><select name="profession" defaultValue={details.professional.profession}><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option><option>Associate Dentist</option></select></label>
                 <label className="field"><span>Licence number</span><input name="licence_number" required defaultValue={details.professional.licence_number} /></label>
                 <label className="field"><span>Minimum hourly rate desired</span><input name="hourly_rate" min="0" step="1" type="number" defaultValue={details.professional.hourly_rate ?? ""} placeholder="e.g. 55" /></label>
                 <label className="field"><span>Travel radius (km)</span><input name="travel_radius_km" min="1" max="500" type="number" defaultValue={details.professional.travel_radius_km} /></label>
@@ -1097,7 +1097,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
               </>}
               {!details.professional && details.office && <>
                 <div className="rounded-2xl border border-[#01A32E]/25 bg-[#eaf8ee] p-5 sm:col-span-2 lg:col-span-4"><div className="flex items-center gap-2 font-extrabold text-[#002757]"><UserRound size={19} />Add a Dental Professional workspace</div><p className="mt-2 text-sm leading-6 text-slate-600">Keep the same email address, then complete a separate professional verification profile. Choose the Professional workspace when signing in by email.</p></div>
-                <label className="field sm:col-span-2 lg:col-span-4"><span>Profession</span><select name="new_profession" required defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+                <label className="field sm:col-span-2 lg:col-span-4"><span>Profession</span><select name="new_profession" required defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option><option>Associate Dentist</option></select></label>
                 <label className="field"><span>Licence or registration number</span><input name="new_licence_number" required /></label>
                 <label className="field"><span>Licence province</span><select name="new_licence_province" required defaultValue={details.profile.province || details.office.province || "AB"}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((province) => <option key={province}>{province}</option>)}</select></label>
               </>}
@@ -1160,7 +1160,7 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
                 <button type="button" onClick={() => setRole("professional")} className={"rounded-xl px-3 py-3 text-sm font-extrabold transition lg:py-2 " + (role === "professional" ? "bg-[#002757] text-white shadow-sm" : "text-[#002757] hover:bg-white")}>For Dental Professionals</button>
               </div>
               {role === "professional" && <>
-                <label className="field sm:col-span-2 lg:[&>select]:py-2"><span>Account type</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select></label>
+                <label className="field sm:col-span-2 lg:[&>select]:py-2"><span>Account type</span><select name="profession" defaultValue="Registered Dental Hygienist"><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option><option>Associate Dentist</option></select></label>
                 <label className="field sm:col-span-2 lg:[&>input]:py-2"><span>Licence or registration number (if applicable)</span><input name="licence_number" /></label>
               </>}
               <GoogleAddressAutocomplete key={role} kind={role === "office" ? "office" : "professional"} />
@@ -1349,7 +1349,7 @@ function ShiftModal({ close, officeId, onSaved }: { close: () => void; officeId:
 
               <label className="field sm:col-span-2">
                 <span>Professional required</span>
-                <select name="profession" required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option></select>
+                <select name="profession" required defaultValue=""><option value="" disabled>Select a profession</option><option>Registered Dental Hygienist</option><option>Certified Dental Assistant</option><option>Dental Administrator</option><option>Sterilization Technician</option><option>Associate Dentist</option></select>
               </label>
 
               <label className="field"><span>First date</span><input name="date_1" required type="date" defaultValue="2026-09-04"  min={new Date().toISOString().slice(0, 10)} /></label>

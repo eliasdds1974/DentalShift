@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Clock3, MapPin } from "lucide-react";
 
-export type AvailableStaffRole = "RDH" | "CDA" | "DA" | "ST";
+export type AvailableStaffRole = "RDH" | "CDA" | "DA" | "ST" | "DT";
 
 export type AnonymousAvailableStaff = {
   id: string;
@@ -40,6 +40,7 @@ const roleStyles: Record<AvailableStaffRole, { title: string; badge: string; bor
   CDA: { title: "Certified Dental Assistant", badge: "bg-[#04A62F]", border: "border-emerald-200", soft: "bg-[#eaf8ee]", text: "text-[#017f27]" },
   DA: { title: "Dental Assistant", badge: "bg-[#F59E0B]", border: "border-orange-200", soft: "bg-orange-50", text: "text-orange-700" },
   ST: { title: "Sterilization Technician", badge: "bg-[#8B5CF6]", border: "border-violet-200", soft: "bg-violet-50", text: "text-violet-700" },
+  DT: { title: "Associate Dentist", badge: "bg-[#7C3AED]", border: "border-purple-200", soft: "bg-purple-50", text: "text-purple-800" },
 };
 
 function shortTime(value: string) {
@@ -72,7 +73,7 @@ export function AnonymousAvailableStaffPanel({
     });
   };
 
-  const groups = (["RDH", "CDA", "DA", "ST"] as AvailableStaffRole[])
+  const groups = (["RDH", "CDA", "DA", "ST", "DT"] as AvailableStaffRole[])
     .map((role) => ({ role, items: staff.filter((item) => item.role === role) }))
     .filter((group) => group.items.length > 0);
 
