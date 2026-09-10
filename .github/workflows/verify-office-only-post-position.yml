@@ -1,0 +1,35 @@
+name: Verify office-only Post a Position
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/office-only-post-position.py'
+      - '.github/workflows/verify-office-only-post-position.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply role-aware DentalJobs posting controls
+        run: python .github/scripts/office-only-post-position.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Commit verified UI change
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No application change needed"
+          else
+            git commit -m "Make DentalJobs posting actions role-aware"
+            git push
+          fi
