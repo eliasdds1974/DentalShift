@@ -94,6 +94,10 @@ export default function DentalJobsPage() {
   const [posted, setPosted] = useState(false);
   const [portalRole, setPortalRole] = useState<"office" | "professional" | null>(null);
   const [myOfficeJobs, setMyOfficeJobs] = useState<OfficeJobListing[]>([]);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
+  const [professionalLocation, setProfessionalLocation] = useState({ city: "", province: "AB" });
+  const [professionalProfession, setProfessionalProfession] = useState("");
+  const [myProfessionalJobs, setMyProfessionalJobs] = useState<OfficeJobListing[]>([]);
   const [managingId, setManagingId] = useState<string | null>(null);
   const [editingListing, setEditingListing] = useState<OfficeJobListing | null>(null);
   const [manageError, setManageError] = useState("");
@@ -120,6 +124,23 @@ export default function DentalJobsPage() {
           setOfficeLocation({ city, province });
           setOfficeId(details.office?.id || null);
           if (details.office?.id) await loadMyOfficeJobs(details.office.id);
+        } catch {
+          // Leave the fields editable if account details cannot be loaded.
+        }
+      })();
+    }
+
+    if (resolvedPortalRole === "professional") {
+      void (async () => {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        try {
+          const details = await loadAccountDetails(user.id);
+          if (!details.professional) return;
+          setProfessionalId(user.id);
+          setProfessionalLocation({ city: details.profile.city || "", province: details.profile.province || details.professional.licence_province || "AB" });
+          setProfessionalProfession(details.professional.profession || "");
+          await loadMyProfessionalJobs(user.id);
         } catch {
           // Leave the fields editable if account details cannot be loaded.
         }
@@ -198,6 +219,16 @@ export default function DentalJobsPage() {
     if (!error && data) setMyOfficeJobs(data as OfficeJobListing[]);
   };
 
+  const loadMyProfessionalJobs = async (targetProfessionalId: string) => {
+    const { data, error } = await supabase
+      .from("job_listings")
+      .select("id,profession,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,status,expires_at,created_at")
+      .eq("professional_id", targetProfessionalId)
+      .eq("listing_type", "professional_available")
+      .order("created_at", { ascending: false });
+    if (!error && data) setMyProfessionalJobs(data as OfficeJobListing[]);
+  };
+
   const manageOfficeJob = async (listing: OfficeJobListing, action: "pause" | "resume" | "filled" | "renew" | "close" | "delete") => {
     setManageError("");
     setManagingId(listing.id);
@@ -252,6 +283,96 @@ export default function DentalJobsPage() {
       setEditingListing(null);
     } catch (value) {
       setPublishError(value instanceof Error ? value.message : "The changes could not be saved.");
+    } finally { setPublishing(false); }
+  };
+
+  const manageProfessionalJob = async (listing: OfficeJobListing, action: "pause" | "resume" | "found" | "renew" | "close" | "delete") => {
+    setManageError("");
+    setManagingId(listing.id);
+    try {
+      if (action === "delete") {
+        if (!window.confirm("Permanently delete this posting? This cannot be undone.")) return;
+        const { error } = await supabase.from("job_listings").delete().eq("id", listing.id);
+        if (error) throw error;
+      } else {
+        const now = new Date().toISOString();
+        const values: Record<string, unknown> = { updated_at: now };
+        if (action === "pause") values.status = "paused";
+        if (action === "resume") { values.status = "active"; values.closed_at = null; values.close_reason = null; }
+        if (action === "found") { values.status = "filled"; values.closed_at = now; values.close_reason = "found_office"; }
+        if (action === "close") { values.status = "closed"; values.closed_at = now; values.close_reason = "closed_by_professional"; }
+        if (action === "renew") { values.status = "active"; values.expires_at = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); values.closed_at = null; values.close_reason = null; }
+        const { error } = await supabase.from("job_listings").update(values).eq("id", listing.id);
+        if (error) throw error;
+      }
+      if (professionalId) await loadMyProfessionalJobs(professionalId);
+      setLiveAds((current) => current.filter((ad) => ad.id !== listing.id));
+      if (["resume", "renew"].includes(action)) window.location.reload();
+    } catch (value) {
+      setManageError(value instanceof Error ? value.message : "Could not update this posting.");
+    } finally {
+      setManagingId(null);
+    }
+  };
+
+  const openEditProfessionalListing = (listing: OfficeJobListing) => {
+    setEditingListing(listing);
+    setPostingMode("professional");
+    setSubmitted(false);
+    setPosted(false);
+    setPublishError("");
+    setPreview(null);
+  };
+
+  const saveEditedProfessionalAd = async () => {
+    if (!editingListing || !preview) return;
+    setPublishing(true);
+    setPublishError("");
+    try {
+      const { error } = await supabase.from("job_listings").update({
+        profession: preview.position, employment_type: preview.employment, city: preview.city.trim(), province: preview.province,
+        days_per_week: preview.days || null, pay_min: preview.payFrom ? Number(preview.payFrom) : null, pay_max: preview.payTo ? Number(preview.payTo) : null,
+        schedule: preview.schedule.trim() || null, description: preview.description.trim(), updated_at: new Date().toISOString()
+      }).eq("id", editingListing.id);
+      if (error) throw error;
+      if (professionalId) await loadMyProfessionalJobs(professionalId);
+      setPosted(true);
+      setEditingListing(null);
+    } catch (value) {
+      setPublishError(value instanceof Error ? value.message : "The changes could not be saved.");
+    } finally { setPublishing(false); }
+  };
+
+  const publishProfessionalAd = async () => {
+    if (!preview || postingMode !== "professional") return;
+    setPublishError("");
+    if (!professionalId) {
+      setPublishError("DentalShift could not identify the signed-in professional. Return to the professional portal and try again.");
+      return;
+    }
+    setPublishing(true);
+    try {
+      const { data, error } = await supabase
+        .from("job_listings")
+        .insert({
+          listing_type: "professional_available", professional_id: professionalId, profession: preview.position,
+          employment_type: preview.employment, city: preview.city.trim(), province: preview.province, days_per_week: preview.days || null,
+          pay_min: preview.payFrom ? Number(preview.payFrom) : null, pay_max: preview.payTo ? Number(preview.payTo) : null,
+          schedule: preview.schedule.trim() || null, description: preview.description.trim(), status: "active",
+          expires_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        })
+        .select("id")
+        .single();
+      if (error) throw error;
+      const pay = preview.payFrom || preview.payTo
+        ? `${preview.payFrom ? `$${preview.payFrom}` : ""}${preview.payFrom && preview.payTo ? "–" : ""}${preview.payTo ? `$${preview.payTo}` : ""}/hr`
+        : "Compensation discussed privately";
+      setLiveAds((current) => [{ id: data.id, kind: "professional", title: `${preview.position} Looking for an Office`, name: "", city: `${preview.city}, ${preview.province}`, distance: 0, profession: preview.position, employment: preview.employment, pay, posted: "Just now", featured: false, description: preview.description }, ...current]);
+      setPosted(true);
+      setKind("professional");
+      await loadMyProfessionalJobs(professionalId);
+    } catch (value) {
+      setPublishError(value instanceof Error ? value.message : "The ad could not be published. Please try again.");
     } finally { setPublishing(false); }
   };
 
@@ -329,10 +450,12 @@ export default function DentalJobsPage() {
 
         <div className={`mt-6 grid gap-4 ${portalRole ? "max-w-2xl" : "lg:grid-cols-2"}`}>
           {portalRole !== "professional" && <button type="button" onClick={() => { setEditingListing(null); setPostingMode("office"); setSubmitted(false); setPosted(false); setPublishError(""); }} className="group relative overflow-hidden rounded-2xl border-2 border-[#002757] bg-[#002757] p-5 text-left shadow-xl transition hover:-translate-y-1 hover:border-[#01A32E] hover:shadow-2xl"><div className="absolute inset-x-0 top-0 h-1.5 bg-[#01A32E]" /><div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#01A32E] text-white shadow-md ring-4 ring-white/10"><Building2 size={24} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#9be3ad]">Dental Office</p><h2 className="mt-1 text-xl font-black text-white">Post a Position</h2><p className="mt-2 text-sm leading-6 text-slate-200">Advertise an opening anonymously. Your office name, exact address and contact information stay private.</p><span className="mt-4 inline-flex items-center gap-2 rounded-xl bg-[#01A32E] px-4 py-2.5 text-sm font-black text-white shadow-md transition group-hover:bg-white group-hover:text-[#002757]">Create office posting <BriefcaseBusiness size={16} /></span></div></div></button>}
-          {portalRole !== "office" && <button type="button" onClick={() => { setPostingMode("professional"); setSubmitted(false); }} className="group rounded-2xl border-2 border-[#01A32E]/20 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#01A32E] hover:shadow-md"><div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#01A32E] text-white"><UserRound size={24} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Dental Professional</p><h2 className="mt-1 text-xl font-black text-slate-900">Looking for an Office</h2><p className="mt-2 text-sm leading-6 text-slate-600">Advertise what you are looking for without displaying your identity. Your résumé/CV already on file can be used when you apply.</p><span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#01A32E]">Create professional posting <FileText size={16} /></span></div></div></button>}
+          {portalRole !== "office" && <button type="button" onClick={() => { setEditingListing(null); setPostingMode("professional"); setSubmitted(false); setPosted(false); setPublishError(""); }} className="group rounded-2xl border-2 border-[#01A32E]/20 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#01A32E] hover:shadow-md"><div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#01A32E] text-white"><UserRound size={24} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Dental Professional</p><h2 className="mt-1 text-xl font-black text-slate-900">Looking for an Office</h2><p className="mt-2 text-sm leading-6 text-slate-600">Advertise what you are looking for without displaying your identity. Your résumé/CV already on file can be used when you apply.</p><span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#01A32E]">Create professional posting <FileText size={16} /></span></div></div></button>}
         </div>
 
         {portalRole === "office" && <section className="relative mt-6 overflow-hidden rounded-2xl border-2 border-[#01A32E]/55 bg-[#effaf2] p-4 shadow-md sm:p-5"><div className="absolute inset-y-0 left-0 w-1.5 bg-[#01A32E]" /><div className="flex items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Office postings</p><h2 className="mt-1 text-xl font-black text-[#002757]">My DentalJobs</h2><p className="mt-1 text-sm text-slate-500">Manage your active and previous job ads.</p></div><span className="rounded-full border border-[#01A32E]/30 bg-white px-3 py-1.5 text-xs font-black text-[#017f27] shadow-sm">{myOfficeJobs.length} posting{myOfficeJobs.length === 1 ? "" : "s"}</span></div>{manageError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{manageError}</p>}<div className="mt-4 grid gap-3">{myOfficeJobs.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-sm font-semibold text-slate-500">You have no DentalJobs postings yet.</div> : myOfficeJobs.map((job) => { const daysLeft = Math.max(0, Math.ceil((new Date(job.expires_at).getTime() - Date.now()) / 86400000)); const isActive = job.status === "active" && daysLeft > 0; const displayStatus = job.status === "active" && daysLeft === 0 ? "expired" : job.status; return <article key={job.id} className="rounded-2xl border border-[#002757]/12 bg-white p-4 shadow-sm ring-1 ring-[#01A32E]/5"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-black uppercase ${isActive ? "bg-[#eaf8ee] text-[#017f27]" : displayStatus === "paused" ? "bg-amber-50 text-amber-700" : displayStatus === "filled" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{displayStatus}</span>{isActive && <span className="text-xs font-bold text-slate-400">{daysLeft} day{daysLeft === 1 ? "" : "s"} remaining</span>}</div><h3 className="mt-2 font-black text-slate-900">{job.profession} — {job.employment_type}</h3><p className="mt-1 text-sm text-slate-500">{job.city}, {job.province}</p></div><div className="relative"><button type="button" onClick={() => setManagingId(managingId === job.id ? null : job.id)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#002757] bg-[#002757] px-4 py-2.5 text-sm font-black text-white shadow-lg ring-2 ring-[#01A32E]/15 transition hover:-translate-y-0.5 hover:border-[#01A32E] hover:bg-[#01A32E] hover:shadow-xl sm:w-auto"><span className="grid h-6 w-6 place-items-center rounded-full bg-[#01A32E] text-white shadow-sm group-hover:bg-white group-hover:text-[#002757]"><MoreVertical size={15} /></span> Manage Posting</button>{managingId === job.id && <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"><button type="button" onClick={() => openEditListing(job)} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Pencil size={15}/> Edit Posting</button>{displayStatus === "paused" ? <button type="button" onClick={() => void manageOfficeJob(job,"resume")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Play size={15}/> Resume Posting</button> : isActive && <button type="button" onClick={() => void manageOfficeJob(job,"pause")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Pause size={15}/> Pause Posting</button>}<button type="button" onClick={() => void manageOfficeJob(job,"filled")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Check size={15}/> Mark Position Filled</button><button type="button" onClick={() => void manageOfficeJob(job,"renew")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><RefreshCw size={15}/> Renew for 30 Days</button><button type="button" onClick={() => void manageOfficeJob(job,"close")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><X size={15}/> Close Posting</button><button type="button" onClick={() => void manageOfficeJob(job,"delete")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-rose-600 hover:bg-rose-50"><Trash2 size={15}/> Delete Posting</button></div>}</div></div></article>})}</div></section>}
+
+        {portalRole === "professional" && <section className="relative mt-6 overflow-hidden rounded-2xl border-2 border-[#4285F4]/55 bg-[#eef4ff] p-4 shadow-md sm:p-5"><div className="absolute inset-y-0 left-0 w-1.5 bg-[#4285F4]" /><div className="flex items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#245FB8]">My availability ads</p><h2 className="mt-1 text-xl font-black text-[#002757]">My DentalJobs</h2><p className="mt-1 text-sm text-slate-500">Manage your active and previous Looking for an Office ads.</p></div><span className="rounded-full border border-[#4285F4]/30 bg-white px-3 py-1.5 text-xs font-black text-[#245FB8] shadow-sm">{myProfessionalJobs.length} posting{myProfessionalJobs.length === 1 ? "" : "s"}</span></div>{manageError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{manageError}</p>}<div className="mt-4 grid gap-3">{myProfessionalJobs.length === 0 ? <div className="rounded-xl border border-dashed border-[#4285F4]/40 bg-white p-5 text-sm font-semibold text-slate-500">You have no Looking for an Office postings yet.</div> : myProfessionalJobs.map((job) => { const daysLeft = Math.max(0, Math.ceil((new Date(job.expires_at).getTime() - Date.now()) / 86400000)); const isActive = job.status === "active" && daysLeft > 0; const displayStatus = job.status === "active" && daysLeft === 0 ? "expired" : job.status; const theme = getProfessionalCardTheme(job.profession); return <article key={job.id} className="rounded-2xl border-2 bg-white p-4 shadow-sm" style={{ borderColor: theme.border }}><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-black uppercase ${isActive ? "bg-[#eaf8ee] text-[#017f27]" : displayStatus === "paused" ? "bg-amber-50 text-amber-700" : displayStatus === "filled" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{displayStatus === "filled" ? "found office" : displayStatus}</span>{isActive && <span className="text-xs font-bold text-slate-400">{daysLeft} day{daysLeft === 1 ? "" : "s"} remaining</span>}</div><h3 className="mt-2 font-black" style={{ color: theme.text }}>{job.profession} — {job.employment_type}</h3><p className="mt-1 text-sm text-slate-500">{job.city}, {job.province}</p></div><div className="relative"><button type="button" onClick={() => setManagingId(managingId === job.id ? null : job.id)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:brightness-95 hover:shadow-xl sm:w-auto" style={{ borderColor: theme.accent, backgroundColor: theme.accent }}><MoreVertical size={16} /> Manage Posting</button>{managingId === job.id && <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"><button type="button" onClick={() => openEditProfessionalListing(job)} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Pencil size={15}/> Edit Posting</button>{displayStatus === "paused" ? <button type="button" onClick={() => void manageProfessionalJob(job,"resume")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Play size={15}/> Resume Posting</button> : isActive && <button type="button" onClick={() => void manageProfessionalJob(job,"pause")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Pause size={15}/> Pause Posting</button>}<button type="button" onClick={() => void manageProfessionalJob(job,"found")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Check size={15}/> I Found an Office</button><button type="button" onClick={() => void manageProfessionalJob(job,"renew")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><RefreshCw size={15}/> Renew for 14 Days</button><button type="button" onClick={() => void manageProfessionalJob(job,"close")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><X size={15}/> Close Posting</button><button type="button" onClick={() => void manageProfessionalJob(job,"delete")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-rose-600 hover:bg-rose-50"><Trash2 size={15}/> Delete Posting</button></div>}</div></div></article>})}</div></section>}
 
         <div className="mt-6 grid gap-3 rounded-2xl border-2 border-[#4285F4] bg-[#4285F4] p-3 shadow-md md:grid-cols-[1.4fr_.8fr_.9fr] lg:grid-cols-[1.5fr_.7fr_.9fr_auto]">
           <label className="relative"><Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search position or city" className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
@@ -349,11 +472,11 @@ export default function DentalJobsPage() {
     </section>
 
     {postingMode && <div className="fixed inset-0 z-[90] overflow-y-auto bg-[#002757]/65 p-4 sm:p-6"><button type="button" aria-label="Close posting form" onClick={() => setPostingMode(null)} className="fixed inset-0" /><section role="dialog" aria-modal="true" className="relative mx-auto my-4 w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-200 px-5 py-4 sm:px-6"><div><p className={`text-xs font-black uppercase tracking-[0.12em] ${postingMode === "office" ? "text-[#002757]" : "text-[#017f27]"}`}>{postingMode === "office" ? "Dental Office" : "Dental Professional"}</p><h2 className="mt-1 text-2xl font-black text-slate-900">{editingListing ? "Edit Posting" : postingMode === "office" ? "Post a Position" : "Looking for an Office"}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{postingMode === "office" ? "Your office identity and exact contact information will not appear publicly." : "Your name and direct contact information will not appear publicly. DentalShift can use the résumé/CV already stored in your account when you apply."}</p></div><button type="button" onClick={() => setPostingMode(null)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X size={22} /></button></div>
-      {posted ? <div className="p-8 text-center sm:p-10"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E]"><Check size={32} strokeWidth={3} /></div><h3 className="mt-5 text-2xl font-black text-[#002757]">Your ad is now live</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">Your anonymous DentalJobs posting has been published and is now visible in the active job listings. It will remain active for 30 days unless you close it earlier.</p><button type="button" onClick={() => { setPostingMode(null); setSubmitted(false); setPosted(false); setPreview(null); }} className="mt-6 rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white">View DentalJobs</button></div> : submitted && preview ? <div className="p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#01A32E]">Posting Preview</p><h3 className="mt-1 text-2xl font-black text-[#002757]">Review your listing</h3><p className="mt-1 text-sm text-slate-500">This is how your anonymous DentalJobs posting will be presented.</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#eaf8ee] text-[#01A32E]"><Check size={24} strokeWidth={3} /></div></div><article className="mt-5 overflow-hidden rounded-2xl border-2 border-[#002757]/15 bg-white shadow-sm"><div className="border-b border-slate-100 bg-[#f8fafc] p-5"><span className="rounded-full bg-[#edf3fa] px-2.5 py-1 text-[11px] font-black text-[#002757]">{postingMode === "office" ? "OFFICE HIRING" : "PROFESSIONAL LOOKING FOR AN OFFICE"}</span><h4 className="mt-3 text-xl font-black text-slate-900">{preview.position}</h4></div><div className="grid gap-4 p-5 sm:grid-cols-2"><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Employment</p><p className="mt-1 font-bold text-[#002757]">{preview.employment}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Location</p><p className="mt-1 font-bold text-[#002757]">{preview.city}, {preview.province}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Days / week</p><p className="mt-1 font-bold text-[#002757]">{preview.days || "Not specified"}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Compensation</p><p className="mt-1 font-bold text-[#002757]">{preview.payFrom || preview.payTo ? `${preview.payFrom ? `$${preview.payFrom}` : ""}${preview.payFrom && preview.payTo ? " – " : ""}${preview.payTo ? `$${preview.payTo}` : ""}/hr` : "Not specified"}</p></div>{preview.schedule && <div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Schedule / hours</p><p className="mt-1 font-bold text-[#002757]">{preview.schedule}</p></div>}<div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">About the opportunity</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{preview.description}</p></div></div></article><div className="mt-5 rounded-2xl border border-[#01A32E]/25 bg-[#f3fbf5] p-4"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-[#01A32E]" /><div><p className="font-black text-[#002757]">Anonymous preview</p><p className="mt-1 text-sm leading-6 text-slate-600">Your identity and direct contact information remain hidden from this public listing.</p></div></div></div>{publishError && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{publishError}</p>}<div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" disabled={publishing} onClick={() => { setSubmitted(false); setPublishError(""); }} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-[#002757] disabled:opacity-50">Back to Edit</button>{postingMode === "office" ? <button type="button" disabled={publishing} onClick={() => void (editingListing ? saveEditedOfficeAd() : publishOfficeAd())} className="rounded-xl bg-[#01A32E] px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-[#018a28] disabled:opacity-50">{publishing ? (editingListing ? "Saving…" : "Posting…") : (editingListing ? "Save Changes" : "Post Ad")}</button> : <button type="button" onClick={() => setPostingMode(null)} className="rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white">Close Preview</button>}</div></div> : <form onSubmit={submitPreview} className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
-        <label className="field sm:col-span-2"><span>Position</span><select name="position" required defaultValue={editingListing?.profession || ""}><option value="" disabled>Select a position</option>{jobProfessions.map((item) => <option key={item}>{item}</option>)}</select></label>
+      {posted ? <div className="p-8 text-center sm:p-10"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E]"><Check size={32} strokeWidth={3} /></div><h3 className="mt-5 text-2xl font-black text-[#002757]">{editingListing ? "Changes saved" : "Your ad is now live"}</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">{editingListing ? "Your DentalJobs posting has been updated." : `Your anonymous DentalJobs posting has been published and is now visible in the active job listings. It will remain active for ${postingMode === "office" ? 30 : 14} days unless you close it earlier.`}</p><button type="button" onClick={() => { setPostingMode(null); setSubmitted(false); setPosted(false); setPreview(null); }} className="mt-6 rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white">View DentalJobs</button></div> : submitted && preview ? <div className="p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#01A32E]">Posting Preview</p><h3 className="mt-1 text-2xl font-black text-[#002757]">Review your listing</h3><p className="mt-1 text-sm text-slate-500">This is how your anonymous DentalJobs posting will be presented.</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#eaf8ee] text-[#01A32E]"><Check size={24} strokeWidth={3} /></div></div><article className="mt-5 overflow-hidden rounded-2xl border-2 border-[#002757]/15 bg-white shadow-sm"><div className="border-b border-slate-100 bg-[#f8fafc] p-5"><span className="rounded-full bg-[#edf3fa] px-2.5 py-1 text-[11px] font-black text-[#002757]">{postingMode === "office" ? "OFFICE HIRING" : "PROFESSIONAL LOOKING FOR AN OFFICE"}</span><h4 className="mt-3 text-xl font-black text-slate-900">{preview.position}</h4></div><div className="grid gap-4 p-5 sm:grid-cols-2"><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Employment</p><p className="mt-1 font-bold text-[#002757]">{preview.employment}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Location</p><p className="mt-1 font-bold text-[#002757]">{preview.city}, {preview.province}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Days / week</p><p className="mt-1 font-bold text-[#002757]">{preview.days || "Not specified"}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Compensation</p><p className="mt-1 font-bold text-[#002757]">{preview.payFrom || preview.payTo ? `${preview.payFrom ? `$${preview.payFrom}` : ""}${preview.payFrom && preview.payTo ? " – " : ""}${preview.payTo ? `$${preview.payTo}` : ""}/hr` : "Not specified"}</p></div>{preview.schedule && <div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Schedule / hours</p><p className="mt-1 font-bold text-[#002757]">{preview.schedule}</p></div>}<div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">About the opportunity</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{preview.description}</p></div></div></article><div className="mt-5 rounded-2xl border border-[#01A32E]/25 bg-[#f3fbf5] p-4"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-[#01A32E]" /><div><p className="font-black text-[#002757]">Anonymous preview</p><p className="mt-1 text-sm leading-6 text-slate-600">Your identity and direct contact information remain hidden from this public listing.</p></div></div></div>{publishError && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{publishError}</p>}<div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" disabled={publishing} onClick={() => { setSubmitted(false); setPublishError(""); }} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-[#002757] disabled:opacity-50">Back to Edit</button>{postingMode === "office" ? <button type="button" disabled={publishing} onClick={() => void (editingListing ? saveEditedOfficeAd() : publishOfficeAd())} className="rounded-xl bg-[#01A32E] px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-[#018a28] disabled:opacity-50">{publishing ? (editingListing ? "Saving…" : "Posting…") : (editingListing ? "Save Changes" : "Post Ad")}</button> : <button type="button" disabled={publishing} onClick={() => void (editingListing ? saveEditedProfessionalAd() : publishProfessionalAd())} className="rounded-xl bg-[#4285F4] px-5 py-3 text-sm font-black text-white shadow-sm hover:brightness-95 disabled:opacity-50">{publishing ? (editingListing ? "Saving…" : "Posting…") : (editingListing ? "Save Changes" : "Post Ad")}</button>}</div></div> : <form onSubmit={submitPreview} className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+        <label className="field sm:col-span-2"><span>Position</span><select name="position" required defaultValue={editingListing?.profession || (postingMode === "professional" ? professionalProfession : "")}><option value="" disabled>Select a position</option>{jobProfessions.map((item) => <option key={item}>{item}</option>)}</select></label>
         <label className="field"><span>{postingMode === "office" ? "Employment type" : "Position wanted"}</span><select name="employment" required defaultValue={editingListing?.employment_type || "Full-Time"}>{employmentOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label className="field"><span>City / Area</span><input key={`${postingMode}-${officeLocation.city}`} name="city" required defaultValue={editingListing?.city || (postingMode === "office" ? officeLocation.city : "")} placeholder="e.g. Calgary NW" /></label>
-        <label className="field"><span>Province</span><select key={`${postingMode}-${officeLocation.province}`} name="province" required defaultValue={editingListing?.province || (postingMode === "office" ? officeLocation.province : "AB")}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="field"><span>City / Area</span><input key={`${postingMode}-${officeLocation.city}-${professionalLocation.city}`} name="city" required defaultValue={editingListing?.city || (postingMode === "office" ? officeLocation.city : professionalLocation.city)} placeholder="e.g. Calgary NW" /></label>
+        <label className="field"><span>Province</span><select key={`${postingMode}-${officeLocation.province}-${professionalLocation.province}`} name="province" required defaultValue={editingListing?.province || (postingMode === "office" ? officeLocation.province : professionalLocation.province)}>{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((item) => <option key={item}>{item}</option>)}</select></label>
         <label className="field"><span>{postingMode === "office" ? "Approximate days / week" : "Days / week wanted"}</span><select name="days" defaultValue={editingListing?.days_per_week || "4"}><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>Flexible</option></select></label>
         <label className="field"><span>{postingMode === "office" ? "Pay from" : "Desired pay from"}</span><input name="pay_from" defaultValue={editingListing?.pay_min ?? ""} type="number" min="0" step="1" placeholder="$ / hour" /></label>
         <label className="field"><span>{postingMode === "office" ? "Pay to" : "Desired pay / target"}</span><input name="pay_to" defaultValue={editingListing?.pay_max ?? ""} type="number" min="0" step="1" placeholder="$ / hour" /></label>
