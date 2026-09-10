@@ -1,0 +1,35 @@
+name: Match office header logo
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/match-office-header-logo.py'
+      - '.github/workflows/match-office-header-logo.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply office header logo alignment
+        run: python .github/scripts/match-office-header-logo.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Commit verified application change
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo "No application change needed"
+          else
+            git commit -m "Match office portal logo to professional header"
+            git push
+          fi
