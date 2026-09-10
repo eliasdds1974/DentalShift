@@ -102,7 +102,7 @@ export function AnonymousAvailableStaffPanel({
               </div>
 
               <div className="mt-2 flex justify-end">
-                <button type="button" onClick={() => toggleDetails(item.id)} className="inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-black text-[#002757] transition hover:bg-slate-50">
+                <button type="button" onClick={() => toggleDetails(item.id)} className="inline-flex items-center rounded-full border border-[#002757] bg-[#002757] px-3 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#0a3568] focus:outline-none focus:ring-2 focus:ring-[#002757]/25">
                   {expanded ? "Hide Details" : "Details"}
                 </button>
               </div>
