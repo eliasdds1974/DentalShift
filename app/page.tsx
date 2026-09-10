@@ -706,7 +706,22 @@ function AccountModal({ close, session, profile, officeFallback = null, onSaved,
     try {
       const resumePath = await uploadProfessionalResume(session.user.id, file);
       setDetails({ ...details, professional: { ...details.professional, resume_path: resumePath } });
-      setNotice("Your résumé/CV was uploaded securely.");
+
+      const form = new FormData();
+      form.append("file", file);
+      form.append("resumePath", resumePath);
+      const previewResponse = await fetch("/api/dentaljobs/candidate-preview", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}` },
+        body: form,
+      });
+      const previewResult = await previewResponse.json().catch(() => null);
+      if (previewResponse.ok) {
+        setNotice("Your résumé/CV was uploaded securely and your private Candidate Preview was generated.");
+      } else {
+        setNotice("Your résumé/CV was uploaded securely. Candidate Preview generation needs attention before using it for DentalJobs applications.");
+        if (previewResult?.error) setError(String(previewResult.error));
+      }
       onSaved();
     } catch (value) { setError(value instanceof Error ? value.message : "Your résumé/CV could not be uploaded."); }
     finally { setBusy(false); }
