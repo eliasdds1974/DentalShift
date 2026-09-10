@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BriefcaseBusiness, CalendarDays, Check, ChevronLeft, ChevronRight, Clock3, MapPin, ShieldCheck } from "lucide-react";
+import { BriefcaseBusiness, CalendarDays, Check, ChevronRight, Clock3, MapPin, ShieldCheck } from "lucide-react";
 import {
   addProfessionalAvailability,
   applyForShift,
@@ -23,6 +23,7 @@ import { ProfessionalWorkspace as LegacyProfessionalWorkspace } from "./Workflow
 export { OfficeWorkspace } from "./OfficeWorkspaceV2";
 
 type ProfessionalView = "overview" | "shifts" | "bookings" | "talent" | "profile";
+type CalendarView = "month" | "list";
 
 type WorkflowState = {
   open: LiveShift[];
@@ -196,6 +197,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const [cursor, setCursor] = useState(() => new Date());
   const [selectedDate, setSelectedDate] = useState(() => localDateKey(new Date()));
   const [calendarOffsetDays, setCalendarOffsetDays] = useState(0);
+  const [calendarView, setCalendarView] = useState<CalendarView>("month");
   const [availabilityOpen, setAvailabilityOpen] = useState(false);
   const [cancelBookingTarget, setCancelBookingTarget] = useState<WorkflowBooking | null>(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
@@ -263,9 +265,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   });
   const calendarEnd = calendarDays[calendarDays.length - 1] || calendarStart;
   const calendarRangeLabel = `${calendarStart.toLocaleDateString("en-CA", { month: "short", day: "numeric" })} – ${calendarEnd.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}`;
-  const canGoBack = calendarOffsetDays > 0;
   const canGoForward = calendarOffsetDays + CALENDAR_PAGE_DAYS < CALENDAR_HORIZON_DAYS;
-  const goCalendarBack = () => setCalendarOffsetDays((value) => Math.max(0, value - CALENDAR_PAGE_DAYS));
   const goCalendarForward = () => setCalendarOffsetDays((value) => Math.min(Math.floor((CALENDAR_HORIZON_DAYS - 1) / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS, value + CALENDAR_PAGE_DAYS));
   const goCalendarToday = () => {
     const today = new Date();
@@ -463,15 +463,21 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         </div>
 
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button type="button" disabled={!canGoBack} onClick={goCalendarBack} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Previous 35 days"><ChevronLeft size={16} />Previous</button>
           <button type="button" onClick={goCalendarToday} className="secondary-btn">Today</button>
           <button type="button" disabled={!canGoForward} onClick={goCalendarForward} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next 35 days">Next<ChevronRight size={16} /></button>
+          <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
+            {(["month", "list"] as CalendarView[]).map((mode) => <button key={mode} type="button" onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}>{mode === "month" ? "Calendar" : "List"}</button>)}
+          </div>
           <button type="button" onClick={() => setAvailabilityOpen(true)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#04A62F] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#038c28] focus:outline-none focus:ring-2 focus:ring-[#04A62F]/30"><CalendarDays size={18} />Post Availability</button>
           <button type="button" onClick={() => { window.localStorage.setItem("dentalshift_portal_role", "professional"); window.location.href = "/classifieds?post=professional"; }} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#002757] px-4 py-2 text-sm font-black text-white shadow-sm transition hover:bg-[#001f46] focus:outline-none focus:ring-2 focus:ring-[#002757]/25"><BriefcaseBusiness size={18} />Post a Position</button>
         </div>
       </div>
 
-      <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,.75fr)]">
+      {calendarView === "list" ? <div className="grid gap-4 p-4 sm:p-5 lg:grid-cols-3">
+        <section><h3 className="text-lg font-black text-[#002757]">Open shifts</h3><div className="mt-3 space-y-3">{matchingOpen.length ? matchingOpen.slice().sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime()).map((shift) => <button type="button" key={shift.id} onClick={() => { const date = new Date(shift.starts_at); setSelectedDate(localDateKey(date)); setCalendarOffsetDays(Math.max(0, Math.floor((date.getTime() - new Date().setHours(12,0,0,0)) / 86400000 / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{shift.profession}</strong><span className="rounded-full bg-blue-50 px-2 py-1 text-[10px] font-black text-[#2f6fd0]">Open</span></div><p className="mt-1 text-xs text-slate-500">{new Date(shift.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p><p className="mt-1 text-xs font-black text-[#002757]">${Number(shift.hourly_rate)}/hr</p></button>) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No open shifts right now.</p>}</div></section>
+        <section><h3 className="text-lg font-black text-[#002757]">Interested</h3><div className="mt-3 space-y-3">{applied.length ? applied.slice().sort((a, b) => new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime()).map((application) => application.shifts ? <button type="button" key={application.id} onClick={() => { const date = new Date(application.shifts!.starts_at); setSelectedDate(localDateKey(date)); setCalendarOffsetDays(Math.max(0, Math.floor((date.getTime() - new Date().setHours(12,0,0,0)) / 86400000 / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{application.shifts.profession}</strong><span className="rounded-full bg-green-50 px-2 py-1 text-[10px] font-black text-[#278841]">Interested</span></div><p className="mt-1 text-xs text-slate-500">{new Date(application.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(application.shifts.starts_at)}–{shortTime(application.shifts.ends_at)}</p></button> : null) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No active interests right now.</p>}</div></section>
+        <section><h3 className="text-lg font-black text-[#002757]">Confirmed bookings</h3><div className="mt-3 space-y-3">{booked.length ? booked.slice().sort((a, b) => new Date(a.shifts!.starts_at).getTime() - new Date(b.shifts!.starts_at).getTime()).map((booking) => booking.shifts ? <button type="button" key={booking.id} onClick={() => { const date = new Date(booking.shifts!.starts_at); setSelectedDate(localDateKey(date)); setCalendarOffsetDays(Math.max(0, Math.floor((date.getTime() - new Date().setHours(12,0,0,0)) / 86400000 / CALENDAR_PAGE_DAYS) * CALENDAR_PAGE_DAYS)); setCalendarView("month"); }} className="w-full rounded-2xl border border-slate-200 p-4 text-left transition hover:bg-slate-50"><div className="flex items-center justify-between gap-2"><strong className="text-[#002757]">{booking.shifts.profession}</strong><span className="rounded-full bg-[#002757] px-2 py-1 text-[10px] font-black text-white">Booked</span></div><p className="mt-1 text-xs text-slate-500">{new Date(booking.shifts.starts_at).toLocaleDateString("en-CA", { weekday: "short", month: "short", day: "numeric" })} · {shortTime(booking.shifts.starts_at)}–{shortTime(booking.shifts.ends_at)}</p></button> : null) : <p className="rounded-2xl bg-slate-50 p-5 text-sm text-slate-500">No upcoming bookings right now.</p>}</div></section>
+      </div> : <div className="grid lg:grid-cols-[minmax(0,1.45fr)_minmax(340px,.75fr)]">
         <div className="p-2.5 sm:p-5 lg:border-r lg:border-slate-200">
           <div className="grid grid-cols-7">{calendarWeekdays.map((day) => <div key={day} className="pb-2 text-center text-[10px] font-black uppercase tracking-wide text-slate-400 sm:text-xs">{day}</div>)}</div>
           <div className="grid grid-cols-7 gap-1 sm:gap-2">{calendarDays.map((day) => {
@@ -541,7 +547,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
             <div className="mt-6 border-t border-slate-200 pt-4"><button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="w-full rounded-xl bg-[#4285F4] px-4 py-2.5 text-center text-sm font-black text-white shadow-sm transition hover:bg-[#3367D6] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30">Back To Calendar</button></div>
           </div>
         </aside>
-      </div>
+      </div>}
     </section>
 
     {availabilityOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/40 p-4" onMouseDown={(event) => { if (event.currentTarget === event.target) setAvailabilityOpen(false); }}>
