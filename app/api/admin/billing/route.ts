@@ -25,7 +25,7 @@ async function clients(request: Request) {
 
 async function recalcInvoice(admin: any, invoiceId: string) {
   const [{ data: items }, { data: credits }] = await Promise.all([
-    admin.from("billing_line_items").select("amount_cents").eq("invoice_id", invoiceId).eq("status", "invoiced"),
+    admin.from("billing_line_items").select("amount_cents").eq("invoice_id", invoiceId).in("status", ["invoiced", "paid"]),
     admin.from("billing_adjustments").select("amount_cents").eq("invoice_id", invoiceId),
   ]);
   const subtotal = (items ?? []).reduce((sum: number, row: any) => sum + Number(row.amount_cents || 0), 0);
@@ -82,6 +82,9 @@ export async function POST(request: Request) {
         if (existing?.status === "paid") continue;
         const { error: attachError } = await admin.from("billing_line_items").update({ invoice_id: invoiceId, status: "invoiced", updated_at: new Date().toISOString() }).eq("office_id", officeId).eq("status", "unbilled").gte("service_date", periodStart).lte("service_date", periodEnd);
         if (attachError) throw attachError;
+        const { data: unlockItems } = await admin.from("billing_line_items").select("source_id").eq("invoice_id", invoiceId).eq("source_type", "dentaljobs_unlock").eq("status", "invoiced");
+        const unlockIds = (unlockItems ?? []).map((row: any) => row.source_id).filter(Boolean);
+        if (unlockIds.length) await admin.from("candidate_unlocks").update({ status: "billed", updated_at: new Date().toISOString() }).in("id", unlockIds).eq("status", "accrued");
         await recalcInvoice(admin, invoiceId);
         await admin.from("billing_invoices").update({ status: "open", updated_at: new Date().toISOString() }).eq("id", invoiceId);
         generated += 1;
