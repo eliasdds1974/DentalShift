@@ -1,0 +1,25 @@
+name: Fix office scheduled Preferred badge
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-office-scheduled-preferred.yml'
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Office scheduled Preferred patch
+        run: python scripts/fix-office-scheduled-preferred.py
+      - name: Install dependencies
+        run: npm ci
+      - name: Build
+        run: npm run build
+      - name: Commit Office scheduled Preferred patch
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add components/OfficeWorkspaceV2.tsx
+          git diff --cached --quiet || git commit -m "Show Preferred badge on Office scheduled cards"
+          git push
