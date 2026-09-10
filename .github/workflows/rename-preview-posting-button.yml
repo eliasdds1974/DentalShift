@@ -1,0 +1,35 @@
+name: Rename DentalJobs review button
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/scripts/rename-preview-posting-button.py'
+      - '.github/workflows/rename-preview-posting-button.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply button rename
+        run: python .github/scripts/rename-preview-posting-button.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Commit verified application change
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No application change needed"
+          else
+            git commit -m "Rename DentalJobs form action to Review Posting"
+            git push
+          fi
