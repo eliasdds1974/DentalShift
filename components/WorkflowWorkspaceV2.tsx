@@ -108,22 +108,23 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
     navy: "border-[#002757]/20 bg-slate-50",
   };
   const dot = { blue: "bg-[#4285F4]", red: "bg-[#EA4335]", green: "bg-[#34A853]", navy: "bg-[#002757]" }[tone];
+  const isScheduledCard = status === "Scheduled" && revealOfficeName;
   return <article className={`rounded-2xl border p-4 ${tones[tone]}`}>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
         {officeHeader ? <div className="mb-2 inline-flex rounded-lg bg-[#0078FE] px-3 py-1.5 shadow-sm">
           <strong className="truncate text-sm font-black text-white sm:text-base">{officeName(shift, revealOfficeName)}</strong>{preferredOffice && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
         </div> : <div className="flex items-center gap-2">
-          <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />
+          {!isScheduledCard && <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />}
           <strong className="truncate text-sm text-[#002757] sm:text-base">{officeName(shift, revealOfficeName)}</strong>{preferredOffice && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
         </div>}
-        <p className="mt-1 text-xs font-black text-slate-700">{shift.profession}</p>
+        {!isScheduledCard && <p className="mt-1 text-xs font-black text-slate-700">{shift.profession}</p>}
         <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-600"><Clock3 size={14} />{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span className="inline-flex items-center gap-1.5"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span>{officeDistanceKm != null && <span className="inline-flex items-center rounded-full bg-[#edf3fa] px-2 py-0.5 font-black text-[#002757]">{officeDistanceKm < 10 ? officeDistanceKm.toFixed(1) : Math.round(officeDistanceKm)} km away</span>}</div>
       </div>
       <div className="shrink-0 text-right">
         <p className="text-base font-black text-[#002757]">${Number(shift.hourly_rate)}/hr</p>
-        {status && !status.toLowerCase().includes("interested") && <span className="mt-1 inline-flex rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm">{status}</span>}
+        {status && !isScheduledCard && !status.toLowerCase().includes("interested") && <span className="mt-1 inline-flex rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm">{status}</span>}
       </div>
     </div>
     <div className="mt-2 border-t border-slate-200/70 pt-2"><div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-600"><button type="button" onClick={() => setExpanded((value) => !value)} className="ml-0.5 inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-black text-[#002757] hover:bg-slate-50">{expanded ? "Hide Details" : "Details"}</button></div></div>
