@@ -3,6 +3,7 @@
 import { ArrowRight, BadgeCheck, BriefcaseBusiness, CalendarCheck2, Check, Clock3, DollarSign, MapPin, Menu, Search, ShieldCheck, Sparkles, UserCheck, X } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
+import { MarketingCalendarPreview } from "./MarketingCalendarPreview";
 
 type Audience = "office" | "professional";
 
@@ -63,16 +64,7 @@ export function MarketingHome({ onSignIn, onGetStarted, onWorkspace = onSignIn, 
             </div>
           </div>
 
-          <div className="mx-auto w-full max-w-xl">
-            <div className="rounded-[2rem] border border-[#002757]/10 bg-white p-5 shadow-[0_28px_80px_rgba(0,39,87,.15)] sm:p-6">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4"><div><p className="text-xs font-black uppercase tracking-[.13em] text-[#01A32E]">Open shift</p><h2 className="mt-1 text-2xl font-black text-[#002757]">Friday coverage</h2></div><span className="rounded-full bg-[#eaf8ee] px-3 py-1.5 text-xs font-black text-[#017f27]">3 available</span></div>
-              <div className="mt-4 rounded-2xl bg-[#0078FE] p-5 text-white"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-extrabold text-blue-100">Registered Dental Hygienist</p><p className="mt-1 text-2xl font-black">Fri, Sept 18</p><p className="mt-1 font-bold">8:00 AM–4:30 PM</p></div><div className="rounded-xl bg-white/15 px-3 py-2 text-right"><p className="text-xs font-bold text-blue-100">Rate</p><p className="text-lg font-black">$58/hr</p></div></div><p className="mt-4 flex items-center gap-2 border-t border-white/20 pt-4 text-sm font-bold"><MapPin size={16}/> Calgary, AB · 4.2 km away</p></div>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                {[['RDH','98%'],['RDH','94%'],['RDH','91%']].map(([role,match],index)=><div key={index} className="rounded-2xl border border-slate-200 p-3"><div className="grid h-9 w-9 place-items-center rounded-full bg-[#edf3fa] text-xs font-black text-[#002757]">{role}</div><p className="mt-2 text-sm font-black text-[#002757]">{match} match</p><p className="mt-1 text-xs text-slate-500">Verified professional</p></div>)}
-              </div>
-              <button onClick={() => start("office")} className="mt-4 w-full rounded-xl bg-[#002757] px-5 py-3.5 font-black text-white">Review available professionals</button>
-            </div>
-          </div>
+          <MarketingCalendarPreview />
         </div>
       </section>
 
