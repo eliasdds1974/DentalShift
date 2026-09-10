@@ -13,12 +13,5 @@ type Props = {
 };
 
 export function MarketingHome({ onAdmin: _onAdmin, ...props }: Props) {
-  return (
-    <OriginalMarketingHome
-      {...props}
-      onAdmin={() => {
-        window.location.assign("/admin/overview");
-      }}
-    />
-  );
+  return <OriginalMarketingHome {...props} />;
 }
