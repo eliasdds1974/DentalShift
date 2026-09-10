@@ -81,9 +81,9 @@ export function MarketingCalendarPreview() {
         </div>
       </div>
 
-      <div className="pointer-events-none absolute -left-2 top-[34%] hidden rounded-xl border border-[#01A32E]/30 bg-white px-3 py-2 text-xs font-black text-[#002757] shadow-lg xl:block">See opportunities at a glance →</div>
-      <div className="pointer-events-none absolute -right-2 top-[54%] hidden rounded-xl border border-[#01A32E]/30 bg-white px-3 py-2 text-xs font-black text-[#002757] shadow-lg xl:block">Either side can move first</div>
-      <div className="pointer-events-none absolute -bottom-3 right-8 hidden rounded-xl border border-[#01A32E]/30 bg-white px-3 py-2 text-xs font-black text-[#002757] shadow-lg xl:block">Private until both sides agree</div>
+      <div className="pointer-events-none absolute -left-2 top-[34%] hidden rounded-xl border-2 border-[#CF9504] bg-[#FDB605] px-3 py-2 text-xs font-black text-[#002757] shadow-lg shadow-amber-300/30 xl:block">See opportunities at a glance →</div>
+      <div className="pointer-events-none absolute -right-2 top-[54%] hidden rounded-xl border-2 border-[#CF9504] bg-[#FDB605] px-3 py-2 text-xs font-black text-[#002757] shadow-lg shadow-amber-300/30 xl:block">Either side can move first</div>
+      <div className="pointer-events-none absolute -bottom-3 right-8 hidden rounded-xl border-2 border-[#CF9504] bg-[#FDB605] px-3 py-2 text-xs font-black text-[#002757] shadow-lg shadow-amber-300/30 xl:block">Private until both sides agree</div>
     </div>
   );
 }

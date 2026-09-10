@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, BadgeCheck, BriefcaseBusiness, CalendarCheck2, Check, Clock3, DollarSign, MapPin, Menu, Search, ShieldCheck, Sparkles, UserCheck, X } from "lucide-react";
+import { ArrowRight, BadgeCheck, BriefcaseBusiness, CalendarCheck2, Check, Clock3, DollarSign, MapPin, Menu, Search, ShieldCheck, UserCheck, X } from "lucide-react";
 import { useState } from "react";
 import Image from "next/image";
 import { MarketingCalendarPreview } from "./MarketingCalendarPreview";
@@ -50,10 +50,9 @@ export function MarketingHome({ onSignIn, onGetStarted, onWorkspace = onSignIn, 
 
     <main>
       <section className="relative bg-[radial-gradient(circle_at_85%_20%,rgba(0,120,254,.13),transparent_28%),radial-gradient(circle_at_15%_10%,rgba(1,163,46,.10),transparent_24%),linear-gradient(180deg,#f8fbff_0%,#ffffff_100%)]">
-        <div className="mx-auto grid max-w-7xl gap-10 px-5 py-14 sm:px-8 sm:py-18 lg:grid-cols-[1.02fr_.98fr] lg:items-center lg:py-20">
+        <div className="mx-auto grid max-w-7xl gap-8 px-5 py-10 sm:px-8 sm:py-14 lg:grid-cols-[1.02fr_.98fr] lg:items-center lg:py-16">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#01A32E]/20 bg-[#eaf8ee] px-3 py-1.5 text-xs font-extrabold text-[#017f27]"><Sparkles size={14} /> Canadian dental staffing made simple</div>
-            <h1 className="mt-5 max-w-3xl text-4xl font-black leading-[1.03] tracking-[-0.05em] text-[#002757] sm:text-5xl lg:text-[4rem]">Temporary dental staffing and permanent dental jobs — <span className="text-[#01A32E]">without expensive subscriptions.</span></h1>
+            <h1 className="max-w-3xl text-4xl font-black leading-[1.03] tracking-[-0.05em] text-[#002757] sm:text-5xl lg:text-[4rem]">Temporary dental staffing and permanent dental jobs — <span className="text-[#01A32E]">without expensive subscriptions.</span></h1>
             <div className="mt-5 max-w-3xl rounded-2xl border border-[#002757]/10 bg-white/85 p-5 shadow-sm"><p className="text-lg font-black leading-8 text-[#002757]">Either side can make the first move.</p><p className="mt-1 text-base font-medium leading-7 text-slate-600 sm:text-lg">Professionals can apply to shifts, and offices can invite professionals. Once both sides agree, the shift is confirmed.</p></div>
             <div className="mt-5 rounded-2xl border border-[#01A32E]/20 bg-white/90 p-4 shadow-sm"><p className="text-base font-black leading-7 text-[#002757]">No subscription. No monthly fee. Pay only when you use it — <span className="text-[#01A32E]">at a fraction of the cost of traditional staffing.</span></p></div>
 
