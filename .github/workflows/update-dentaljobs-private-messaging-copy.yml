@@ -1,0 +1,28 @@
+name: Update DentalJobs private messaging copy
+
+on:
+  push:
+    paths:
+      - '.github/workflows/update-dentaljobs-private-messaging-copy.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update DentalJobs messaging copy
+        run: python .github/scripts/update-dentaljobs-private-messaging-copy.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Commit verified application change
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/classifieds/page.tsx
+          git commit -m "Clarify private DentalJobs messaging"
+          git push
