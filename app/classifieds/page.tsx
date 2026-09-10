@@ -20,6 +20,8 @@ type JobCard = {
   posted: string;
   featured: boolean;
   description: string;
+  ownerOfficeId?: string | null;
+  ownerProfessionalId?: string | null;
 };
 
 const ads: JobCard[] = [
@@ -77,6 +79,23 @@ type PostingPreview = {
   description: string;
 };
 
+type JobConnection = {
+  id: string;
+  listingId: string;
+  professionalId: string;
+  officeId: string;
+  initiatorRole: "professional" | "office";
+  status: "pending" | "interested" | "declined" | "withdrawn";
+  message: string;
+  resumePath: string | null;
+  createdAt: string;
+  profession: string;
+  employment: string;
+  city: string;
+  province: string;
+  listingType: "office_hiring" | "professional_available";
+};
+
 export default function DentalJobsPage() {
   const [radius, setRadius] = useState(100);
   const [kind, setKind] = useState<"all" | "office" | "professional">("all");
@@ -101,6 +120,12 @@ export default function DentalJobsPage() {
   const [managingId, setManagingId] = useState<string | null>(null);
   const [editingListing, setEditingListing] = useState<OfficeJobListing | null>(null);
   const [manageError, setManageError] = useState("");
+  const [resumePath, setResumePath] = useState<string | null>(null);
+  const [connections, setConnections] = useState<JobConnection[]>([]);
+  const [selectedOpportunity, setSelectedOpportunity] = useState<JobCard | null>(null);
+  const [connectionMessage, setConnectionMessage] = useState("");
+  const [connectionBusy, setConnectionBusy] = useState(false);
+  const [connectionError, setConnectionError] = useState("");
 
   useEffect(() => {
     const storedPortalRole = window.localStorage.getItem("dentalshift_portal_role");
@@ -124,6 +149,7 @@ export default function DentalJobsPage() {
           setOfficeLocation({ city, province });
           setOfficeId(details.office?.id || null);
           if (details.office?.id) await loadMyOfficeJobs(details.office.id);
+          await loadConnections();
         } catch {
           // Leave the fields editable if account details cannot be loaded.
         }
@@ -140,7 +166,10 @@ export default function DentalJobsPage() {
           setProfessionalId(user.id);
           setProfessionalLocation({ city: details.profile.city || "", province: details.profile.province || details.professional.licence_province || "AB" });
           setProfessionalProfession(details.professional.profession || "");
+          const { data: professionalRow } = await supabase.from("professional_profiles").select("resume_path").eq("user_id", user.id).maybeSingle();
+          setResumePath(professionalRow?.resume_path || null);
           await loadMyProfessionalJobs(user.id);
+          await loadConnections();
         } catch {
           // Leave the fields editable if account details cannot be loaded.
         }
@@ -150,7 +179,7 @@ export default function DentalJobsPage() {
     void (async () => {
       const { data, error } = await supabase
         .from("job_listings")
-        .select("id,listing_type,profession,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,created_at")
+        .select("id,listing_type,profession,office_id,professional_id,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,created_at")
         .eq("status", "active")
         .gt("expires_at", new Date().toISOString())
         .order("created_at", { ascending: false });
@@ -174,6 +203,8 @@ export default function DentalJobsPage() {
           posted: "Recently",
           featured: false,
           description: row.description,
+          ownerOfficeId: row.office_id || null,
+          ownerProfessionalId: row.professional_id || null,
         };
       }));
     })();
@@ -207,6 +238,75 @@ export default function DentalJobsPage() {
       description: String(form.get("description") || ""),
     });
     setSubmitted(true);
+  };
+
+  const loadConnections = async () => {
+    const { data, error } = await supabase
+      .from("job_applications")
+      .select("id,listing_id,professional_id,office_id,initiator_role,status,message,resume_path_snapshot,created_at,job_listings(profession,employment_type,city,province,listing_type)")
+      .order("created_at", { ascending: false });
+    if (error || !data) return;
+    setConnections((data as any[]).map((row) => {
+      const listing = Array.isArray(row.job_listings) ? row.job_listings[0] : row.job_listings;
+      return {
+        id: row.id, listingId: row.listing_id, professionalId: row.professional_id, officeId: row.office_id,
+        initiatorRole: row.initiator_role, status: row.status, message: row.message || "", resumePath: row.resume_path_snapshot || null,
+        createdAt: row.created_at, profession: listing?.profession || "Dental position", employment: listing?.employment_type || "",
+        city: listing?.city || "", province: listing?.province || "", listingType: listing?.listing_type || "office_hiring",
+      } as JobConnection;
+    }));
+  };
+
+  const existingConnectionFor = (ad: JobCard) => connections.find((item) => item.listingId === String(ad.id));
+
+  const openConnection = (ad: JobCard) => {
+    setConnectionError("");
+    setConnectionMessage("");
+    setSelectedOpportunity(ad);
+  };
+
+  const sendConnection = async () => {
+    if (!selectedOpportunity || !portalRole) return;
+    setConnectionError("");
+    setConnectionBusy(true);
+    try {
+      if (portalRole === "professional" && selectedOpportunity.kind === "office") {
+        if (!professionalId || !selectedOpportunity.ownerOfficeId) throw new Error("This opportunity is not available for applications yet.");
+        const { error } = await supabase.from("job_applications").insert({
+          listing_id: selectedOpportunity.id, professional_id: professionalId, office_id: selectedOpportunity.ownerOfficeId,
+          initiator_role: "professional", status: "pending", message: connectionMessage.trim() || null, resume_path_snapshot: resumePath,
+        });
+        if (error) { if (error.code === "23505") throw new Error("You have already applied to this opportunity."); throw error; }
+      } else if (portalRole === "office" && selectedOpportunity.kind === "professional") {
+        if (!officeId || !selectedOpportunity.ownerProfessionalId) throw new Error("This professional opportunity is not available for interest yet.");
+        const { error } = await supabase.from("job_applications").insert({
+          listing_id: selectedOpportunity.id, professional_id: selectedOpportunity.ownerProfessionalId, office_id: officeId,
+          initiator_role: "office", status: "pending", message: connectionMessage.trim() || null, resume_path_snapshot: null,
+        });
+        if (error) { if (error.code === "23505") throw new Error("Your office has already expressed interest in this professional."); throw error; }
+      } else {
+        throw new Error("This action is not available from your current portal.");
+      }
+      await loadConnections();
+      setSelectedOpportunity(null);
+      setConnectionMessage("");
+    } catch (value) {
+      setConnectionError(value instanceof Error ? value.message : "Could not send your interest.");
+    } finally { setConnectionBusy(false); }
+  };
+
+  const updateConnection = async (connection: JobConnection, action: "interested" | "declined" | "withdrawn") => {
+    setConnectionError("");
+    setConnectionBusy(true);
+    try {
+      const values: Record<string, unknown> = { status: action, updated_at: new Date().toISOString() };
+      if (action !== "withdrawn") values.responded_at = new Date().toISOString();
+      const { error } = await supabase.from("job_applications").update(values).eq("id", connection.id);
+      if (error) throw error;
+      await loadConnections();
+    } catch (value) {
+      setConnectionError(value instanceof Error ? value.message : "Could not update this connection.");
+    } finally { setConnectionBusy(false); }
   };
 
   const loadMyOfficeJobs = async (targetOfficeId: string) => {
@@ -367,7 +467,7 @@ export default function DentalJobsPage() {
       const pay = preview.payFrom || preview.payTo
         ? `${preview.payFrom ? `$${preview.payFrom}` : ""}${preview.payFrom && preview.payTo ? "–" : ""}${preview.payTo ? `$${preview.payTo}` : ""}/hr`
         : "Compensation discussed privately";
-      setLiveAds((current) => [{ id: data.id, kind: "professional", title: `${preview.position} Looking for an Office`, name: "", city: `${preview.city}, ${preview.province}`, distance: 0, profession: preview.position, employment: preview.employment, pay, posted: "Just now", featured: false, description: preview.description }, ...current]);
+      setLiveAds((current) => [{ id: data.id, kind: "professional", title: `${preview.position} Looking for an Office`, name: "", city: `${preview.city}, ${preview.province}`, distance: 0, profession: preview.position, employment: preview.employment, pay, posted: "Just now", featured: false, description: preview.description, ownerProfessionalId: professionalId }, ...current]);
       setPosted(true);
       setKind("professional");
       await loadMyProfessionalJobs(professionalId);
@@ -422,6 +522,7 @@ export default function DentalJobsPage() {
         posted: "Just now",
         featured: false,
         description: preview.description,
+        ownerOfficeId: officeId,
       }, ...current]);
       setPosted(true);
       setKind("office");
@@ -457,6 +558,8 @@ export default function DentalJobsPage() {
 
         {portalRole === "professional" && <section className="relative mt-6 overflow-hidden rounded-2xl border-2 border-[#4285F4]/55 bg-[#eef4ff] p-4 shadow-md sm:p-5"><div className="absolute inset-y-0 left-0 w-1.5 bg-[#4285F4]" /><div className="flex items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#245FB8]">My availability ads</p><h2 className="mt-1 text-xl font-black text-[#002757]">My DentalJobs</h2><p className="mt-1 text-sm text-slate-500">Manage your active and previous Looking for an Office ads.</p></div><span className="rounded-full border border-[#4285F4]/30 bg-white px-3 py-1.5 text-xs font-black text-[#245FB8] shadow-sm">{myProfessionalJobs.length} posting{myProfessionalJobs.length === 1 ? "" : "s"}</span></div>{manageError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{manageError}</p>}<div className="mt-4 grid gap-3">{myProfessionalJobs.length === 0 ? <div className="rounded-xl border border-dashed border-[#4285F4]/40 bg-white p-5 text-sm font-semibold text-slate-500">You have no Looking for an Office postings yet.</div> : myProfessionalJobs.map((job) => { const daysLeft = Math.max(0, Math.ceil((new Date(job.expires_at).getTime() - Date.now()) / 86400000)); const isActive = job.status === "active" && daysLeft > 0; const displayStatus = job.status === "active" && daysLeft === 0 ? "expired" : job.status; const theme = getProfessionalCardTheme(job.profession); return <article key={job.id} className="rounded-2xl border-2 bg-white p-4 shadow-sm" style={{ borderColor: theme.border }}><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-black uppercase ${isActive ? "bg-[#eaf8ee] text-[#017f27]" : displayStatus === "paused" ? "bg-amber-50 text-amber-700" : displayStatus === "filled" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{displayStatus === "filled" ? "found office" : displayStatus}</span>{isActive && <span className="text-xs font-bold text-slate-400">{daysLeft} day{daysLeft === 1 ? "" : "s"} remaining</span>}</div><h3 className="mt-2 font-black" style={{ color: theme.text }}>{job.profession} — {job.employment_type}</h3><p className="mt-1 text-sm text-slate-500">{job.city}, {job.province}</p></div><div className="relative"><button type="button" onClick={() => setManagingId(managingId === job.id ? null : job.id)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl border-2 px-4 py-2.5 text-sm font-black text-white shadow-lg transition hover:-translate-y-0.5 hover:brightness-95 hover:shadow-xl sm:w-auto" style={{ borderColor: theme.accent, backgroundColor: theme.accent }}><MoreVertical size={16} /> Manage Posting</button>{managingId === job.id && <div className="absolute right-0 z-30 mt-2 w-56 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-xl"><button type="button" onClick={() => openEditProfessionalListing(job)} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Pencil size={15}/> Edit Posting</button>{displayStatus === "paused" ? <button type="button" onClick={() => void manageProfessionalJob(job,"resume")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Play size={15}/> Resume Posting</button> : isActive && <button type="button" onClick={() => void manageProfessionalJob(job,"pause")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Pause size={15}/> Pause Posting</button>}<button type="button" onClick={() => void manageProfessionalJob(job,"found")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><Check size={15}/> I Found an Office</button><button type="button" onClick={() => void manageProfessionalJob(job,"renew")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><RefreshCw size={15}/> Renew for 14 Days</button><button type="button" onClick={() => void manageProfessionalJob(job,"close")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold hover:bg-slate-50"><X size={15}/> Close Posting</button><button type="button" onClick={() => void manageProfessionalJob(job,"delete")} className="flex w-full items-center gap-2 px-4 py-2.5 text-left text-sm font-bold text-rose-600 hover:bg-rose-50"><Trash2 size={15}/> Delete Posting</button></div>}</div></div></article>})}</div></section>}
 
+        {portalRole && <section className="mt-6 rounded-2xl border border-[#002757]/15 bg-white p-4 shadow-sm sm:p-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#4285F4]">DentalJobs connections</p><h2 className="mt-1 text-xl font-black text-[#002757]">{portalRole === "office" ? "Applications & Interest" : "My Applications & Office Interest"}</h2><p className="mt-1 text-sm text-slate-500">{portalRole === "office" ? "Review professionals who applied and track professionals your office contacted." : "Track your applications and offices that expressed interest in you."}</p></div><span className="rounded-full bg-[#edf3fa] px-3 py-1.5 text-xs font-black text-[#002757]">{connections.length} connection{connections.length === 1 ? "" : "s"}</span></div>{connectionError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{connectionError}</p>}<div className="mt-4 grid gap-3">{connections.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 p-5 text-sm font-semibold text-slate-500">No DentalJobs applications or expressions of interest yet.</div> : connections.map((item) => { const initiatedByMe = item.initiatorRole === portalRole; const statusLabel = item.status === "interested" ? "Interested" : item.status === "declined" ? "Not Interested" : item.status === "withdrawn" ? "Withdrawn" : "Pending"; return <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div><div className="flex flex-wrap gap-2"><span className={`rounded-full px-2.5 py-1 text-[11px] font-black uppercase ${item.status === "interested" ? "bg-[#eaf8ee] text-[#017f27]" : item.status === "declined" ? "bg-rose-50 text-rose-700" : item.status === "withdrawn" ? "bg-slate-100 text-slate-500" : "bg-amber-50 text-amber-700"}`}>{statusLabel}</span><span className="rounded-full bg-[#edf3fa] px-2.5 py-1 text-[11px] font-black text-[#002757]">{initiatedByMe ? "Sent by you" : "Received"}</span></div><h3 className="mt-2 font-black text-[#002757]">{item.profession}{item.employment ? ` — ${item.employment}` : ""}</h3><p className="mt-1 text-sm text-slate-500">{item.city}{item.city && item.province ? ", " : ""}{item.province}</p>{item.message && <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">“{item.message}”</p>}{portalRole === "office" && item.resumePath && <p className="mt-2 inline-flex items-center gap-1.5 text-xs font-black text-[#01A32E]"><FileText size={14}/> Résumé/CV attached privately</p>}</div>{item.status === "pending" && <div className="flex flex-wrap gap-2 sm:justify-end">{initiatedByMe ? <button type="button" disabled={connectionBusy} onClick={() => void updateConnection(item,"withdrawn")} className="rounded-xl border border-slate-300 bg-white px-3.5 py-2 text-xs font-black text-slate-600 hover:bg-slate-50 disabled:opacity-50">Withdraw</button> : <><button type="button" disabled={connectionBusy} onClick={() => void updateConnection(item,"declined")} className="rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-black text-rose-600 hover:bg-rose-50 disabled:opacity-50">Not Interested</button><button type="button" disabled={connectionBusy} onClick={() => void updateConnection(item,"interested")} className="rounded-xl bg-[#01A32E] px-3.5 py-2 text-xs font-black text-white shadow-sm hover:bg-[#018a28] disabled:opacity-50">Interested</button></>}</div>}</div></article>})}</div></section>}
+
         <div className="mt-6 grid gap-3 rounded-2xl border-2 border-[#4285F4] bg-[#4285F4] p-3 shadow-md md:grid-cols-[1.4fr_.8fr_.9fr] lg:grid-cols-[1.5fr_.7fr_.9fr_auto]">
           <label className="relative"><Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search position or city" className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
           <label className="relative"><MapPin size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" /><select value={radius} onChange={(e) => setRadius(Number(e.target.value))} className="w-full appearance-none rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-8 text-sm font-black text-[#002757] outline-none focus:border-[#01A32E]">{distances.map((value) => <option key={value} value={value}>{value} km</option>)}</select></label>
@@ -468,8 +571,10 @@ export default function DentalJobsPage() {
 
     <section className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
       <div className="mb-4 flex items-center justify-between"><div><h2 className="text-xl font-black text-[#002757]">Dental job opportunities within {radius} km</h2><p className="mt-1 text-sm text-slate-500">{visibleAds.length} active listing{visibleAds.length === 1 ? "" : "s"} shown</p></div><p className="hidden text-sm font-semibold text-slate-400 sm:block">Closest opportunities first</p></div>
-      <div className="grid gap-5 lg:grid-cols-2">{visibleAds.map((ad) => <article key={ad.id} className={`group relative overflow-hidden rounded-3xl border-2 bg-white shadow-md transition duration-200 hover:-translate-y-1 hover:shadow-xl ${ad.featured ? "ring-2 ring-[#FDB605]/30" : ""}`} style={{ borderColor: ad.kind === "office" ? "rgba(0,39,87,0.18)" : getProfessionalCardTheme(ad.profession).border }}><div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: ad.kind === "office" ? "#002757" : getProfessionalCardTheme(ad.profession).accent }} />{ad.featured && <div className="absolute right-4 top-4 rounded-full bg-[#FDB605] px-3 py-1.5 text-[11px] font-black text-white shadow-sm"><Star size={12} className="mr-1 inline fill-white" />Featured</div>}<div className="p-5 sm:p-6"><div className="flex items-start gap-4"><div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white shadow-sm" style={{ backgroundColor: ad.kind === "office" ? "#002757" : getProfessionalCardTheme(ad.profession).accent }}>{ad.kind === "office" ? <Building2 size={26} /> : <UserRound size={26} />}</div><div className="min-w-0 flex-1 pr-16"><span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black tracking-wide ${ad.kind === "office" ? "bg-[#edf3fa] text-[#002757]" : ""}`} style={ad.kind === "professional" ? { backgroundColor: getProfessionalCardTheme(ad.profession).pale, color: getProfessionalCardTheme(ad.profession).text } : undefined}>{ad.kind === "office" ? "OFFICE HIRING" : "PROFESSIONAL SEEKING OFFICE"}</span><h3 className={`mt-2 text-xl font-black leading-6 ${ad.kind === "office" ? "text-[#002757]" : ""}`} style={ad.kind === "professional" ? { color: getProfessionalCardTheme(ad.profession).text } : undefined}>{ad.title}</h3></div></div><div className="mt-5 grid gap-2.5 sm:grid-cols-2"><div className="rounded-xl bg-slate-50 px-3.5 py-3"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Location</p><p className="mt-1 inline-flex items-center gap-1.5 text-sm font-bold text-slate-700"><MapPin size={15} />{ad.city}</p></div><div className="rounded-xl bg-slate-50 px-3.5 py-3"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Distance</p><p className="mt-1 text-sm font-bold text-slate-700">{ad.distance} km away</p></div></div><p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">{ad.description}</p><div className="mt-5 flex flex-wrap gap-2"><span className={`rounded-lg px-3 py-2 text-xs font-black ${ad.kind === "office" ? "bg-[#edf3fa] text-[#002757]" : ""}`} style={ad.kind === "professional" ? { backgroundColor: getProfessionalCardTheme(ad.profession).pale, color: getProfessionalCardTheme(ad.profession).text } : undefined}>{ad.employment}</span><span className="rounded-lg bg-[#fff7df] px-3 py-2 text-xs font-black text-[#8a6200]">{ad.pay}</span><span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500"><Clock3 size={13} className="mr-1 inline" />{ad.posted}</span></div></div><div className={`flex items-center justify-between gap-3 border-t px-5 py-4 sm:px-6 ${ad.kind === "office" ? "border-[#002757]/10 bg-[#f7f9fc]" : ""}`} style={ad.kind === "professional" ? { borderColor: getProfessionalCardTheme(ad.profession).border, backgroundColor: getProfessionalCardTheme(ad.profession).pale } : undefined}><span className={`text-xs font-black ${ad.kind === "office" ? "text-[#002757]" : ""}`} style={ad.kind === "professional" ? { color: getProfessionalCardTheme(ad.profession).text } : undefined}>{ad.kind === "office" ? "Anonymous office opportunity" : "Anonymous professional profile"}</span><button type="button" className={`rounded-xl px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:brightness-95 hover:shadow-lg ${ad.kind === "office" ? "bg-[#002757]" : ""}`} style={ad.kind === "professional" ? { backgroundColor: getProfessionalCardTheme(ad.profession).accent } : undefined}>View Opportunity</button></div></article>)}</div>
+      <div className="grid gap-5 lg:grid-cols-2">{visibleAds.map((ad) => <article key={ad.id} className={`group relative overflow-hidden rounded-3xl border-2 bg-white shadow-md transition duration-200 hover:-translate-y-1 hover:shadow-xl ${ad.featured ? "ring-2 ring-[#FDB605]/30" : ""}`} style={{ borderColor: ad.kind === "office" ? "rgba(0,39,87,0.18)" : getProfessionalCardTheme(ad.profession).border }}><div className="absolute inset-x-0 top-0 h-1.5" style={{ backgroundColor: ad.kind === "office" ? "#002757" : getProfessionalCardTheme(ad.profession).accent }} />{ad.featured && <div className="absolute right-4 top-4 rounded-full bg-[#FDB605] px-3 py-1.5 text-[11px] font-black text-white shadow-sm"><Star size={12} className="mr-1 inline fill-white" />Featured</div>}<div className="p-5 sm:p-6"><div className="flex items-start gap-4"><div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl text-white shadow-sm" style={{ backgroundColor: ad.kind === "office" ? "#002757" : getProfessionalCardTheme(ad.profession).accent }}>{ad.kind === "office" ? <Building2 size={26} /> : <UserRound size={26} />}</div><div className="min-w-0 flex-1 pr-16"><span className={`inline-flex rounded-full px-3 py-1 text-[11px] font-black tracking-wide ${ad.kind === "office" ? "bg-[#edf3fa] text-[#002757]" : ""}`} style={ad.kind === "professional" ? { backgroundColor: getProfessionalCardTheme(ad.profession).pale, color: getProfessionalCardTheme(ad.profession).text } : undefined}>{ad.kind === "office" ? "OFFICE HIRING" : "PROFESSIONAL SEEKING OFFICE"}</span><h3 className={`mt-2 text-xl font-black leading-6 ${ad.kind === "office" ? "text-[#002757]" : ""}`} style={ad.kind === "professional" ? { color: getProfessionalCardTheme(ad.profession).text } : undefined}>{ad.title}</h3></div></div><div className="mt-5 grid gap-2.5 sm:grid-cols-2"><div className="rounded-xl bg-slate-50 px-3.5 py-3"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Location</p><p className="mt-1 inline-flex items-center gap-1.5 text-sm font-bold text-slate-700"><MapPin size={15} />{ad.city}</p></div><div className="rounded-xl bg-slate-50 px-3.5 py-3"><p className="text-[10px] font-black uppercase tracking-[0.12em] text-slate-400">Distance</p><p className="mt-1 text-sm font-bold text-slate-700">{ad.distance} km away</p></div></div><p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">{ad.description}</p><div className="mt-5 flex flex-wrap gap-2"><span className={`rounded-lg px-3 py-2 text-xs font-black ${ad.kind === "office" ? "bg-[#edf3fa] text-[#002757]" : ""}`} style={ad.kind === "professional" ? { backgroundColor: getProfessionalCardTheme(ad.profession).pale, color: getProfessionalCardTheme(ad.profession).text } : undefined}>{ad.employment}</span><span className="rounded-lg bg-[#fff7df] px-3 py-2 text-xs font-black text-[#8a6200]">{ad.pay}</span><span className="rounded-lg bg-slate-100 px-3 py-2 text-xs font-bold text-slate-500"><Clock3 size={13} className="mr-1 inline" />{ad.posted}</span></div></div><div className={`flex items-center justify-between gap-3 border-t px-5 py-4 sm:px-6 ${ad.kind === "office" ? "border-[#002757]/10 bg-[#f7f9fc]" : ""}`} style={ad.kind === "professional" ? { borderColor: getProfessionalCardTheme(ad.profession).border, backgroundColor: getProfessionalCardTheme(ad.profession).pale } : undefined}><span className={`text-xs font-black ${ad.kind === "office" ? "text-[#002757]" : ""}`} style={ad.kind === "professional" ? { color: getProfessionalCardTheme(ad.profession).text } : undefined}>{ad.kind === "office" ? "Anonymous office opportunity" : "Anonymous professional profile"}</span>{(() => { const existing = existingConnectionFor(ad); const actionable = (portalRole === "professional" && ad.kind === "office") || (portalRole === "office" && ad.kind === "professional"); const label = existing ? (existing.status === "pending" ? "Pending" : existing.status === "interested" ? "Interested" : existing.status === "declined" ? "Not Interested" : "Withdrawn") : portalRole === "professional" && ad.kind === "office" ? "Apply" : portalRole === "office" && ad.kind === "professional" ? "I'm Interested" : "View Opportunity"; return <button type="button" disabled={Boolean(existing) || !actionable} onClick={() => actionable && !existing && openConnection(ad)} className={`rounded-xl px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:-translate-y-0.5 hover:brightness-95 hover:shadow-lg disabled:cursor-default disabled:opacity-70 ${ad.kind === "office" ? "bg-[#002757]" : ""}`} style={ad.kind === "professional" ? { backgroundColor: getProfessionalCardTheme(ad.profession).accent } : undefined}>{label}</button>; })()}</div></article>)}</div>
     </section>
+
+    {selectedOpportunity && <div className="fixed inset-0 z-[95] overflow-y-auto bg-[#002757]/65 p-4 sm:p-6"><button type="button" aria-label="Close connection form" onClick={() => setSelectedOpportunity(null)} className="fixed inset-0" /><section role="dialog" aria-modal="true" className="relative mx-auto my-8 w-full max-w-xl overflow-hidden rounded-3xl bg-white shadow-2xl"><div className="border-b border-slate-200 p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#4285F4]">DentalJobs</p><h2 className="mt-1 text-2xl font-black text-[#002757]">{portalRole === "professional" ? "Apply to this position" : "Express Interest"}</h2><p className="mt-2 text-sm leading-6 text-slate-500">Your direct contact information remains private at this stage.</p></div><button type="button" onClick={() => setSelectedOpportunity(null)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X size={22}/></button></div></div><div className="p-5 sm:p-6"><div className="rounded-2xl border border-slate-200 bg-slate-50 p-4"><p className="text-xs font-black uppercase tracking-wide text-slate-400">Opportunity</p><h3 className="mt-1 font-black text-[#002757]">{selectedOpportunity.title}</h3><p className="mt-1 text-sm text-slate-500">{selectedOpportunity.city}</p></div>{portalRole === "professional" && <div className={`mt-4 rounded-2xl border p-4 ${resumePath ? "border-[#01A32E]/25 bg-[#f3fbf5]" : "border-amber-200 bg-amber-50"}`}><div className="flex items-start gap-3"><FileText size={20} className={resumePath ? "text-[#01A32E]" : "text-amber-600"}/><div><p className="font-black text-[#002757]">{resumePath ? "Résumé/CV attached from your profile" : "No résumé/CV currently on file"}</p><p className="mt-1 text-sm leading-6 text-slate-600">{resumePath ? "DentalShift will reference the private résumé stored in your professional account for this application." : "You can still send your application, but adding a résumé to your professional account will make it stronger."}</p></div></div></div>}<label className="mt-4 block"><span className="text-sm font-black text-[#002757]">Optional message</span><textarea value={connectionMessage} onChange={(e) => setConnectionMessage(e.target.value)} rows={4} maxLength={600} placeholder={portalRole === "professional" ? "Add a short note to the dental office…" : "Add a short note to the professional…"} className="mt-2 w-full rounded-2xl border border-slate-200 p-3 text-sm outline-none focus:border-[#4285F4]" /></label>{connectionError && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{connectionError}</p>}<div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" disabled={connectionBusy} onClick={() => setSelectedOpportunity(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-[#002757] disabled:opacity-50">Cancel</button><button type="button" disabled={connectionBusy} onClick={() => void sendConnection()} className="rounded-xl bg-[#01A32E] px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-[#018a28] disabled:opacity-50">{connectionBusy ? "Sending…" : portalRole === "professional" ? "Send Application" : "Send Interest"}</button></div></div></section></div>}
 
     {postingMode && <div className="fixed inset-0 z-[90] overflow-y-auto bg-[#002757]/65 p-4 sm:p-6"><button type="button" aria-label="Close posting form" onClick={() => setPostingMode(null)} className="fixed inset-0" /><section role="dialog" aria-modal="true" className="relative mx-auto my-4 w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-200 px-5 py-4 sm:px-6"><div><p className={`text-xs font-black uppercase tracking-[0.12em] ${postingMode === "office" ? "text-[#002757]" : "text-[#017f27]"}`}>{postingMode === "office" ? "Dental Office" : "Dental Professional"}</p><h2 className="mt-1 text-2xl font-black text-slate-900">{editingListing ? "Edit Posting" : postingMode === "office" ? "Post a Position" : "Looking for an Office"}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{postingMode === "office" ? "Your office identity and exact contact information will not appear publicly." : "Your name and direct contact information will not appear publicly. DentalShift can use the résumé/CV already stored in your account when you apply."}</p></div><button type="button" onClick={() => setPostingMode(null)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X size={22} /></button></div>
       {posted ? <div className="p-8 text-center sm:p-10"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E]"><Check size={32} strokeWidth={3} /></div><h3 className="mt-5 text-2xl font-black text-[#002757]">{editingListing ? "Changes saved" : "Your ad is now live"}</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">{editingListing ? "Your DentalJobs posting has been updated." : `Your anonymous DentalJobs posting has been published and is now visible in the active job listings. It will remain active for ${postingMode === "office" ? 30 : 14} days unless you close it earlier.`}</p><button type="button" onClick={() => { setPostingMode(null); setSubmitted(false); setPosted(false); setPreview(null); }} className="mt-6 rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white">View DentalJobs</button></div> : submitted && preview ? <div className="p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#01A32E]">Posting Preview</p><h3 className="mt-1 text-2xl font-black text-[#002757]">Review your listing</h3><p className="mt-1 text-sm text-slate-500">This is how your anonymous DentalJobs posting will be presented.</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#eaf8ee] text-[#01A32E]"><Check size={24} strokeWidth={3} /></div></div><article className="mt-5 overflow-hidden rounded-2xl border-2 border-[#002757]/15 bg-white shadow-sm"><div className="border-b border-slate-100 bg-[#f8fafc] p-5"><span className="rounded-full bg-[#edf3fa] px-2.5 py-1 text-[11px] font-black text-[#002757]">{postingMode === "office" ? "OFFICE HIRING" : "PROFESSIONAL LOOKING FOR AN OFFICE"}</span><h4 className="mt-3 text-xl font-black text-slate-900">{preview.position}</h4></div><div className="grid gap-4 p-5 sm:grid-cols-2"><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Employment</p><p className="mt-1 font-bold text-[#002757]">{preview.employment}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Location</p><p className="mt-1 font-bold text-[#002757]">{preview.city}, {preview.province}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Days / week</p><p className="mt-1 font-bold text-[#002757]">{preview.days || "Not specified"}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Compensation</p><p className="mt-1 font-bold text-[#002757]">{preview.payFrom || preview.payTo ? `${preview.payFrom ? `$${preview.payFrom}` : ""}${preview.payFrom && preview.payTo ? " – " : ""}${preview.payTo ? `$${preview.payTo}` : ""}/hr` : "Not specified"}</p></div>{preview.schedule && <div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Schedule / hours</p><p className="mt-1 font-bold text-[#002757]">{preview.schedule}</p></div>}<div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">About the opportunity</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{preview.description}</p></div></div></article><div className="mt-5 rounded-2xl border border-[#01A32E]/25 bg-[#f3fbf5] p-4"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-[#01A32E]" /><div><p className="font-black text-[#002757]">Anonymous preview</p><p className="mt-1 text-sm leading-6 text-slate-600">Your identity and direct contact information remain hidden from this public listing.</p></div></div></div>{publishError && <p className="mt-4 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{publishError}</p>}<div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" disabled={publishing} onClick={() => { setSubmitted(false); setPublishError(""); }} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-[#002757] disabled:opacity-50">Back to Edit</button>{postingMode === "office" ? <button type="button" disabled={publishing} onClick={() => void (editingListing ? saveEditedOfficeAd() : publishOfficeAd())} className="rounded-xl bg-[#01A32E] px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-[#018a28] disabled:opacity-50">{publishing ? (editingListing ? "Saving…" : "Posting…") : (editingListing ? "Save Changes" : "Post Ad")}</button> : <button type="button" disabled={publishing} onClick={() => void (editingListing ? saveEditedProfessionalAd() : publishProfessionalAd())} className="rounded-xl bg-[#4285F4] px-5 py-3 text-sm font-black text-white shadow-sm hover:brightness-95 disabled:opacity-50">{publishing ? (editingListing ? "Saving…" : "Posting…") : (editingListing ? "Save Changes" : "Post Ad")}</button>}</div></div> : <form onSubmit={submitPreview} className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
