@@ -150,7 +150,7 @@ function OfficeCancellationModal({ booking, busy, close, confirm }: { booking: W
             ? "An email has been sent to the professional with the office name, shift details, and cancellation reason. Their availability for this date remains unchanged."
             : "The appointment was cancelled, but the email could not be delivered. DentalShift still recorded the cancellation and notified the professional inside the platform."}
         </div>
-        <button type="button" onClick={close} className="primary-btn mt-5 w-full justify-center">Back to calendar</button>
+        <button type="button" onClick={close} className="mt-5 w-full rounded-xl bg-[#4285F4] px-4 py-2.5 text-center text-sm font-black text-white shadow-sm transition hover:bg-[#3367D6] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30">Back To Calendar</button>
       </> : <>
         <h2 id="office-cancellation-title" className="text-2xl font-black text-[#002757]">Cancel booking</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">This will cancel the confirmed appointment. The professional will be notified immediately, and their availability will remain available for other offices.</p>
