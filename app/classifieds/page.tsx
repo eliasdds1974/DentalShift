@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { BriefcaseBusiness, Building2, ChevronLeft, Clock3, Filter, MapPin, Search, ShieldCheck, Star, UserRound } from "lucide-react";
@@ -25,6 +25,12 @@ export default function DentalClassifiedsPage() {
   const [kind, setKind] = useState<"all" | "office" | "professional">("all");
   const [profession, setProfession] = useState("All professions");
   const [query, setQuery] = useState("");
+  const [backHref, setBackHref] = useState("/professionals/find-shifts");
+
+  useEffect(() => {
+    const portalRole = window.localStorage.getItem("dentalshift_portal_role");
+    setBackHref(portalRole === "office" ? "/office/overview" : "/professionals/find-shifts");
+  }, []);
 
   const visibleAds = useMemo(() => ads.filter((ad) => {
     if (ad.distance > radius) return false;
@@ -44,7 +50,7 @@ export default function DentalClassifiedsPage() {
           <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-12 w-auto" priority />
           <div className="hidden border-l border-slate-200 pl-4 sm:block"><p className="text-xs font-black uppercase tracking-[0.16em] text-[#01A32E]">DentalClassifieds</p><p className="text-sm font-bold text-slate-500">Permanent dental opportunities</p></div>
         </div>
-        <Link href="/professionals/find-shifts" className="inline-flex items-center gap-2 rounded-xl border border-[#002757]/15 bg-white px-4 py-2.5 text-sm font-black text-[#002757] shadow-sm hover:bg-[#edf3fa]"><ChevronLeft size={17} /> Back to Calendar</Link>
+        <Link href={backHref} className="inline-flex items-center gap-2 rounded-xl border border-[#002757]/15 bg-white px-4 py-2.5 text-sm font-black text-[#002757] shadow-sm hover:bg-[#edf3fa]"><ChevronLeft size={17} /> Back to Calendar</Link>
       </div>
     </header>
 
