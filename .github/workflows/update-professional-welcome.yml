@@ -1,0 +1,33 @@
+name: Update professional welcome heading
+
+on:
+  push:
+    paths:
+      - '.github/scripts/update-professional-welcome.py'
+      - '.github/workflows/update-professional-welcome.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Update professional welcome heading
+        run: python .github/scripts/update-professional-welcome.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit heading update
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Warm professional portal welcome heading"
+            git push
+          fi
