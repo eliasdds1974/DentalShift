@@ -1,0 +1,33 @@
+name: Make Cancel Shift solid red
+
+on:
+  push:
+    paths:
+      - '.github/scripts/make-cancel-shift-solid-red.py'
+      - '.github/workflows/make-cancel-shift-solid-red.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply solid red Cancel Shift style
+        run: python .github/scripts/make-cancel-shift-solid-red.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit refinement
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Make Office Portal Cancel Shift button solid red"
+            git push
+          fi
