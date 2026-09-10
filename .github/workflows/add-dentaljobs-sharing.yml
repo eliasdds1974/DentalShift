@@ -1,0 +1,26 @@
+name: Add DentalJobs sharing
+on:
+  push:
+    paths:
+      - '.github/scripts/add-dentaljobs-sharing.py'
+      - '.github/workflows/add-dentaljobs-sharing.yml'
+permissions:
+  contents: write
+jobs:
+  patch-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply sharing integration
+        run: python .github/scripts/add-dentaljobs-sharing.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Commit verified sharing feature
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/page.tsx app/classifieds/page.tsx
+          git diff --cached --quiet || git commit -m "Integrate DentalJobs sharing"
+          git push
