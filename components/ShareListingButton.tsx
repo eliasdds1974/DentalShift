@@ -28,7 +28,7 @@ export function ShareListingButton({ listingId, compact = false }: Props) {
   };
 
   const nativeShare = async () => {
-    if (navigator.share) {
+    if (typeof navigator !== "undefined" && "share" in navigator) {
       try {
         await navigator.share({ title: "DentalJobs on DentalShift", url: shareUrl });
         return;
@@ -42,7 +42,7 @@ export function ShareListingButton({ listingId, compact = false }: Props) {
   return <div className="relative">
     <button
       type="button"
-      onClick={() => { if (compact && navigator.share) void nativeShare(); else setOpen((value) => !value); }}
+      onClick={() => { if (compact && typeof navigator !== "undefined" && "share" in navigator) void nativeShare(); else setOpen((value) => !value); }}
       className={compact
         ? "inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-[#002757] shadow-sm hover:border-[#4285F4] hover:bg-[#f7faff]"
         : "inline-flex items-center gap-2 rounded-xl border-2 border-[#4285F4] bg-white px-4 py-2.5 text-sm font-black text-[#245FB8] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#eef4ff]"}
