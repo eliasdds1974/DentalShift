@@ -1,0 +1,36 @@
+name: Verify DentalJobs posting forms
+
+on:
+  push:
+    branches:
+      - feature/dentaljobs-posting-forms
+    paths:
+      - 'app/classifieds/page.tsx'
+      - '.github/scripts/rename-dentaljobs-header.py'
+      - '.github/workflows/verify-dentaljobs-posting-forms.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rename portal button
+        run: python .github/scripts/rename-dentaljobs-header.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Production build
+        run: npm run build
+      - name: Commit verified header change
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/page.tsx
+          if git diff --cached --quiet; then
+            echo "No header change needed"
+          else
+            git commit -m "Rename DentalClassifieds header button to DentalJobs"
+            git push
+          fi
