@@ -12,7 +12,7 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.dentalshift.ca"
 export async function POST(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
-  if (!serviceRoleKey || !stripeSecretKey) return NextResponse.json({ error: "DentalJobs billing is not configured yet." }, { status: 503 });
+  if (!serviceRoleKey || !stripeSecretKey) return NextResponse.json({ error: "DentalShift billing is not configured yet." }, { status: 503 });
 
   const accessToken = authorization.slice("Bearer ".length);
   const requestClient = createClient(supabaseUrl, supabasePublishableKey, { auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { Authorization: authorization } } });
@@ -23,8 +23,8 @@ export async function POST(request: Request) {
   const { data: office } = await admin.from("offices").select("id,name,owner_id,communication_email").eq("owner_id", userData.user.id).order("created_at", { ascending: true }).limit(1).maybeSingle();
   if (!office) return NextResponse.json({ error: "Dental office account not found." }, { status: 404 });
 
-  const { data: existing } = await admin.from("office_billing_profiles").select("stripe_customer_id").eq("office_id", office.id).maybeSingle();
-  let customerId = existing?.stripe_customer_id ?? null;
+  const { data: existing } = await admin.from("office_billing_profiles").select("provider_customer_id").eq("office_id", office.id).maybeSingle();
+  let customerId = existing?.provider_customer_id ?? null;
 
   if (!customerId) {
     const params = new URLSearchParams();
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const customer = await customerResponse.json() as { id?: string; error?: { message?: string } };
     if (!customerResponse.ok || !customer.id) return NextResponse.json({ error: customer.error?.message || "Could not create billing profile." }, { status: 400 });
     customerId = customer.id;
-    await admin.from("office_billing_profiles").upsert({ office_id: office.id, stripe_customer_id: customerId, billing_status: "missing", updated_at: new Date().toISOString() }, { onConflict: "office_id" });
+    await admin.from("office_billing_profiles").upsert({ office_id: office.id, provider: "stripe", provider_customer_id: customerId, billing_status: "needs_payment_method", payment_method_on_file: false, updated_at: new Date().toISOString() }, { onConflict: "office_id" });
   }
 
   const checkout = new URLSearchParams();
