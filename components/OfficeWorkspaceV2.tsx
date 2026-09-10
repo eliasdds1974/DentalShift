@@ -496,7 +496,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         <div className="flex flex-wrap items-center gap-2 md:col-start-1 md:row-start-2 md:self-end">
           <button type="button" onClick={goCalendarToday} className="secondary-btn">Today</button>
           <button type="button" disabled={!canGoForward} onClick={goCalendarForward} className="secondary-btn disabled:cursor-not-allowed disabled:opacity-40" aria-label="Next 35 days">Next<ChevronRight size={16} /></button>
-          <span className="mr-1 text-xs font-black text-slate-500">{calendarRangeLabel}</span>
+          
           <div className="grid grid-cols-2 rounded-xl bg-slate-100 p-1">
             {(["month", "list"] as CalendarView[]).map((mode) => <button key={mode} onClick={() => setCalendarView(mode)} className={`rounded-lg px-3 py-2 text-sm font-extrabold capitalize transition ${calendarView === mode ? "bg-[#0078FE] text-white shadow-sm" : "text-slate-600 hover:text-[#002757]"}`}>{mode === "month" ? "Calendar" : "List"}</button>)}
           </div>
