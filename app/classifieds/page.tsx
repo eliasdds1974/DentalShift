@@ -64,17 +64,20 @@ export default function DentalJobsPage() {
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState("");
   const [posted, setPosted] = useState(false);
+  const [portalRole, setPortalRole] = useState<"office" | "professional" | null>(null);
 
   useEffect(() => {
-    const portalRole = window.localStorage.getItem("dentalshift_portal_role");
-    setBackHref(portalRole === "office" ? "/office/overview" : "/professionals/find-shifts");
+    const storedPortalRole = window.localStorage.getItem("dentalshift_portal_role");
+    const resolvedPortalRole = storedPortalRole === "office" ? "office" : storedPortalRole === "professional" ? "professional" : null;
+    setPortalRole(resolvedPortalRole);
+    setBackHref(resolvedPortalRole === "office" ? "/office/overview" : "/professionals/find-shifts");
     const params = new URLSearchParams(window.location.search);
-    if (portalRole === "office" && params.get("post") === "office") {
+    if (resolvedPortalRole === "office" && params.get("post") === "office") {
       setPostingMode("office");
       setSubmitted(false);
     }
 
-    if (portalRole === "office") {
+    if (resolvedPortalRole === "office") {
       void (async () => {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
@@ -223,9 +226,9 @@ export default function DentalJobsPage() {
       <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
         <div><div className="inline-flex items-center gap-2 rounded-full bg-[#eaf8ee] px-3 py-1.5 text-xs font-black text-[#017f27]"><ShieldCheck size={14} /> Private DentalShift employment marketplace</div><h1 className="mt-3 text-3xl font-black tracking-tight text-[#002757] sm:text-4xl">DentalJobs</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Dental offices and dental professionals can find each other while remaining anonymous until there is a genuine application or expression of interest.</p></div>
 
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
-          <button type="button" onClick={() => { setPostingMode("office"); setSubmitted(false); setPosted(false); setPublishError(""); }} className="group rounded-2xl border-2 border-[#002757]/15 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#002757] hover:shadow-md"><div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#002757] text-white"><Building2 size={24} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#002757]">Dental Office</p><h2 className="mt-1 text-xl font-black text-slate-900">Post a Position</h2><p className="mt-2 text-sm leading-6 text-slate-600">Advertise an opening anonymously. Your office name, exact address and contact information stay private.</p><span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#01A32E]">Create office posting <BriefcaseBusiness size={16} /></span></div></div></button>
-          <button type="button" onClick={() => { setPostingMode("professional"); setSubmitted(false); }} className="group rounded-2xl border-2 border-[#01A32E]/20 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#01A32E] hover:shadow-md"><div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#01A32E] text-white"><UserRound size={24} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Dental Professional</p><h2 className="mt-1 text-xl font-black text-slate-900">Looking for an Office</h2><p className="mt-2 text-sm leading-6 text-slate-600">Advertise what you are looking for without displaying your identity. Your résumé/CV already on file can be used when you apply.</p><span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#01A32E]">Create professional posting <FileText size={16} /></span></div></div></button>
+        <div className={`mt-6 grid gap-4 ${portalRole ? "max-w-2xl" : "lg:grid-cols-2"}`}>
+          {portalRole !== "professional" && <button type="button" onClick={() => { setPostingMode("office"); setSubmitted(false); setPosted(false); setPublishError(""); }} className="group rounded-2xl border-2 border-[#002757]/15 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#002757] hover:shadow-md"><div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#002757] text-white"><Building2 size={24} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#002757]">Dental Office</p><h2 className="mt-1 text-xl font-black text-slate-900">Post a Position</h2><p className="mt-2 text-sm leading-6 text-slate-600">Advertise an opening anonymously. Your office name, exact address and contact information stay private.</p><span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#01A32E]">Create office posting <BriefcaseBusiness size={16} /></span></div></div></button>}
+          {portalRole !== "office" && <button type="button" onClick={() => { setPostingMode("professional"); setSubmitted(false); }} className="group rounded-2xl border-2 border-[#01A32E]/20 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#01A32E] hover:shadow-md"><div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#01A32E] text-white"><UserRound size={24} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Dental Professional</p><h2 className="mt-1 text-xl font-black text-slate-900">Looking for an Office</h2><p className="mt-2 text-sm leading-6 text-slate-600">Advertise what you are looking for without displaying your identity. Your résumé/CV already on file can be used when you apply.</p><span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#01A32E]">Create professional posting <FileText size={16} /></span></div></div></button>}
         </div>
 
         <div className="mt-6 grid gap-3 rounded-2xl border border-slate-200 bg-[#f8fafc] p-3 md:grid-cols-[1.4fr_.8fr_.9fr] lg:grid-cols-[1.5fr_.7fr_.9fr_auto]">
