@@ -25,6 +25,7 @@ export async function POST(request: Request) {
 
   const { data: application } = await admin.from("job_applications").select("id,office_id,professional_id").eq("id", applicationId).maybeSingle();
   if (!application) return NextResponse.json({ error: "Application not found." }, { status: 404 });
+
   const { data: office } = await admin.from("offices").select("id,owner_id").eq("id", application.office_id).maybeSingle();
   if (!office || office.owner_id !== userData.user.id) return NextResponse.json({ error: "Only this dental office can unlock the candidate." }, { status: 403 });
 
@@ -36,15 +37,35 @@ export async function POST(request: Request) {
   const { data: existing } = await admin.from("candidate_unlocks").select("id,status").eq("office_id", application.office_id).eq("professional_id", application.professional_id).maybeSingle();
   if (existing && ["accrued","billed","paid"].includes(existing.status)) return NextResponse.json({ unlocked: true, alreadyUnlocked: true });
 
-  const billingPeriod = new Date().toISOString().slice(0, 7);
-  if (existing) {
-    await admin.from("candidate_unlocks").update({ application_id: application.id, amount_cents: unlockPriceCents, currency: "cad", status: "accrued", billing_period: billingPeriod, updated_at: new Date().toISOString() }).eq("id", existing.id);
-  } else {
-    const { error } = await admin.from("candidate_unlocks").insert({ application_id: application.id, office_id: application.office_id, professional_id: application.professional_id, amount_cents: unlockPriceCents, currency: "cad", status: "accrued", billing_period: billingPeriod });
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const billingPeriod = nowIso.slice(0, 7);
+  let unlockId = existing?.id ?? null;
+
+  if (unlockId) {
+    const { error } = await admin.from("candidate_unlocks").update({ application_id: application.id, amount_cents: unlockPriceCents, currency: "cad", status: "accrued", billing_period: billingPeriod, updated_at: nowIso }).eq("id", unlockId);
     if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+  } else {
+    const { data: created, error } = await admin.from("candidate_unlocks").insert({ application_id: application.id, office_id: application.office_id, professional_id: application.professional_id, amount_cents: unlockPriceCents, currency: "cad", status: "accrued", billing_period: billingPeriod }).select("id").single();
+    if (error || !created) return NextResponse.json({ error: error?.message || "Could not record candidate unlock." }, { status: 400 });
+    unlockId = created.id;
   }
 
-  const now = new Date().toISOString();
-  await admin.from("job_applications").update({ status: "interested", responded_at: now, updated_at: now }).eq("id", application.id);
+  const serviceDate = nowIso.slice(0, 10);
+  const { error: lineError } = await admin.from("billing_line_items").upsert({
+    office_id: application.office_id,
+    booking_id: null,
+    service_date: serviceDate,
+    description: "DentalJobs Candidate Unlock",
+    amount_cents: unlockPriceCents,
+    status: "unbilled",
+    invoice_id: null,
+    source_type: "dentaljobs_unlock",
+    source_id: unlockId,
+    updated_at: nowIso,
+  }, { onConflict: "source_type,source_id" });
+  if (lineError) return NextResponse.json({ error: lineError.message }, { status: 400 });
+
+  await admin.from("job_applications").update({ status: "interested", responded_at: nowIso, updated_at: nowIso }).eq("id", application.id);
   return NextResponse.json({ unlocked: true, amountCents: unlockPriceCents, billingPeriod, billedMonthly: true });
 }
