@@ -1,0 +1,33 @@
+name: Clean Posted Shifts card
+
+on:
+  push:
+    paths:
+      - '.github/scripts/clean-posted-shift-card.py'
+      - '.github/workflows/clean-posted-shift-card.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Posted Shifts card cleanup
+        run: python .github/scripts/clean-posted-shift-card.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit refinement
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Clean up Office Portal Posted Shifts card"
+            git push
+          fi
