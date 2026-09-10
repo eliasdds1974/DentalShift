@@ -530,7 +530,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 {availableByRole.map(({ code, count }) => <span key={code} title={`${roleStyles[code].label}: ${count} available`} className={`grid h-5 min-w-5 place-items-center rounded-full px-1 text-[9px] font-black text-white sm:h-7 sm:min-w-7 sm:text-[11px] ${roleStyles[code].solid}`}>{count}</span>)}
               </div>
               <div className="absolute bottom-1 left-1 right-1 flex flex-wrap justify-center gap-1 sm:bottom-2 sm:left-2 sm:right-2">
-                {dayShifts.length > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]"><span aria-hidden="true">✓</span>{dayShifts.length} Posted Shift{dayShifts.length === 1 ? "" : "s"}</span>}
+                {dayShifts.length > 0 && <span className="inline-flex items-center gap-1 rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]"><span aria-hidden="true">✓</span>I’ve Posted {dayShifts.length} Shift(s)</span>}
                 {incomingInterestCount > 0 && <span className="rounded-full bg-[#EA4335]/15 px-1.5 py-0.5 text-[8px] font-black text-[#c9342d] sm:text-[9px]">{incomingInterestCount === 1 ? "They are interested" : `${incomingInterestCount} interested`}</span>}
                 {outgoingInterestCount > 0 && <span className="rounded-full bg-[#002757] px-1.5 py-0.5 text-[8px] font-black text-white sm:text-[9px]">✓ I’m Interested</span>}
                 {dayBookings.length > 0 && <span className="rounded-full bg-[#34A853]/15 px-1.5 py-0.5 text-[8px] font-black text-[#278841] sm:text-[9px]">✓ {dayBookings.length}</span>}
