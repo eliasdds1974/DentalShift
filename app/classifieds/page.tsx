@@ -20,6 +20,17 @@ const jobProfessions = professions.slice(1);
 const employmentOptions = ["Full-Time", "Part-Time", "Flexible", "Temporary / Contract"];
 
 type PostingMode = "office" | "professional" | null;
+type PostingPreview = {
+  position: string;
+  employment: string;
+  city: string;
+  province: string;
+  days: string;
+  payFrom: string;
+  payTo: string;
+  schedule: string;
+  description: string;
+};
 
 export default function DentalJobsPage() {
   const [radius, setRadius] = useState(100);
@@ -29,6 +40,7 @@ export default function DentalJobsPage() {
   const [backHref, setBackHref] = useState("/professionals/find-shifts");
   const [postingMode, setPostingMode] = useState<PostingMode>(null);
   const [submitted, setSubmitted] = useState(false);
+  const [preview, setPreview] = useState<PostingPreview | null>(null);
 
   useEffect(() => {
     const portalRole = window.localStorage.getItem("dentalshift_portal_role");
@@ -53,6 +65,18 @@ export default function DentalJobsPage() {
 
   const submitPreview = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    const form = new FormData(event.currentTarget);
+    setPreview({
+      position: String(form.get("position") || ""),
+      employment: String(form.get("employment") || ""),
+      city: String(form.get("city") || ""),
+      province: String(form.get("province") || ""),
+      days: String(form.get("days") || ""),
+      payFrom: String(form.get("pay_from") || ""),
+      payTo: String(form.get("pay_to") || ""),
+      schedule: String(form.get("schedule") || ""),
+      description: String(form.get("description") || ""),
+    });
     setSubmitted(true);
   };
 
@@ -91,16 +115,16 @@ export default function DentalJobsPage() {
     </section>
 
     {postingMode && <div className="fixed inset-0 z-[90] overflow-y-auto bg-[#002757]/65 p-4 sm:p-6"><button type="button" aria-label="Close posting form" onClick={() => setPostingMode(null)} className="fixed inset-0" /><section role="dialog" aria-modal="true" className="relative mx-auto my-4 w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl"><div className="flex items-start justify-between border-b border-slate-200 px-5 py-4 sm:px-6"><div><p className={`text-xs font-black uppercase tracking-[0.12em] ${postingMode === "office" ? "text-[#002757]" : "text-[#017f27]"}`}>{postingMode === "office" ? "Dental Office" : "Dental Professional"}</p><h2 className="mt-1 text-2xl font-black text-slate-900">{postingMode === "office" ? "Post a Position" : "Looking for an Office"}</h2><p className="mt-1 text-sm leading-6 text-slate-500">{postingMode === "office" ? "Your office identity and exact contact information will not appear publicly." : "Your name and direct contact information will not appear publicly. DentalShift can use the résumé/CV already stored in your account when you apply."}</p></div><button type="button" onClick={() => setPostingMode(null)} className="rounded-xl p-2 text-slate-500 hover:bg-slate-100"><X size={22} /></button></div>
-      {submitted ? <div className="p-8 text-center sm:p-10"><div className="mx-auto grid h-16 w-16 place-items-center rounded-full bg-[#eaf8ee] text-[#01A32E]"><Check size={32} strokeWidth={3} /></div><h3 className="mt-5 text-2xl font-black text-[#002757]">Posting form ready</h3><p className="mx-auto mt-2 max-w-lg text-sm leading-6 text-slate-600">This preview confirms the posting form and anonymous presentation. Live publishing will be connected to the DentalShift database in the next step.</p><button type="button" onClick={() => setPostingMode(null)} className="mt-6 rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white">Close</button></div> : <form onSubmit={submitPreview} className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
-        <label className="field sm:col-span-2"><span>Position</span><select required defaultValue=""><option value="" disabled>Select a position</option>{jobProfessions.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label className="field"><span>{postingMode === "office" ? "Employment type" : "Position wanted"}</span><select required defaultValue="Full-Time">{employmentOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label className="field"><span>City / Area</span><input required placeholder="e.g. Calgary NW" /></label>
-        <label className="field"><span>Province</span><select required defaultValue="AB">{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((item) => <option key={item}>{item}</option>)}</select></label>
-        <label className="field"><span>{postingMode === "office" ? "Approximate days / week" : "Days / week wanted"}</span><select defaultValue="4"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>Flexible</option></select></label>
-        <label className="field"><span>{postingMode === "office" ? "Pay from" : "Desired pay from"}</span><input type="number" min="0" step="1" placeholder="$ / hour" /></label>
-        <label className="field"><span>{postingMode === "office" ? "Pay to" : "Desired pay / target"}</span><input type="number" min="0" step="1" placeholder="$ / hour" /></label>
-        <label className="field sm:col-span-2"><span>{postingMode === "office" ? "Schedule / hours" : "Preferred schedule"}</span><input placeholder={postingMode === "office" ? "e.g. Monday–Thursday, 8:00 AM–4:30 PM" : "e.g. Monday, Tuesday & Thursday"} /></label>
-        <label className="field sm:col-span-2"><span>{postingMode === "office" ? "About the opportunity" : "What are you looking for?"}</span><textarea required rows={5} maxLength={1500} placeholder={postingMode === "office" ? "Describe the position, practice environment, responsibilities and what would make someone a good fit." : "Describe the type of office, schedule, role and work environment you are looking for."} /></label>
+      {submitted && preview ? <div className="p-5 sm:p-6"><div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#01A32E]">Posting Preview</p><h3 className="mt-1 text-2xl font-black text-[#002757]">Review your listing</h3><p className="mt-1 text-sm text-slate-500">This is how your anonymous DentalJobs posting will be presented.</p></div><div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#eaf8ee] text-[#01A32E]"><Check size={24} strokeWidth={3} /></div></div><article className="mt-5 overflow-hidden rounded-2xl border-2 border-[#002757]/15 bg-white shadow-sm"><div className="border-b border-slate-100 bg-[#f8fafc] p-5"><span className="rounded-full bg-[#edf3fa] px-2.5 py-1 text-[11px] font-black text-[#002757]">{postingMode === "office" ? "OFFICE HIRING" : "PROFESSIONAL LOOKING FOR AN OFFICE"}</span><h4 className="mt-3 text-xl font-black text-slate-900">{preview.position}</h4><p className="mt-1 text-sm font-bold text-slate-600">{postingMode === "office" ? "Verified Dental Office" : "Verified DentalShift Professional"}</p></div><div className="grid gap-4 p-5 sm:grid-cols-2"><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Employment</p><p className="mt-1 font-bold text-[#002757]">{preview.employment}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Location</p><p className="mt-1 font-bold text-[#002757]">{preview.city}, {preview.province}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Days / week</p><p className="mt-1 font-bold text-[#002757]">{preview.days || "Not specified"}</p></div><div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Compensation</p><p className="mt-1 font-bold text-[#002757]">{preview.payFrom || preview.payTo ? `${preview.payFrom ? `$${preview.payFrom}` : ""}${preview.payFrom && preview.payTo ? " – " : ""}${preview.payTo ? `$${preview.payTo}` : ""}/hr` : "Not specified"}</p></div>{preview.schedule && <div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Schedule / hours</p><p className="mt-1 font-bold text-[#002757]">{preview.schedule}</p></div>}<div className="sm:col-span-2"><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">About the opportunity</p><p className="mt-1 whitespace-pre-wrap text-sm leading-6 text-slate-700">{preview.description}</p></div></div></article><div className="mt-5 rounded-2xl border border-[#01A32E]/25 bg-[#f3fbf5] p-4"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-[#01A32E]" /><div><p className="font-black text-[#002757]">Anonymous preview</p><p className="mt-1 text-sm leading-6 text-slate-600">Your identity and direct contact information remain hidden from this public listing.</p></div></div></div><div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end"><button type="button" onClick={() => setSubmitted(false)} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-[#002757]">Back to Edit</button><button type="button" onClick={() => setPostingMode(null)} className="rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white">Close Preview</button></div></div> : <form onSubmit={submitPreview} className="grid gap-4 p-5 sm:grid-cols-2 sm:p-6">
+        <label className="field sm:col-span-2"><span>Position</span><select name="position" required defaultValue=""><option value="" disabled>Select a position</option>{jobProfessions.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="field"><span>{postingMode === "office" ? "Employment type" : "Position wanted"}</span><select name="employment" required defaultValue="Full-Time">{employmentOptions.map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="field"><span>City / Area</span><input name="city" required placeholder="e.g. Calgary NW" /></label>
+        <label className="field"><span>Province</span><select name="province" required defaultValue="AB">{["AB","BC","MB","NB","NL","NS","NT","NU","ON","PE","QC","SK","YT"].map((item) => <option key={item}>{item}</option>)}</select></label>
+        <label className="field"><span>{postingMode === "office" ? "Approximate days / week" : "Days / week wanted"}</span><select name="days" defaultValue="4"><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option><option>Flexible</option></select></label>
+        <label className="field"><span>{postingMode === "office" ? "Pay from" : "Desired pay from"}</span><input name="pay_from" type="number" min="0" step="1" placeholder="$ / hour" /></label>
+        <label className="field"><span>{postingMode === "office" ? "Pay to" : "Desired pay / target"}</span><input name="pay_to" type="number" min="0" step="1" placeholder="$ / hour" /></label>
+        <label className="field sm:col-span-2"><span>{postingMode === "office" ? "Schedule / hours" : "Preferred schedule"}</span><input name="schedule" placeholder={postingMode === "office" ? "e.g. Monday–Thursday, 8:00 AM–4:30 PM" : "e.g. Monday, Tuesday & Thursday"} /></label>
+        <label className="field sm:col-span-2"><span>{postingMode === "office" ? "About the opportunity" : "What are you looking for?"}</span><textarea name="description" required rows={5} maxLength={1500} placeholder={postingMode === "office" ? "Describe the position, practice environment, responsibilities and what would make someone a good fit." : "Describe the type of office, schedule, role and work environment you are looking for."} /></label>
         <div className="rounded-2xl border border-[#01A32E]/25 bg-[#f3fbf5] p-4 sm:col-span-2"><div className="flex items-start gap-3"><ShieldCheck size={20} className="mt-0.5 shrink-0 text-[#01A32E]" /><div><p className="font-black text-[#002757]">Anonymous by default</p><p className="mt-1 text-sm leading-6 text-slate-600">{postingMode === "office" ? "Public listings will show only general location and job details. Office name, exact address, phone, email, website and logo stay hidden." : "Public listings will show only profession, general location and the information you choose above. Your name, phone, email and exact address stay hidden."}</p></div></div></div>
         {postingMode === "professional" && <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-4 sm:col-span-2"><div className="flex items-start gap-3"><FileText size={20} className="mt-0.5 shrink-0 text-[#002757]" /><div><p className="font-black text-[#002757]">Résumé/CV on file</p><p className="mt-1 text-sm leading-6 text-slate-600">When you apply to an office position, DentalShift can use the private résumé/CV stored in your professional profile instead of asking you to upload it again.</p></div></div></div>}
         <div className="flex flex-col-reverse gap-3 border-t border-slate-100 pt-4 sm:col-span-2 sm:flex-row sm:justify-end"><button type="button" onClick={() => setPostingMode(null)} className="rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-black text-[#002757]">Cancel</button><button type="submit" className="rounded-xl bg-[#01A32E] px-5 py-3 text-sm font-black text-white shadow-sm hover:bg-[#018a28]">Preview Posting</button></div>
