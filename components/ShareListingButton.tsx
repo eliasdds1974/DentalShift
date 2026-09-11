@@ -44,8 +44,8 @@ export function ShareListingButton({ listingId, compact = false }: Props) {
       type="button"
       onClick={() => { if (compact && typeof navigator !== "undefined" && "share" in navigator) void nativeShare(); else setOpen((value) => !value); }}
       className={compact
-        ? "inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-black text-[#002757] shadow-sm hover:border-[#4285F4] hover:bg-[#f7faff]"
-        : "inline-flex items-center gap-2 rounded-xl border-2 border-[#4285F4] bg-white px-4 py-2.5 text-sm font-black text-[#245FB8] shadow-sm transition hover:-translate-y-0.5 hover:bg-[#eef4ff]"}
+        ? "inline-flex items-center gap-1.5 rounded-xl border border-[#4285F4] bg-[#4285F4] px-3 py-2 text-xs font-black text-white shadow-sm transition hover:border-[#357ae8] hover:bg-[#357ae8]"
+        : "inline-flex items-center gap-2 rounded-xl border-2 border-[#4285F4] bg-[#4285F4] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:-translate-y-0.5 hover:border-[#357ae8] hover:bg-[#357ae8]"}
       aria-expanded={open}
     >
       <Share2 size={compact ? 14 : 16} /> Share Listing
