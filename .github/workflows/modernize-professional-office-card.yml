@@ -1,0 +1,29 @@
+name: Modernize Professional Dental Office card
+
+on:
+  push:
+    paths:
+      - '.github/workflows/modernize-professional-office-card.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply Professional Dental Office card patch
+        run: python .github/scripts/modernize-professional-office-card.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit Professional Dental Office card polish
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Modernize Professional Dental Office card header"
+          git push
