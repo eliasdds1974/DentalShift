@@ -125,8 +125,7 @@ export function DoNotMatchPanel() {
           <button type="button" className="do-not-match-view" onClick={() => setOpen((value) => !value)}>
             {open ? "Hide" : "View"}
           </button>
-          <div className="do-not-match-native-kicker">Office exclusions</div>
-          <h2>Do Not Match</h2>
+          <h2>Do Not Match List</h2>
           {open && <p>Keep professionals you do not want matched with this office on a private list.</p>}
         </div>
         <span>{sortedRows.length}</span>
@@ -211,7 +210,6 @@ export function DoNotMatchPanel() {
           cursor:pointer;
         }
         .do-not-match-view:hover { background:#fff3f2; }
-        .do-not-match-native-kicker { color:#F21C13; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.12em; }
         h2 { margin:3px 0 0; color:#F21C13; font-size:22px; font-weight:950; }
         p { margin:5px 0 0; color:#64748b; font-size:12px; line-height:1.45; }
         .do-not-match-native-header > span { display:grid; place-items:center; min-width:30px; height:30px; border-radius:999px; background:#F21C13; color:#fff; font-size:12px; font-weight:900; }
