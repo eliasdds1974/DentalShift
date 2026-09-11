@@ -45,6 +45,23 @@ function toIso(entry: PreferredFirstDayEntry) {
   };
 }
 
+async function screenPreferredFirstNotes(notes?: string) {
+  const content = notes?.trim();
+  if (!content) return;
+  const { data, error } = await supabase.rpc("screen_shift_communication", {
+    p_content: content,
+    p_communication_type: "office_shift_notes",
+    p_shift_id: null,
+    p_booking_id: null,
+    p_availability_id: null,
+  });
+  if (error) throw error;
+  const result = data as { allowed?: boolean; reason?: string | null } | null;
+  if (!result?.allowed) {
+    throw new Error(`Please remove contact information from Shift Notes${result?.reason ? ` (${result.reason})` : ""}. Contact details are shared after scheduling.`);
+  }
+}
+
 export async function createPreferredFirstShiftBatch(input: {
   officeId: string;
   profession: string;
@@ -56,6 +73,7 @@ export async function createPreferredFirstShiftBatch(input: {
   preferredUntil?: string | null;
   recipientIds?: string[];
 }) {
+  await screenPreferredFirstNotes(input.notes);
   const { data, error } = await supabase.rpc("create_preferred_shift_batch", {
     p_office_id: input.officeId,
     p_profession: input.profession,
