@@ -59,6 +59,18 @@ export default function DentalJobsPage() {
         .dental-jobs-compact-layout main > section:first-of-type section.relative:has(p:first-of-type:nth-child(1)) {
           border-color: rgba(1, 163, 46, 0.55) !important;
         }
+
+        .dental-jobs-compact-layout header a[href] {
+          background: #4285F4 !important;
+          border-color: #4285F4 !important;
+          color: #ffffff !important;
+        }
+
+        .dental-jobs-compact-layout header a[href]:hover {
+          background: #3367D6 !important;
+          border-color: #3367D6 !important;
+          color: #ffffff !important;
+        }
       `}</style>
       <ClassifiedsPage />
     </div>
