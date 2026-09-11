@@ -424,7 +424,7 @@ export function DoNotMatchPdfDownload() {
 
         const { data: officeData } = await supabase
           .from("offices")
-          .select("address,city,province,postal_code,phone,contact_phone,communication_email,website")
+          .select("address,city,province,postal_code")
           .eq("id", officeId)
           .maybeSingle();
 
@@ -432,11 +432,7 @@ export function DoNotMatchPdfDownload() {
           clean(officeData?.address),
           [clean(officeData?.city), clean(officeData?.province), clean(officeData?.postal_code)].filter(Boolean).join(" "),
         ].filter(Boolean).join(", ");
-        const officePhones = [formatPhone(officeData?.contact_phone), formatPhone(officeData?.phone)].filter(Boolean);
-        const uniquePhones = Array.from(new Set(officePhones));
-        const contactLine = [uniquePhones.join(" / "), clean(officeData?.communication_email)].filter(Boolean).join("  |  ");
-        const websiteLine = clean(officeData?.website);
-        subjectDetails = [officeAddress, contactLine, websiteLine].filter(Boolean);
+        subjectDetails = [officeAddress].filter(Boolean);
 
         const { data, error } = await supabase
           .from("office_do_not_match")
