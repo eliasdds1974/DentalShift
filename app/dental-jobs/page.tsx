@@ -242,6 +242,31 @@ export default function DentalJobsPage() {
           }
         }
 
+        @media (min-width: 1440px) {
+          .dental-jobs-compact-layout main > section:nth-of-type(2) > div.grid {
+            grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+            gap: .7rem !important;
+          }
+
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article > div:nth-of-type(2) {
+            padding: .8rem !important;
+          }
+
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article h3 {
+            font-size: .9rem !important;
+            line-height: 1.12rem !important;
+          }
+
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article p.line-clamp-3 {
+            font-size: .72rem !important;
+            line-height: 1.05rem !important;
+          }
+
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article > div:last-child {
+            padding: .65rem .8rem !important;
+          }
+        }
+
         .dental-jobs-compact-layout main > section:first-of-type section.relative:has(p:first-of-type:nth-child(1)) {
           border-color: rgba(1, 163, 46, 0.55) !important;
         }
