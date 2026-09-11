@@ -75,6 +75,7 @@ export function DentalJobsCancelPostingPolish() {
     <style jsx global>{`
       .dentaljobs-my-postings-compact {
         padding: 7px 9px !important;
+        box-sizing: border-box !important;
       }
       .dentaljobs-my-postings-compact > div:first-of-type {
         align-items: center !important;
@@ -156,8 +157,13 @@ export function DentalJobsCancelPostingPolish() {
       }
 
       @media (min-width: 641px) {
+        .dentaljobs-my-postings-compact:has(> div.mt-4 > article:only-child),
+        .dentaljobs-my-postings-compact:has(> div.mt-4 > div[class*="border-dashed"]) {
+          height: 206px !important;
+          min-height: 206px !important;
+        }
         .dentaljobs-my-postings-compact article {
-          min-height: 58px !important;
+          min-height: 52px !important;
           padding-right: 205px !important;
         }
         .dentaljobs-my-postings-compact article > div {
@@ -166,14 +172,14 @@ export function DentalJobsCancelPostingPolish() {
         .dentaljobs-my-postings-compact article > div > div:first-child > div:last-child {
           position: absolute !important;
           right: 108px !important;
-          bottom: 7px !important;
+          bottom: 6px !important;
           margin-top: 0 !important;
           z-index: 4;
         }
         .dentaljobs-my-postings-compact article > div > div:last-child {
           position: absolute !important;
           right: 7px !important;
-          bottom: 7px !important;
+          bottom: 6px !important;
           z-index: 5;
         }
       }
