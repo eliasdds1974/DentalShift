@@ -1,0 +1,156 @@
+"use client";
+
+import { useMemo, useState } from "react";
+import { CalendarDays, Plus, Star, Trash2, X } from "lucide-react";
+import type { OfficeDetails, OfficePreferredProfessional } from "@/lib/dentalshift";
+import { createPreferredFirstShiftBatch, emailPreferredFirstBatch, type PreferredFirstDayEntry } from "@/lib/preferred-first";
+
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function roleCode(value?: string | null) {
+  const v = (value || "").toLowerCase();
+  if (v.includes("hygien")) return "RDH";
+  if (v.includes("assistant")) return "CDA";
+  if (v.includes("admin")) return "DA";
+  if (v.includes("steril")) return "ST";
+  if (v.includes("dentist")) return "DT";
+  return v;
+}
+
+const professions = ["Registered Dental Hygienist", "Certified Dental Assistant", "Dental Administrator", "Sterilization Technician", "Associate Dentist"];
+
+export function PreferredFirstPostShiftModal({
+  open,
+  office,
+  preferredProfessionals,
+  onClose,
+  onPosted,
+}: {
+  open: boolean;
+  office: OfficeDetails;
+  preferredProfessionals: OfficePreferredProfessional[];
+  onClose: () => void;
+  onPosted: () => Promise<void> | void;
+}) {
+  const [profession, setProfession] = useState(professions[0]);
+  const [days, setDays] = useState<PreferredFirstDayEntry[]>([{ date: todayKey(), startTime: "08:00", endTime: "17:00" }]);
+  const [hourlyRate, setHourlyRate] = useState("");
+  const [software, setSoftware] = useState("Any software");
+  const [notes, setNotes] = useState("");
+  const [audience, setAudience] = useState<"preferred" | "general">("preferred");
+  const [duration, setDuration] = useState<"24h" | "custom">("24h");
+  const [customUntil, setCustomUntil] = useState("");
+  const [recipientMode, setRecipientMode] = useState<"all" | "selected">("all");
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+
+  const matchingPreferred = useMemo(() => preferredProfessionals.filter((p) => p.matched_professional_id && roleCode(p.profession) === roleCode(profession)), [preferredProfessionals, profession]);
+
+  if (!open) return null;
+
+  const updateDay = (index: number, patch: Partial<PreferredFirstDayEntry>) => {
+    setDays((current) => current.map((day, i) => i === index ? { ...day, ...patch } : day));
+  };
+
+  const addDay = () => setDays((current) => [...current, { date: "", startTime: current.at(-1)?.startTime || "08:00", endTime: current.at(-1)?.endTime || "17:00" }]);
+  const removeDay = (index: number) => setDays((current) => current.length === 1 ? current : current.filter((_, i) => i !== index));
+
+  const submit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setError("");
+    setSuccess("");
+    if (days.some((day) => !day.date || !day.startTime || !day.endTime || day.endTime <= day.startTime)) return setError("Please complete each day with a valid start and end time.");
+    if (!Number(hourlyRate) || Number(hourlyRate) <= 0) return setError("Please enter the hourly rate.");
+    if (audience === "preferred" && matchingPreferred.length === 0) return setError(`You do not have a matching Preferred Professional for ${profession}. Choose General Calendar or add a Preferred Professional first.`);
+    if (audience === "preferred" && recipientMode === "selected" && selectedIds.length === 0) return setError("Select at least one Preferred Professional.");
+
+    let preferredUntil: string | null = null;
+    if (audience === "preferred") {
+      if (duration === "24h") preferredUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+      else {
+        const custom = new Date(customUntil);
+        if (!customUntil || !Number.isFinite(custom.getTime()) || custom.getTime() <= Date.now()) return setError("Choose a future date and time for the Preferred First window.");
+        preferredUntil = custom.toISOString();
+      }
+    }
+
+    setBusy(true);
+    try {
+      const result = await createPreferredFirstShiftBatch({
+        officeId: office.id,
+        profession,
+        days,
+        hourlyRate: Number(hourlyRate),
+        software,
+        notes,
+        preferredFirst: audience === "preferred",
+        preferredUntil,
+        recipientIds: audience === "preferred" && recipientMode === "selected" ? selectedIds : undefined,
+      });
+      if (audience === "preferred") void emailPreferredFirstBatch("shift", result.batch_id);
+      setSuccess(audience === "preferred" ? `${result.item_count} shift${result.item_count === 1 ? "" : "s"} sent Preferred First to ${result.recipient_count} professional${result.recipient_count === 1 ? "" : "s"}.` : `${result.item_count} shift${result.item_count === 1 ? "" : "s"} posted to the General Calendar.`);
+      await onPosted();
+      setTimeout(onClose, 700);
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "The shifts could not be posted.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return <div className="fixed inset-0 z-[140] flex items-center justify-center bg-slate-950/50 p-2 sm:p-5" role="dialog" aria-modal="true" aria-label="Post shifts">
+    <div className="max-h-[96dvh] w-full max-w-3xl overflow-y-auto rounded-3xl bg-white p-4 shadow-2xl sm:p-6">
+      <div className="flex items-start justify-between gap-4">
+        <div><div className="flex items-center gap-2 text-[#01A32E]"><CalendarDays size={21} /><span className="text-xs font-black uppercase tracking-[.12em]">Post a Shift</span></div><h2 className="mt-2 text-2xl font-black text-[#002757]">Add the days your office needs coverage</h2><p className="mt-1 text-sm text-slate-500">Add as many dates as you need. Each date can have its own hours.</p></div>
+        <button type="button" onClick={onClose} className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-500"><X size={18} /></button>
+      </div>
+
+      <form onSubmit={submit} className="mt-5 space-y-5">
+        <section className="rounded-2xl border border-[#FDB605]/50 bg-[#fffdf5] p-4">
+          <p className="text-sm font-black text-[#002757]">Who should see this first?</p>
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
+            <label className={`cursor-pointer rounded-xl border p-3 ${audience === "preferred" ? "border-[#FDB605] bg-[#FFF7D6]" : "border-slate-200 bg-white"}`}><input type="radio" className="mr-2 accent-[#FDB605]" checked={audience === "preferred"} onChange={() => setAudience("preferred")} /><strong className="text-sm text-[#9A6D00]">★ Preferred Professionals First</strong><span className="mt-1 block text-xs text-slate-600">Private priority access before the General Calendar.</span></label>
+            <label className={`cursor-pointer rounded-xl border p-3 ${audience === "general" ? "border-[#4285F4] bg-blue-50" : "border-slate-200 bg-white"}`}><input type="radio" className="mr-2 accent-[#4285F4]" checked={audience === "general"} onChange={() => setAudience("general")} /><strong className="text-sm text-[#002757]">General Calendar</strong><span className="mt-1 block text-xs text-slate-600">Available immediately to matching professionals.</span></label>
+          </div>
+        </section>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="field"><span>Professional needed</span><select value={profession} onChange={(e) => { setProfession(e.target.value); setSelectedIds([]); }}>{professions.map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="field"><span>Hourly rate *</span><input type="number" min="1" step="0.5" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="$ / hr" required /></label>
+        </div>
+
+        <section>
+          <div className="flex items-center justify-between gap-3"><p className="text-sm font-black text-[#002757]">Shift dates and times</p><button type="button" onClick={addDay} className="inline-flex items-center gap-1.5 rounded-xl bg-[#002757] px-3 py-2 text-xs font-black text-white"><Plus size={14} />Add Another Day</button></div>
+          <div className="mt-3 space-y-2">{days.map((day, index) => <div key={index} className="grid gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-3 sm:grid-cols-[1.3fr_1fr_1fr_auto] sm:items-end">
+            <label className="field"><span>Date</span><input type="date" min={todayKey()} value={day.date} onChange={(e) => updateDay(index, { date: e.target.value })} required /></label>
+            <label className="field"><span>Start</span><input type="time" value={day.startTime} onChange={(e) => updateDay(index, { startTime: e.target.value })} required /></label>
+            <label className="field"><span>End</span><input type="time" value={day.endTime} onChange={(e) => updateDay(index, { endTime: e.target.value })} required /></label>
+            <button type="button" disabled={days.length === 1} onClick={() => removeDay(index)} className="mb-0.5 grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-400 disabled:opacity-30" title="Remove day"><Trash2 size={16} /></button>
+          </div>)}</div>
+        </section>
+
+        <div className="grid gap-3 sm:grid-cols-2">
+          <label className="field"><span>Dental software</span><select value={software} onChange={(e) => setSoftware(e.target.value)}><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
+          <label className="field"><span>Shift notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></label>
+        </div>
+
+        {audience === "preferred" && <section className="rounded-2xl border border-[#FDB605]/45 bg-[#fffdf5] p-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div><p className="text-sm font-black text-[#002757]">Preferred First duration</p><div className="mt-2 flex gap-2"><button type="button" onClick={() => setDuration("24h")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "24h" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>24 hours</button><button type="button" onClick={() => setDuration("custom")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "custom" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Custom</button></div>{duration === "custom" && <label className="field mt-2"><span>Release to General Calendar</span><input type="datetime-local" value={customUntil} onChange={(e) => setCustomUntil(e.target.value)} /></label>}</div>
+            <div><p className="text-sm font-black text-[#002757]">Send to</p><div className="mt-2 flex gap-2"><button type="button" onClick={() => setRecipientMode("all")} className={`rounded-xl px-3 py-2 text-xs font-black ${recipientMode === "all" ? "bg-[#002757] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>All matching Preferred</button><button type="button" onClick={() => setRecipientMode("selected")} className={`rounded-xl px-3 py-2 text-xs font-black ${recipientMode === "selected" ? "bg-[#002757] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Select specific</button></div><p className="mt-2 text-xs text-slate-500">{matchingPreferred.length} matching Preferred Professional{matchingPreferred.length === 1 ? "" : "s"}</p></div>
+          </div>
+          {recipientMode === "selected" && <div className="mt-3 grid gap-2 sm:grid-cols-2">{matchingPreferred.map((person) => <label key={person.id} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-700"><input type="checkbox" className="h-4 w-4 accent-[#FDB605]" checked={Boolean(person.matched_professional_id && selectedIds.includes(person.matched_professional_id))} onChange={(e) => { const id = person.matched_professional_id!; setSelectedIds((current) => e.target.checked ? [...new Set([...current, id])] : current.filter((value) => value !== id)); }} /><Star size={13} className="fill-[#FDB605] text-[#FDB605]" />{person.first_name} {person.last_name}</label>)}</div>}
+        </section>}
+
+        {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
+        {success && <p className="rounded-xl bg-green-50 px-3 py-2 text-sm font-bold text-green-700">{success}</p>}
+        <div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="secondary-btn">Cancel</button><button type="submit" disabled={busy} className="primary-btn justify-center">{busy ? "Posting…" : audience === "preferred" ? "Send Preferred First" : "Post to General Calendar"}</button></div>
+      </form>
+    </div>
+  </div>;
+}
