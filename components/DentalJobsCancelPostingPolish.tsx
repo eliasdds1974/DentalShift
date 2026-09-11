@@ -67,85 +67,91 @@ export function DentalJobsCancelPostingPolish() {
   return (
     <style jsx global>{`
       .dentaljobs-my-postings-compact {
-        padding: 12px 14px !important;
+        padding: 8px 10px !important;
       }
       .dentaljobs-my-postings-compact > div:first-of-type {
         align-items: center !important;
+        gap: 8px !important;
       }
       .dentaljobs-my-postings-compact > div:first-of-type p:first-child {
-        font-size: 10px !important;
-        line-height: 1.1 !important;
+        font-size: 9px !important;
+        line-height: 1 !important;
       }
       .dentaljobs-my-postings-compact > div:first-of-type h2 {
-        margin-top: 2px !important;
-        font-size: 18px !important;
-        line-height: 1.15 !important;
+        margin-top: 1px !important;
+        font-size: 16px !important;
+        line-height: 1.05 !important;
       }
       .dentaljobs-my-postings-compact > div:first-of-type h2 + p {
-        margin-top: 2px !important;
-        font-size: 12px !important;
-        line-height: 1.25 !important;
+        margin-top: 1px !important;
+        font-size: 11px !important;
+        line-height: 1.15 !important;
       }
       .dentaljobs-my-postings-compact > div:first-of-type > span {
-        padding: 4px 9px !important;
-        font-size: 10px !important;
-      }
-      .dentaljobs-my-postings-compact > div.mt-4 {
-        margin-top: 9px !important;
-        gap: 8px !important;
-      }
-      .dentaljobs-my-postings-compact article {
-        padding: 10px 12px !important;
-        border-radius: 14px !important;
-      }
-      .dentaljobs-my-postings-compact article > div {
-        gap: 8px !important;
-      }
-      .dentaljobs-my-postings-compact article span.rounded-full {
         padding: 3px 7px !important;
         font-size: 9px !important;
-        line-height: 1.1 !important;
+        line-height: 1 !important;
+      }
+      .dentaljobs-my-postings-compact > div.mt-4 {
+        margin-top: 6px !important;
+        gap: 6px !important;
+      }
+      .dentaljobs-my-postings-compact article {
+        padding: 7px 9px !important;
+        border-radius: 12px !important;
+      }
+      .dentaljobs-my-postings-compact article > div {
+        gap: 6px !important;
+      }
+      .dentaljobs-my-postings-compact article span.rounded-full {
+        padding: 2px 6px !important;
+        font-size: 8.5px !important;
+        line-height: 1 !important;
       }
       .dentaljobs-my-postings-compact article h3 {
-        margin-top: 5px !important;
-        font-size: 14px !important;
-        line-height: 1.2 !important;
+        margin-top: 3px !important;
+        font-size: 13px !important;
+        line-height: 1.1 !important;
       }
       .dentaljobs-my-postings-compact article h3 + p {
-        margin-top: 2px !important;
+        margin-top: 1px !important;
+        font-size: 10px !important;
+        line-height: 1.1 !important;
+      }
+      .dentaljobs-my-postings-compact article h3 + p + div {
+        margin-top: 4px !important;
+      }
+      .dentaljobs-my-postings-compact article [aria-expanded] {
+        min-height: 27px !important;
+        padding: 3px 7px !important;
+        border-radius: 8px !important;
+        font-size: 9px !important;
+        line-height: 1 !important;
+      }
+      .dentaljobs-my-postings-compact .dentaljobs-manage-posting-compact {
+        min-height: 28px !important;
+        padding: 3px 8px !important;
+        gap: 4px !important;
+        border-radius: 8px !important;
+        font-size: 9px !important;
+        line-height: 1 !important;
+        box-shadow: 0 2px 6px rgba(0, 39, 87, .10) !important;
+      }
+      .dentaljobs-my-postings-compact .dentaljobs-manage-posting-compact span {
+        width: 18px !important;
+        height: 18px !important;
+      }
+      .dentaljobs-my-postings-compact > div.mt-4 > div[class*="border-dashed"] {
+        padding: 9px !important;
         font-size: 11px !important;
         line-height: 1.2 !important;
       }
-      .dentaljobs-my-postings-compact article h3 + p + div {
-        margin-top: 7px !important;
-      }
-      .dentaljobs-my-postings-compact article [aria-expanded] {
-        padding: 5px 9px !important;
-        border-radius: 9px !important;
-        font-size: 10px !important;
-      }
-      .dentaljobs-my-postings-compact .dentaljobs-manage-posting-compact {
-        min-height: 32px !important;
-        padding: 5px 10px !important;
-        gap: 5px !important;
-        border-radius: 9px !important;
-        font-size: 10px !important;
-        box-shadow: 0 2px 8px rgba(0, 39, 87, .12) !important;
-      }
-      .dentaljobs-my-postings-compact .dentaljobs-manage-posting-compact span {
-        width: 20px !important;
-        height: 20px !important;
-      }
-      .dentaljobs-my-postings-compact > div.mt-4 > div[class*="border-dashed"] {
-        padding: 12px !important;
-        font-size: 12px !important;
-      }
       @media (max-width: 640px) {
         .dentaljobs-my-postings-compact {
-          padding: 11px 12px !important;
+          padding: 8px 9px !important;
         }
         .dentaljobs-my-postings-compact article {
-          padding: 9px 10px !important;
+          padding: 7px 8px !important;
         }
       }
     `}</style>
