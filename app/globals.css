@@ -36,6 +36,14 @@ fieldset:has(input[name="software"]) > p { margin-bottom:.45rem!important; }
 fieldset:has(input[name="software"]) > div { gap:.35rem!important; }
 fieldset:has(input[name="software"]) label { gap:.35rem!important; border-radius:.6rem!important; padding:.38rem .5rem!important; font-size:.72rem!important; line-height:1.1!important; }
 fieldset:has(input[name="software"]) input[name="software"] { width:.85rem!important; height:.85rem!important; }
+
+/* DentalJobs: keep Professional My DentalJobs management card visually consistent with Office Portal */
+section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] { border-color:rgb(1 163 46 / .55)!important; background:#effaf2!important; }
+section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] > div[class*='bg-[#4285F4]'] { background:#01A32E!important; }
+section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] p[class*='text-[#245FB8]'] { color:#017f27!important; }
+section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] span[class*='border-[#4285F4]/30'] { border-color:rgb(1 163 46 / .30)!important; color:#017f27!important; }
+section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] div[class*='border-[#4285F4]/40'] { border-color:rgb(1 163 46 / .40)!important; }
+
 @media (min-width:640px) {
   .page-wrap { padding:2.25rem 1.75rem 5rem; }
   fieldset:has(input[name="software"]) > div { grid-template-columns:repeat(4,minmax(0,1fr))!important; }
