@@ -235,10 +235,10 @@ function makePageContent(options: {
   } else {
     commands.push(text(50, tableY + 8, 8.5, "#", true, WHITE));
     commands.push(text(78, tableY + 8, 8.5, "DENTAL OFFICE", true, WHITE));
-    commands.push(text(286, tableY + 8, 8.5, "ADDRESS / LOCATION", true, WHITE));
+    commands.push(text(286, tableY + 8, 8.5, "ADDRESS", true, WHITE));
   }
 
-  const rowHeight = role === "office" ? 24 : 30;
+  const rowHeight = 24;
   let y = tableY - rowHeight;
 
   if (rows.length === 0) {
@@ -248,15 +248,14 @@ function makePageContent(options: {
     rows.forEach((row, index) => {
       const bg = index % 2 === 0 ? WHITE : LIGHT;
       commands.push(rect(40, y, 532, rowHeight, bg, BORDER, 0.45));
-      commands.push(text(50, y + (role === "office" ? 8 : 12), 8.5, String((pageIndex * (role === "office" ? 17 : 13)) + index + 1), true, SLATE));
+      commands.push(text(50, y + 8, 8.5, String((pageIndex * 17) + index + 1), true, SLATE));
       if (role === "office") {
         commands.push(text(78, y + 8, 9.5, fit(row.primary, 32), true, NAVY));
         commands.push(text(280, y + 8, 9, fit(row.secondary, 25), false, SLATE));
         commands.push(text(454, y + 8, 9, fit(row.tertiary || "", 18), false, NAVY));
       } else {
-        commands.push(text(78, y + 12, 9.5, fit(row.primary, 30), true, NAVY));
-        commands.push(text(286, y + 16, 8.5, fit(row.secondary, 44), false, SLATE));
-        if (row.tertiary) commands.push(text(286, y + 6, 8, fit(row.tertiary, 44), false, SLATE));
+        commands.push(text(78, y + 8, 9.5, fit(row.primary, 30), true, NAVY));
+        commands.push(text(286, y + 8, 8.5, fit(row.secondary, 44), false, SLATE));
       }
       y -= rowHeight;
     });
@@ -279,7 +278,7 @@ function buildBrandedPdf(options: {
   rows: ReportRow[];
   logo: LogoImage | null;
 }) {
-  const perPage = options.role === "office" ? 17 : 13;
+  const perPage = 17;
   const pageRows: ReportRow[][] = [];
   for (let i = 0; i < options.rows.length; i += perPage) pageRows.push(options.rows.slice(i, i + perPage));
   if (pageRows.length === 0) pageRows.push([]);
@@ -464,7 +463,6 @@ export function DoNotMatchPdfDownload() {
           return {
             primary: row.office_name,
             secondary: address || fallbackLocation,
-            tertiary: address && fallbackLocation && !address.toLowerCase().includes(fallbackLocation.toLowerCase()) ? fallbackLocation : "",
           };
         });
       }
