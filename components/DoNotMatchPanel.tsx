@@ -12,6 +12,7 @@ type DoNotMatchRow = {
   last_name: string;
   city: string;
   province: string | null;
+  phone: string | null;
 };
 
 type CityOption = { city: string; province: string };
@@ -32,6 +33,12 @@ type PlaceSuggestion = {
   secondaryText: string;
 };
 
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(-10);
+  if (digits.length !== 10) return value;
+  return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6)}`;
+}
+
 export function DoNotMatchPanel() {
   const [role, setRole] = useState<PortalRole>(null);
   const [officeId, setOfficeId] = useState<string | null>(null);
@@ -42,6 +49,8 @@ export function DoNotMatchPanel() {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [cityValue, setCityValue] = useState("");
+  const [defaultCityValue, setDefaultCityValue] = useState("");
+  const [phone, setPhone] = useState("");
 
   const [officeRows, setOfficeRows] = useState<ProfessionalOfficeRow[]>([]);
   const [officeQuery, setOfficeQuery] = useState("");
@@ -57,7 +66,7 @@ export function DoNotMatchPanel() {
   const loadRows = async (id: string) => {
     const { data, error: loadError } = await supabase
       .from("office_do_not_match")
-      .select("id,first_name,last_name,city,province")
+      .select("id,first_name,last_name,city,province,phone")
       .eq("office_id", id)
       .order("last_name", { ascending: true })
       .order("first_name", { ascending: true });
@@ -77,6 +86,7 @@ export function DoNotMatchPanel() {
 
   useEffect(() => {
     let active = true;
+
     void (async () => {
       try {
         const storedRole = window.localStorage.getItem("dentalshift_portal_role");
@@ -96,12 +106,24 @@ export function DoNotMatchPanel() {
           setOfficeId(id);
           await loadRows(id);
 
+          const officeCity = String(details.office?.city || "").trim();
+          const officeProvince = String(details.office?.province || "").trim();
+          const officeCityValue = officeCity ? `${officeCity}|||${officeProvince}` : "";
+          setDefaultCityValue(officeCityValue);
+          setCityValue(officeCityValue);
+
           const { data: cityData } = await supabase.rpc("dentaljobs_member_cities");
           if (!active) return;
+
           const normalized = (cityData || [])
             .map((row: any) => ({ city: String(row.city || "").trim(), province: String(row.province || "").trim() }))
-            .filter((row: CityOption) => row.city)
-            .sort((a: CityOption, b: CityOption) => a.city.localeCompare(b.city) || a.province.localeCompare(b.province));
+            .filter((row: CityOption) => row.city);
+
+          if (officeCity && !normalized.some((row: CityOption) => row.city.toLowerCase() === officeCity.toLowerCase() && row.province.toLowerCase() === officeProvince.toLowerCase())) {
+            normalized.push({ city: officeCity, province: officeProvince });
+          }
+
+          normalized.sort((a: CityOption, b: CityOption) => a.city.localeCompare(b.city) || a.province.localeCompare(b.province));
           setCities(normalized);
         }
 
@@ -113,6 +135,7 @@ export function DoNotMatchPanel() {
         if (active) setError("Do Not Match could not be loaded.");
       }
     })();
+
     return () => { active = false; };
   }, []);
 
@@ -164,19 +187,23 @@ export function DoNotMatchPanel() {
   const addPerson = async (event: FormEvent) => {
     event.preventDefault();
     if (!officeId) return;
+
     const first = firstName.trim();
     const last = lastName.trim();
     const [city, province = ""] = cityValue.split("|||");
+    const phoneValue = phone.trim();
     if (!first || !last || !city) return;
 
     setBusy(true);
     setError("");
+
     const { error: insertError } = await supabase.from("office_do_not_match").insert({
       office_id: officeId,
       first_name: first,
       last_name: last,
       city,
       province: province || null,
+      phone: phoneValue || null,
       source: "manual",
     });
 
@@ -188,7 +215,8 @@ export function DoNotMatchPanel() {
 
     setFirstName("");
     setLastName("");
-    setCityValue("");
+    setPhone("");
+    setCityValue(defaultCityValue);
     await loadRows(officeId);
     setBusy(false);
   };
@@ -292,6 +320,13 @@ export function DoNotMatchPanel() {
                   </option>
                 ))}
               </select>
+              <input
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="Phone number"
+                inputMode="tel"
+                autoComplete="tel"
+              />
               <button type="submit" disabled={busy}>{busy ? "Adding…" : "Add"}</button>
             </form>
           ) : (
@@ -345,7 +380,7 @@ export function DoNotMatchPanel() {
                   <div key={row.id} className="do-not-match-native-row">
                     <div>
                       <strong>{row.last_name}, {row.first_name}</strong>
-                      <span>{row.city}{row.province ? `, ${row.province}` : ""}</span>
+                      <span>{row.city}{row.province ? `, ${row.province}` : ""}{row.phone ? ` · ${formatPhone(row.phone)}` : ""}</span>
                     </div>
                     <button type="button" onClick={() => void removePerson(row.id)} aria-label={`Remove ${row.first_name} ${row.last_name}`}>×</button>
                   </div>
@@ -380,7 +415,7 @@ export function DoNotMatchPanel() {
           right: 18px;
           top: 112px;
           z-index: 25;
-          width: min(390px, calc(100vw - 36px));
+          width: min(410px, calc(100vw - 36px));
           border: 2px solid #F21C13;
           border-radius: 18px;
           background: #fff;
@@ -388,37 +423,20 @@ export function DoNotMatchPanel() {
           box-shadow: 0 18px 45px rgba(15, 23, 42, .16);
           transition: box-shadow .18s ease;
         }
-        .do-not-match-native.is-open {
-          max-height: calc(100vh - 138px);
-          overflow: auto;
-        }
-        .do-not-match-native.is-closed {
-          width: min(330px, calc(100vw - 36px));
-        }
+        .do-not-match-native.is-open { max-height: calc(100vh - 138px); overflow: auto; }
+        .do-not-match-native.is-closed { width: min(330px, calc(100vw - 36px)); }
         .do-not-match-native-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
         .do-not-match-native-heading-wrap { min-width:0; }
         .do-not-match-view {
-          display:inline-flex;
-          align-items:center;
-          justify-content:center;
-          min-width:52px;
-          height:26px;
-          margin-bottom:6px;
-          border:1px solid #002757;
-          border-radius:8px;
-          background:#002757;
-          color:#ffffff;
-          font-size:10px;
-          font-weight:900;
-          cursor:pointer;
+          display:inline-flex; align-items:center; justify-content:center; min-width:52px; height:26px; margin-bottom:6px;
+          border:1px solid #002757; border-radius:8px; background:#002757; color:#ffffff; font-size:10px; font-weight:900; cursor:pointer;
         }
         .do-not-match-view:hover { background:#01A32E; border-color:#01A32E; }
         h2 { margin:3px 0 0; color:#F21C13; font-size:22px; font-weight:950; }
         p { margin:5px 0 0; color:#64748b; font-size:12px; line-height:1.45; }
         .do-not-match-native-header > span { display:grid; place-items:center; min-width:30px; height:30px; border-radius:999px; background:#F21C13; color:#fff; font-size:12px; font-weight:900; }
         .do-not-match-native-form { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-top:14px; }
-        input, select { height:40px; min-width:0; border:1px solid #d8dee8; border-radius:10px; background:#fff; padding:0 10px; color:#0f172a; font-size:12px; outline:none; }
-        select { grid-column:1 / -1; }
+        input, select { height:40px; min-width:0; width:100%; border:1px solid #d8dee8; border-radius:10px; background:#fff; padding:0 10px; color:#0f172a; font-size:12px; outline:none; }
         .do-not-match-native-form > button { grid-column:1 / -1; height:40px; border:0; border-radius:10px; background:#F21C13; color:#fff; font-size:12px; font-weight:900; cursor:pointer; }
         .do-not-match-native-form > button:disabled { opacity:.6; cursor:default; }
         .professional-office-search-form { display:block; }
