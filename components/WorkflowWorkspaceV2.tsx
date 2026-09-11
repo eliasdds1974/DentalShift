@@ -120,7 +120,6 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
                 <strong className="truncate text-base font-black text-[#002757] sm:text-lg">{officeName(shift, revealOfficeName)}</strong>
                 {preferredOffice && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FFF7D6] px-2.5 py-1 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/55"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
               </div>
-              <p className="mt-0.5 text-[10px] font-black uppercase tracking-[.14em] text-slate-400">Shift opportunity</p>
             </div>
             <div className="shrink-0 rounded-xl border border-[#dbe7f5] bg-white px-3 py-2 text-right shadow-sm">
               <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Rate</p>
