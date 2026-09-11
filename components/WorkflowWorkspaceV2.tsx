@@ -566,7 +566,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               <div className="space-y-3">{selectedApplied.filter((item) => item.application_kind !== "application").map((application) => application.shifts ? <ShiftCard professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} key={application.id} shift={application.shifts} tone="green" status="Applied" /> : null)}</div>
             </section>}
 
-            {selectedInvitations.length === 0 && selectedBooked.length === 0 && visibleOpen.length === 0 && selectedApplied.length === 0 && <div className="rounded-2xl bg-slate-50 p-6 text-center"><p className="font-black text-[#002757]">No shift activity on this date</p><p className="mt-1 text-sm text-slate-500">Try another day or add your availability so offices can find you.</p></div>}
+            <p className="mb-3 text-center text-sm font-black text-[#EA4335]">First mutual match gets scheduled.</p>
 
             <div className="mt-6 border-t border-slate-200 pt-4"><button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="w-full rounded-xl bg-[#4285F4] px-4 py-2.5 text-center text-sm font-black text-white shadow-sm transition hover:bg-[#3367D6] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30">Back To Calendar</button></div>
           </div>

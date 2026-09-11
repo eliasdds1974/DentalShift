@@ -626,7 +626,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
                 <button type="submit" disabled={busy === `post-${selectedDate}`} className="primary-btn w-full justify-center"><Plus size={16} />{busy === `post-${selectedDate}` ? "Posting…" : "Post shift"}</button>
               </div>
             </form>
-            {selectedShifts.length === 0 && selectedBookings.length === 0 && <p className="rounded-xl bg-slate-50 p-3 text-center text-xs font-bold text-slate-500">No other office activity on this date.</p>}
+            <p className="mb-3 text-center text-sm font-black text-[#EA4335]">First mutual match gets scheduled.</p>
             {selectedBookings.length > 0 && <section className="rounded-2xl bg-[#002757] p-2.5 shadow-sm"><h3 className="mb-2 flex items-center justify-center gap-2 text-center text-lg font-black text-white"><span className="grid h-5 w-5 place-items-center rounded-full bg-white text-[11px] text-[#002757]">✓</span>SCHEDULED</h3><div className="space-y-2">{selectedBookings.map((booking) => <OfficeScheduledBookingCard key={booking.id} booking={booking} busy={busy} onCancel={setCancelBookingTarget} preferred={data.preferredProfessionals.some((person) => person.matched_professional_id === booking.professional_id)} />)}</div></section>}
             <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })} className="mt-4 w-full rounded-xl bg-[#4285F4] px-4 py-2.5 text-center text-sm font-black text-white shadow-sm transition hover:bg-[#3367D6] focus:outline-none focus:ring-2 focus:ring-[#4285F4]/30">Back To Calendar</button>
           </div>
