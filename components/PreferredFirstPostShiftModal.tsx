@@ -38,7 +38,6 @@ export function PreferredFirstPostShiftModal({
   const [profession, setProfession] = useState(professions[0]);
   const [days, setDays] = useState<PreferredFirstDayEntry[]>([{ date: todayKey(), startTime: "08:00", endTime: "17:00" }]);
   const [hourlyRate, setHourlyRate] = useState("");
-  const [notes, setNotes] = useState("");
   const [audience, setAudience] = useState<"preferred" | "general">("preferred");
   const [duration, setDuration] = useState<"24h" | "custom">("24h");
   const [customUntil, setCustomUntil] = useState("");
@@ -85,7 +84,6 @@ export function PreferredFirstPostShiftModal({
         profession,
         days,
         hourlyRate: Number(hourlyRate),
-        notes,
         preferredFirst: audience === "preferred",
         preferredUntil,
         recipientIds: audience === "preferred" && recipientMode === "selected" ? selectedIds : undefined,
@@ -131,8 +129,6 @@ export function PreferredFirstPostShiftModal({
             <button type="button" disabled={days.length === 1} onClick={() => removeDay(index)} className="mb-0.5 grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white text-slate-400 disabled:opacity-30" title="Remove day"><Trash2 size={16} /></button>
           </div>)}</div>
         </section>
-
-        <label className="field"><span>Shift notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></label>
 
         {audience === "preferred" && <section className="rounded-2xl border border-[#FDB605]/45 bg-[#fffdf5] p-4">
           <div className="grid gap-4 sm:grid-cols-2">

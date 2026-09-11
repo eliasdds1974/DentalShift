@@ -27,7 +27,6 @@ export function PreferredFirstPostAvailabilityModal({
 }) {
   const [days, setDays] = useState<PreferredFirstDayEntry[]>([{ date: todayKey(), startTime: "08:00", endTime: "17:00" }]);
   const [hourlyRate, setHourlyRate] = useState(defaultHourlyRate ? String(defaultHourlyRate) : "");
-  const [notes, setNotes] = useState("");
   const [audience, setAudience] = useState<"preferred" | "general">("preferred");
   const [duration, setDuration] = useState<"24h" | "custom">("24h");
   const [customUntil, setCustomUntil] = useState("");
@@ -70,7 +69,6 @@ export function PreferredFirstPostAvailabilityModal({
         professionalId,
         days,
         hourlyRate: Number(hourlyRate),
-        notes,
         preferredFirst: audience === "preferred",
         preferredUntil,
         officeIds: audience === "preferred" && recipientMode === "selected" ? selectedOfficeIds : undefined,
@@ -112,7 +110,7 @@ export function PreferredFirstPostAvailabilityModal({
           </div>)}</div>
         </section>
 
-        <div className="grid gap-3 sm:grid-cols-2"><label className="field"><span>Hourly rate *</span><input type="number" min="1" step="0.5" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="$ / hr" required /></label><label className="field"><span>Availability notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></label></div>
+        <label className="field"><span>Hourly rate *</span><input type="number" min="1" step="0.5" value={hourlyRate} onChange={(e) => setHourlyRate(e.target.value)} placeholder="$ / hr" required /></label>
 
         {audience === "preferred" && <section className="rounded-2xl border border-[#FDB605]/45 bg-[#fffdf5] p-4">
           <div className="grid gap-4 sm:grid-cols-2">
