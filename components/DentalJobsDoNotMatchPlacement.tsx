@@ -31,6 +31,9 @@ export function DentalJobsDoNotMatchPlacement() {
           headingBlock.appendChild(slot);
         }
 
+        const storedRole = window.localStorage.getItem("dentalshift_portal_role");
+        slot.dataset.dnmRole = storedRole === "office" ? "office" : "professional";
+
         setTarget(slot);
         return;
       }
@@ -83,6 +86,41 @@ export function DentalJobsDoNotMatchPlacement() {
         }
         #dentaljobs-do-not-match-slot .do-not-match-native.is-open {
           overflow: visible !important;
+        }
+        #dentaljobs-do-not-match-slot .do-not-match-native-heading-wrap {
+          display: flex !important;
+          flex-wrap: wrap;
+          align-items: center;
+          gap: 6px 9px;
+          min-width: 0;
+          flex: 1;
+        }
+        #dentaljobs-do-not-match-slot .do-not-match-view {
+          order: 1;
+          flex: 0 0 auto;
+          margin-bottom: 0 !important;
+        }
+        #dentaljobs-do-not-match-slot .do-not-match-native-heading-wrap::after {
+          order: 2;
+          flex: 1 1 190px;
+          min-width: 0;
+          color: #64748b;
+          font-size: 11px;
+          line-height: 1.35;
+          font-weight: 700;
+        }
+        #dentaljobs-do-not-match-slot[data-dnm-role="office"] .do-not-match-native-heading-wrap::after {
+          content: "Keep professionals you do not want matched with this office on a private list.";
+        }
+        #dentaljobs-do-not-match-slot[data-dnm-role="professional"] .do-not-match-native-heading-wrap::after {
+          content: "Keep dental offices you do not want matched with you on a private list.";
+        }
+        #dentaljobs-do-not-match-slot .do-not-match-native-heading-wrap > h2 {
+          order: 3;
+          flex-basis: 100%;
+        }
+        #dentaljobs-do-not-match-slot .do-not-match-native-heading-wrap > p {
+          display: none !important;
         }
         @media (max-width: 900px) {
           .dentaljobs-heading-with-dnm {
