@@ -10,6 +10,8 @@ function todayKey() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+const preferredDayOptions = [2, 3, 4, 5, 6, 7];
+
 export function PreferredFirstPostAvailabilityModal({
   open,
   professionalId,
@@ -28,8 +30,8 @@ export function PreferredFirstPostAvailabilityModal({
   const [days, setDays] = useState<PreferredFirstDayEntry[]>([{ date: todayKey(), startTime: "08:00", endTime: "17:00" }]);
   const [hourlyRate, setHourlyRate] = useState(defaultHourlyRate ? String(defaultHourlyRate) : "");
   const [audience, setAudience] = useState<"preferred" | "general">("preferred");
-  const [duration, setDuration] = useState<"24h" | "custom">("24h");
-  const [customUntil, setCustomUntil] = useState("");
+  const [duration, setDuration] = useState<"24h" | "days">("24h");
+  const [preferredDays, setPreferredDays] = useState(2);
   const [selectedOfficeIds, setSelectedOfficeIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -56,12 +58,8 @@ export function PreferredFirstPostAvailabilityModal({
 
     let preferredUntil: string | null = null;
     if (audience === "preferred") {
-      if (duration === "24h") preferredUntil = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
-      else {
-        const custom = new Date(customUntil);
-        if (!customUntil || !Number.isFinite(custom.getTime()) || custom.getTime() <= Date.now()) return setError("Choose a future date and time for the Preferred First window.");
-        preferredUntil = custom.toISOString();
-      }
+      const durationDays = duration === "24h" ? 1 : preferredDays;
+      preferredUntil = new Date(Date.now() + durationDays * 24 * 60 * 60 * 1000).toISOString();
     }
 
     setBusy(true);
@@ -116,8 +114,8 @@ export function PreferredFirstPostAvailabilityModal({
         {audience === "preferred" && <section className="rounded-2xl border border-[#FDB605]/45 bg-[#fffdf5] p-4">
           <div>
             <p className="text-sm font-black text-[#002757]">Preferred First duration</p>
-            <div className="mt-2 flex gap-2"><button type="button" onClick={() => setDuration("24h")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "24h" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>24 hours</button><button type="button" onClick={() => setDuration("custom")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "custom" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Custom</button></div>
-            {duration === "custom" && <label className="field mt-2"><span>Release to General Calendar</span><input type="datetime-local" value={customUntil} onChange={(e) => setCustomUntil(e.target.value)} /></label>}
+            <div className="mt-2 flex gap-2"><button type="button" onClick={() => setDuration("24h")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "24h" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>24 hours</button><button type="button" onClick={() => setDuration("days")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "days" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Days</button></div>
+            {duration === "days" && <label className="field mt-2"><span>Number of days</span><select value={preferredDays} onChange={(e) => setPreferredDays(Number(e.target.value))}>{preferredDayOptions.map((dayCount) => <option key={dayCount} value={dayCount}>{dayCount} days</option>)}</select></label>}
           </div>
 
           <div className="mt-5 border-t border-[#FDB605]/25 pt-4">
@@ -145,7 +143,7 @@ export function PreferredFirstPostAvailabilityModal({
         </section>}
 
         {audience === "preferred" && <p className="rounded-2xl border border-[#EA4335]/25 bg-red-50 px-4 py-3 text-center text-sm font-black leading-6 text-[#EA4335]">
-          After your {duration === "24h" ? "24-hour" : "custom"} Preferred First period ends, any availability that has not resulted in a scheduled shift will automatically become visible on the General Calendar. No additional posting is required.
+          After your {duration === "24h" ? "24-hour" : `${preferredDays}-day`} Preferred First period ends, any availability that has not resulted in a scheduled shift will automatically become visible on the General Calendar. No additional posting is required.
         </p>}
 
         {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
