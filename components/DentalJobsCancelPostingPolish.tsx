@@ -9,6 +9,14 @@ export function DentalJobsCancelPostingPolish() {
     const apply = () => {
       if (disposed) return;
 
+      const searchInput = document.querySelector<HTMLInputElement>('input[placeholder="Search position or city"]');
+      if (searchInput) {
+        const searchLabel = searchInput.closest("label") as HTMLElement | null;
+        const filterBar = searchLabel?.parentElement as HTMLElement | null;
+        if (searchLabel) searchLabel.style.display = "none";
+        if (filterBar) filterBar.classList.add("dentaljobs-filterbar-no-search");
+      }
+
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
       for (const heading of headings) {
         if (heading.textContent?.trim() !== "My DentalJobs") continue;
@@ -66,6 +74,12 @@ export function DentalJobsCancelPostingPolish() {
 
   return (
     <style jsx global>{`
+      @media (min-width: 768px) {
+        .dentaljobs-filterbar-no-search {
+          grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr) auto !important;
+        }
+      }
+
       .dentaljobs-my-postings-compact {
         padding: 7px 9px !important;
       }
