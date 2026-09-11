@@ -1,6 +1,31 @@
+"use client";
+
+import { useEffect } from "react";
 import ClassifiedsPage from "../classifieds/page";
 
 export default function DentalJobsPage() {
+  useEffect(() => {
+    const updateProfessionalDurationText = () => {
+      const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+      let node: Node | null;
+      while ((node = walker.nextNode())) {
+        const text = node.textContent;
+        if (!text) continue;
+        if (text.includes("Renew for 14 Days")) {
+          node.textContent = text.replace(/Renew for 14 Days/g, "Renew for 30 Days");
+        }
+        if (text.includes("remain active for 14 days")) {
+          node.textContent = text.replace(/remain active for 14 days/g, "remain active for 30 days");
+        }
+      }
+    };
+
+    updateProfessionalDurationText();
+    const observer = new MutationObserver(updateProfessionalDurationText);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    return () => observer.disconnect();
+  }, []);
+
   return (
     <div className="dental-jobs-compact-layout">
       <style>{`
@@ -29,6 +54,10 @@ export default function DentalJobsPage() {
             margin-top: 1.5rem;
             height: 100%;
           }
+        }
+
+        .dental-jobs-compact-layout main > section:first-of-type section.relative:has(p:first-of-type:nth-child(1)) {
+          border-color: rgba(1, 163, 46, 0.55) !important;
         }
       `}</style>
       <ClassifiedsPage />
