@@ -834,6 +834,7 @@ export type WorkflowBooking = {
   shifts: LiveShift | null;
   reviews: { id: string; reviewer_id: string; rating: number; comment: string | null }[];
   contact?: BookingContact | null;
+  distance_km?: number | null;
 };
 
 export type BookingContact = {
@@ -1026,6 +1027,7 @@ export async function loadOfficeWorkflow(officeId: string) {
   const professionalIds = Array.from(new Set([
     ...availability.map((slot) => slot.professional_id),
     ...shifts.flatMap((shift) => (shift.applications || []).map((application) => application.professional_id)),
+    ...bookings.map((booking) => booking.professional_id),
   ])).filter(Boolean);
   let reliabilityStats: Record<string, { completedBookings: number; totalCancellations: number; cancellationsUnder24h: number }> = {};
   let distanceByProfessional: Record<string, number | null> = {};
@@ -1052,7 +1054,13 @@ export async function loadOfficeWorkflow(officeId: string) {
         : null,
     })),
   }));
-  return { shifts: shiftsWithDistances, bookings, directory, availability, reliabilityStats };
+  const bookingsWithDistances = bookings.map((booking) => ({
+    ...booking,
+    distance_km: Object.prototype.hasOwnProperty.call(distanceByProfessional, booking.professional_id)
+      ? distanceByProfessional[booking.professional_id]
+      : null,
+  }));
+  return { shifts: shiftsWithDistances, bookings: bookingsWithDistances, directory, availability, reliabilityStats };
 }
 
 export async function withdrawApplication(applicationId: string) {

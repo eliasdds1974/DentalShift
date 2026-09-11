@@ -121,7 +121,13 @@ function OfficeScheduledBookingCard({ booking, busy, onCancel, preferred = false
           <strong className="text-base font-black text-[#032757]">{contact?.name || "Confirmed professional"}</strong>
           {preferred && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
         </div>
-        {shift && <p className="mt-1 text-xs text-slate-500">{shift.profession} · {shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>}
+        {shift && <>
+          <p className="mt-1 text-xs text-slate-500">{shift.profession} · {shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+            {(contact?.city || contact?.province) && <span>{[contact?.city, contact?.province].filter(Boolean).join(", ")}</span>}
+            {booking.distance_km != null && Number.isFinite(Number(booking.distance_km)) && <span className="inline-flex items-center rounded-full bg-[#edf3fa] px-2 py-0.5 font-black text-[#002757]">{Number(booking.distance_km) < 10 ? Number(booking.distance_km).toFixed(1) : Math.round(Number(booking.distance_km))} km away</span>}
+          </div>
+        </>}
       </div>
       <button type="button" onClick={() => setShowProfessional((value) => !value)} className="inline-flex shrink-0 items-center rounded-full border border-[#002757] bg-[#002757] px-2.5 py-1 text-[10px] font-black text-white transition hover:bg-[#0a3568]">{showProfessional ? "Hide Details" : "Details"}</button>
     </div>
