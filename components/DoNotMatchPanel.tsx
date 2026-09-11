@@ -4,6 +4,8 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 import { loadAccountDetails } from "@/lib/dentalshift";
 import { supabase } from "@/lib/supabase";
 
+type PortalRole = "office" | "professional" | null;
+
 type DoNotMatchRow = {
   id: string;
   first_name: string;
@@ -14,14 +16,40 @@ type DoNotMatchRow = {
 
 type CityOption = { city: string; province: string };
 
+type ProfessionalOfficeRow = {
+  id: string;
+  google_place_id: string;
+  office_name: string;
+  formatted_address: string | null;
+  city: string | null;
+  province: string | null;
+};
+
+type PlaceSuggestion = {
+  placeId: string;
+  label: string;
+  mainText: string;
+  secondaryText: string;
+};
+
 export function DoNotMatchPanel() {
-  const [isOffice, setIsOffice] = useState(false);
+  const [role, setRole] = useState<PortalRole>(null);
   const [officeId, setOfficeId] = useState<string | null>(null);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
+
   const [rows, setRows] = useState<DoNotMatchRow[]>([]);
   const [cities, setCities] = useState<CityOption[]>([]);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [cityValue, setCityValue] = useState("");
+
+  const [officeRows, setOfficeRows] = useState<ProfessionalOfficeRow[]>([]);
+  const [officeQuery, setOfficeQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<PlaceSuggestion[]>([]);
+  const [selectedOffice, setSelectedOffice] = useState<PlaceSuggestion | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [sessionToken, setSessionToken] = useState("");
+
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
@@ -37,30 +65,50 @@ export function DoNotMatchPanel() {
     setRows((data || []) as DoNotMatchRow[]);
   };
 
+  const loadOfficeRows = async (id: string) => {
+    const { data, error: loadError } = await supabase
+      .from("professional_do_not_match_offices")
+      .select("id,google_place_id,office_name,formatted_address,city,province")
+      .eq("professional_id", id)
+      .order("office_name", { ascending: true });
+    if (loadError) throw loadError;
+    setOfficeRows((data || []) as ProfessionalOfficeRow[]);
+  };
+
   useEffect(() => {
     let active = true;
     void (async () => {
       try {
-        const role = window.localStorage.getItem("dentalshift_portal_role");
-        if (role !== "office") return;
+        const storedRole = window.localStorage.getItem("dentalshift_portal_role");
+        const resolvedRole: PortalRole = storedRole === "office" ? "office" : storedRole === "professional" ? "professional" : null;
+        if (!resolvedRole) return;
 
         const { data: { user } } = await supabase.auth.getUser();
-        if (!user) return;
-        const details = await loadAccountDetails(user.id);
-        const id = details.office?.id;
-        if (!id || !active) return;
+        if (!user || !active) return;
 
-        setIsOffice(true);
-        setOfficeId(id);
-        await loadRows(id);
+        setRole(resolvedRole);
 
-        const { data: cityData } = await supabase.rpc("dentaljobs_member_cities");
-        if (!active) return;
-        const normalized = (cityData || [])
-          .map((row: any) => ({ city: String(row.city || "").trim(), province: String(row.province || "").trim() }))
-          .filter((row: CityOption) => row.city)
-          .sort((a: CityOption, b: CityOption) => a.city.localeCompare(b.city) || a.province.localeCompare(b.province));
-        setCities(normalized);
+        if (resolvedRole === "office") {
+          const details = await loadAccountDetails(user.id);
+          const id = details.office?.id;
+          if (!id || !active) return;
+
+          setOfficeId(id);
+          await loadRows(id);
+
+          const { data: cityData } = await supabase.rpc("dentaljobs_member_cities");
+          if (!active) return;
+          const normalized = (cityData || [])
+            .map((row: any) => ({ city: String(row.city || "").trim(), province: String(row.province || "").trim() }))
+            .filter((row: CityOption) => row.city)
+            .sort((a: CityOption, b: CityOption) => a.city.localeCompare(b.city) || a.province.localeCompare(b.province));
+          setCities(normalized);
+        }
+
+        if (resolvedRole === "professional") {
+          setProfessionalId(user.id);
+          await loadOfficeRows(user.id);
+        }
       } catch {
         if (active) setError("Do Not Match could not be loaded.");
       }
@@ -68,9 +116,49 @@ export function DoNotMatchPanel() {
     return () => { active = false; };
   }, []);
 
+  useEffect(() => {
+    if (role !== "professional" || !open) return;
+    const search = officeQuery.trim();
+    if (selectedOffice || search.length < 3) {
+      setSuggestions([]);
+      setSearching(false);
+      return;
+    }
+
+    const token = window.setTimeout(() => {
+      void (async () => {
+        setSearching(true);
+        try {
+          const nextToken = sessionToken || (typeof crypto !== "undefined" && "randomUUID" in crypto ? crypto.randomUUID() : `${Date.now()}-${Math.random()}`);
+          if (!sessionToken) setSessionToken(nextToken);
+          const response = await fetch("/api/google/places/autocomplete", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ input: search, kind: "favourite-office", sessionToken: nextToken }),
+          });
+          const result = await response.json();
+          if (!response.ok) throw new Error(result.error || "Google office search is unavailable.");
+          setSuggestions((result.suggestions || []) as PlaceSuggestion[]);
+        } catch (value) {
+          setSuggestions([]);
+          setError(value instanceof Error ? value.message : "Google office search is unavailable.");
+        } finally {
+          setSearching(false);
+        }
+      })();
+    }, 260);
+
+    return () => window.clearTimeout(token);
+  }, [officeQuery, open, role, selectedOffice, sessionToken]);
+
   const sortedRows = useMemo(
     () => [...rows].sort((a, b) => a.last_name.localeCompare(b.last_name) || a.first_name.localeCompare(b.first_name)),
     [rows]
+  );
+
+  const sortedOfficeRows = useMemo(
+    () => [...officeRows].sort((a, b) => a.office_name.localeCompare(b.office_name)),
+    [officeRows]
   );
 
   const addPerson = async (event: FormEvent) => {
@@ -105,6 +193,46 @@ export function DoNotMatchPanel() {
     setBusy(false);
   };
 
+  const addOffice = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!professionalId || !selectedOffice) return;
+
+    setBusy(true);
+    setError("");
+    try {
+      const response = await fetch("/api/google/places/details", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ placeId: selectedOffice.placeId, sessionToken }),
+      });
+      const details = await response.json();
+      if (!response.ok) throw new Error(details.error || "The selected office could not be verified.");
+
+      const { error: insertError } = await supabase.from("professional_do_not_match_offices").insert({
+        professional_id: professionalId,
+        google_place_id: details.placeId || selectedOffice.placeId,
+        office_name: details.name || selectedOffice.mainText || selectedOffice.label,
+        formatted_address: details.formattedAddress || selectedOffice.secondaryText || null,
+        city: details.city || null,
+        province: details.province || null,
+      });
+
+      if (insertError) {
+        throw new Error(insertError.code === "23505" ? "That dental office is already on your Do Not Match list." : "Could not add this dental office.");
+      }
+
+      setOfficeQuery("");
+      setSelectedOffice(null);
+      setSuggestions([]);
+      setSessionToken("");
+      await loadOfficeRows(professionalId);
+    } catch (value) {
+      setError(value instanceof Error ? value.message : "Could not add this dental office.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const removePerson = async (id: string) => {
     if (!officeId) return;
     setError("");
@@ -116,7 +244,20 @@ export function DoNotMatchPanel() {
     await loadRows(officeId);
   };
 
-  if (!isOffice) return null;
+  const removeOffice = async (id: string) => {
+    if (!professionalId) return;
+    setError("");
+    const { error: deleteError } = await supabase.from("professional_do_not_match_offices").delete().eq("id", id);
+    if (deleteError) {
+      setError("Could not remove this dental office.");
+      return;
+    }
+    await loadOfficeRows(professionalId);
+  };
+
+  if (!role) return null;
+
+  const count = role === "office" ? sortedRows.length : sortedOfficeRows.length;
 
   return (
     <aside className={`do-not-match-native ${open ? "is-open" : "is-closed"}`} aria-label="Do Not Match list">
@@ -126,42 +267,104 @@ export function DoNotMatchPanel() {
             {open ? "Hide" : "View"}
           </button>
           <h2>Do Not Match List</h2>
-          {open && <p>Keep professionals you do not want matched with this office on a private list.</p>}
+          {open && (
+            <p>
+              {role === "office"
+                ? "Keep professionals you do not want matched with this office on a private list."
+                : "Keep dental offices you do not want matched with you on a private list."}
+            </p>
+          )}
         </div>
-        <span>{sortedRows.length}</span>
+        <span>{count}</span>
       </div>
 
       {open && (
         <>
-          <form onSubmit={addPerson} className="do-not-match-native-form">
-            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required />
-            <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" required />
-            <select value={cityValue} onChange={(e) => setCityValue(e.target.value)} required>
-              <option value="">Select city</option>
-              {cities.map((item) => (
-                <option key={`${item.city}-${item.province}`} value={`${item.city}|||${item.province}`}>
-                  {item.province ? `${item.city}, ${item.province}` : item.city}
-                </option>
-              ))}
-            </select>
-            <button type="submit" disabled={busy}>{busy ? "Adding…" : "Add"}</button>
-          </form>
+          {role === "office" ? (
+            <form onSubmit={addPerson} className="do-not-match-native-form">
+              <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required />
+              <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" required />
+              <select value={cityValue} onChange={(e) => setCityValue(e.target.value)} required>
+                <option value="">Select city</option>
+                {cities.map((item) => (
+                  <option key={`${item.city}-${item.province}`} value={`${item.city}|||${item.province}`}>
+                    {item.province ? `${item.city}, ${item.province}` : item.city}
+                  </option>
+                ))}
+              </select>
+              <button type="submit" disabled={busy}>{busy ? "Adding…" : "Add"}</button>
+            </form>
+          ) : (
+            <form onSubmit={addOffice} className="do-not-match-native-form professional-office-search-form">
+              <div className="office-search-wrap">
+                <input
+                  value={officeQuery}
+                  onChange={(e) => {
+                    setOfficeQuery(e.target.value);
+                    setSelectedOffice(null);
+                    setError("");
+                  }}
+                  placeholder="Search dental office"
+                  autoComplete="off"
+                  required
+                />
+                {searching && <span className="office-searching">Searching…</span>}
+                {!selectedOffice && suggestions.length > 0 && (
+                  <div className="office-suggestions">
+                    {suggestions.map((item) => (
+                      <button
+                        type="button"
+                        key={item.placeId}
+                        onClick={() => {
+                          setSelectedOffice(item);
+                          setOfficeQuery(item.label || item.mainText);
+                          setSuggestions([]);
+                          setError("");
+                        }}
+                      >
+                        <strong>{item.mainText || item.label}</strong>
+                        {item.secondaryText && <span>{item.secondaryText}</span>}
+                      </button>
+                    ))}
+                    <div className="google-attribution">Powered by Google</div>
+                  </div>
+                )}
+              </div>
+              <button type="submit" disabled={busy || !selectedOffice}>{busy ? "Adding…" : "Add"}</button>
+            </form>
+          )}
 
           {error && <div className="do-not-match-native-error">{error}</div>}
 
           <div className="do-not-match-native-list">
-            {!sortedRows.length ? (
-              <div className="do-not-match-native-empty">No professionals have been added yet.</div>
-            ) : (
-              sortedRows.map((row) => (
-                <div key={row.id} className="do-not-match-native-row">
-                  <div>
-                    <strong>{row.last_name}, {row.first_name}</strong>
-                    <span>{row.city}{row.province ? `, ${row.province}` : ""}</span>
+            {role === "office" ? (
+              !sortedRows.length ? (
+                <div className="do-not-match-native-empty">No professionals have been added yet.</div>
+              ) : (
+                sortedRows.map((row) => (
+                  <div key={row.id} className="do-not-match-native-row">
+                    <div>
+                      <strong>{row.last_name}, {row.first_name}</strong>
+                      <span>{row.city}{row.province ? `, ${row.province}` : ""}</span>
+                    </div>
+                    <button type="button" onClick={() => void removePerson(row.id)} aria-label={`Remove ${row.first_name} ${row.last_name}`}>×</button>
                   </div>
-                  <button type="button" onClick={() => void removePerson(row.id)} aria-label={`Remove ${row.first_name} ${row.last_name}`}>×</button>
-                </div>
-              ))
+                ))
+              )
+            ) : (
+              !sortedOfficeRows.length ? (
+                <div className="do-not-match-native-empty">No dental offices have been added yet.</div>
+              ) : (
+                sortedOfficeRows.map((row) => (
+                  <div key={row.id} className="do-not-match-native-row">
+                    <div>
+                      <strong>{row.office_name}</strong>
+                      <span>{row.formatted_address || [row.city, row.province].filter(Boolean).join(", ")}</span>
+                    </div>
+                    <button type="button" onClick={() => void removeOffice(row.id)} aria-label={`Remove ${row.office_name}`}>×</button>
+                  </div>
+                ))
+              )
             )}
           </div>
 
@@ -218,6 +421,17 @@ export function DoNotMatchPanel() {
         select { grid-column:1 / -1; }
         .do-not-match-native-form > button { grid-column:1 / -1; height:40px; border:0; border-radius:10px; background:#F21C13; color:#fff; font-size:12px; font-weight:900; cursor:pointer; }
         .do-not-match-native-form > button:disabled { opacity:.6; cursor:default; }
+        .professional-office-search-form { display:block; }
+        .professional-office-search-form > button { width:100%; margin-top:8px; }
+        .office-search-wrap { position:relative; }
+        .office-search-wrap > input { width:100%; }
+        .office-searching { position:absolute; right:10px; top:50%; transform:translateY(-50%); color:#94a3b8; font-size:10px; font-weight:800; }
+        .office-suggestions { position:absolute; left:0; right:0; top:44px; z-index:50; overflow:hidden; border:1px solid #d8dee8; border-radius:12px; background:#fff; box-shadow:0 14px 32px rgba(15,23,42,.16); }
+        .office-suggestions > button { display:block; width:100%; border:0; border-bottom:1px solid #edf0f4; background:#fff; padding:9px 10px; text-align:left; cursor:pointer; }
+        .office-suggestions > button:hover { background:#f8fafc; }
+        .office-suggestions strong { display:block; color:#002757; font-size:12px; }
+        .office-suggestions span { display:block; margin-top:2px; color:#64748b; font-size:10px; }
+        .google-attribution { padding:6px 10px; color:#94a3b8; font-size:9px; font-weight:700; text-align:right; }
         .do-not-match-native-error { margin-top:9px; border-radius:9px; background:#fff0ef; padding:8px 10px; color:#b42318; font-size:11px; font-weight:800; }
         .do-not-match-native-list { margin-top:12px; display:grid; gap:7px; }
         .do-not-match-native-row { display:flex; align-items:center; justify-content:space-between; gap:10px; border:1px solid #f1d2cf; border-radius:11px; background:#fffafa; padding:9px 10px; }
