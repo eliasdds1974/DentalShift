@@ -118,23 +118,23 @@ export default function DentalJobsPage() {
     const organizeSignedInListings = () => {
       const sections = Array.from(document.querySelectorAll<HTMLElement>(".dental-jobs-compact-layout main > section"));
       const resultsSection = sections.find((section) => section.textContent?.includes("Dental job opportunities"));
-      if (!resultsSection) return;
+      if (!resultsSection) return false;
 
       const grid = Array.from(resultsSection.querySelectorAll<HTMLElement>("div.grid")).find((candidate) =>
         Array.from(candidate.children).some((child) => child.tagName === "ARTICLE")
       );
-      if (!grid) return;
+      if (!grid) return false;
 
       grid.querySelectorAll(":scope > .dentaljobs-group-heading").forEach((node) => node.remove());
 
       const allCards = Array.from(grid.querySelectorAll<HTMLElement>(":scope > article"));
       for (const card of allCards) {
         const title = card.querySelector("h3")?.textContent?.trim() || "";
-        if (demoListingTitles.has(title)) card.remove();
+        card.style.display = demoListingTitles.has(title) ? "none" : "";
       }
 
-      const cards = Array.from(grid.querySelectorAll<HTMLElement>(":scope > article"));
-      if (!cards.length) return;
+      const cards = allCards.filter((card) => card.style.display !== "none");
+      if (!cards.length) return true;
 
       const grouped = new Map<string, { province: string; city: string; office: HTMLElement[]; professional: HTMLElement[] }>();
       for (const card of cards) {
@@ -210,22 +210,32 @@ export default function DentalJobsPage() {
       topSection.querySelector<HTMLElement>(".dentaljobs-city-index")?.remove();
       const filterBar = Array.from(topSection.querySelectorAll<HTMLElement>("div.mt-6.grid.gap-3")).find((node) => node.querySelector("select"));
       if (filterBar) filterBar.style.display = "none";
+      return true;
     };
 
     const refresh = () => {
       updateDurationAndHeadingText();
-      organizeSignedInListings();
+      return organizeSignedInListings();
     };
 
+    let attempts = 0;
+    const runWhenReady = () => {
+      if (disposed) return;
+      attempts += 1;
+      const done = refresh();
+      if (!done && attempts < 12) window.setTimeout(runWhenReady, 150);
+    };
+
+    const initialTimer = window.setTimeout(runWhenReady, 0);
     void (async () => {
       try { await buildDistanceMaps(); } catch { /* Fall back to province/city grouping if coordinates are unavailable. */ }
       if (!disposed) refresh();
     })();
 
-    refresh();
-    const observer = new MutationObserver(() => window.requestAnimationFrame(refresh));
-    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
-    return () => { disposed = true; observer.disconnect(); };
+    return () => {
+      disposed = true;
+      window.clearTimeout(initialTimer);
+    };
   }, []);
 
   return (
