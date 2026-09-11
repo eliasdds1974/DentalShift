@@ -1,0 +1,29 @@
+name: Add mutual match message
+
+on:
+  push:
+    paths:
+      - '.github/workflows/add-mutual-match-message.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply mutual match message patch
+        run: python .github/scripts/add-mutual-match-message.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit mutual match message
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/OfficeWorkspaceV2.tsx components/WorkflowWorkspaceV2.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Show mutual match scheduling message in both portals"
+          git push
