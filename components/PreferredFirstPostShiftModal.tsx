@@ -142,6 +142,10 @@ export function PreferredFirstPostShiftModal({
           {recipientMode === "selected" && <div className="mt-3 grid gap-2 sm:grid-cols-2">{matchingPreferred.map((person) => <label key={person.id} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-700"><input type="checkbox" className="h-4 w-4 accent-[#FDB605]" checked={Boolean(person.matched_professional_id && selectedIds.includes(person.matched_professional_id))} onChange={(e) => { const id = person.matched_professional_id!; setSelectedIds((current) => e.target.checked ? [...new Set([...current, id])] : current.filter((value) => value !== id)); }} /><Star size={13} className="fill-[#FDB605] text-[#FDB605]" />{person.first_name} {person.last_name}</label>)}</div>}
         </section>}
 
+        {audience === "preferred" && <p className="rounded-2xl border border-[#EA4335]/25 bg-red-50 px-4 py-3 text-center text-sm font-black leading-6 text-[#EA4335]">
+          After your {duration === "24h" ? "24-hour" : "custom"} Preferred First period ends, any unscheduled shifts will automatically become visible on the General Calendar. No additional posting is required.
+        </p>}
+
         {error && <p className="rounded-xl bg-red-50 px-3 py-2 text-sm font-bold text-red-700">{error}</p>}
         {success && <p className="rounded-xl bg-green-50 px-3 py-2 text-sm font-bold text-green-700">{success}</p>}
         <div className="flex justify-end gap-2"><button type="button" onClick={onClose} className="secondary-btn">Cancel</button><button type="submit" disabled={busy} className="primary-btn justify-center">{busy ? "Posting…" : audience === "preferred" ? "Send Preferred First" : "Post to General Calendar"}</button></div>
