@@ -113,8 +113,20 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
   return <article className={`rounded-2xl border p-4 ${tones[tone]}`}>
     <div className="flex items-start justify-between gap-3">
       <div className="min-w-0">
-        {officeHeader ? <div className="mb-2 inline-flex rounded-lg bg-[#0078FE] px-3 py-1.5 shadow-sm">
-          <strong className="truncate text-sm font-black text-white sm:text-base">{officeName(shift, revealOfficeName)}</strong>{preferredOffice && <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
+        {officeHeader ? <div className="mb-3 rounded-2xl border border-[#dbe7f5] bg-gradient-to-r from-[#f4f8fd] to-white p-3 shadow-sm">
+          <div className="flex items-center justify-between gap-3">
+            <div className="min-w-0">
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <strong className="truncate text-base font-black text-[#002757] sm:text-lg">{officeName(shift, revealOfficeName)}</strong>
+                {preferredOffice && <span className="inline-flex shrink-0 items-center gap-1 rounded-full bg-[#FFF7D6] px-2.5 py-1 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/55"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
+              </div>
+              <p className="mt-0.5 text-[10px] font-black uppercase tracking-[.14em] text-slate-400">Shift opportunity</p>
+            </div>
+            <div className="shrink-0 rounded-xl border border-[#dbe7f5] bg-white px-3 py-2 text-right shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Rate</p>
+              <p className="text-base font-black text-[#002757]">${Number(shift.hourly_rate)}/hr</p>
+            </div>
+          </div>
         </div> : <div className="flex items-center gap-2">
           {!isScheduledCard && <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${dot}`} />}
           <strong className="truncate text-sm text-[#002757] sm:text-base">{officeName(shift, revealOfficeName)}</strong>{preferredOffice && !isScheduledCard && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
@@ -124,12 +136,12 @@ function ShiftCard({ shift, action, tone = "blue", status, professionalLatitude,
         <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-slate-600"><Clock3 size={14} />{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p>
         <div className="mt-1 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span className="inline-flex items-center gap-1.5"><MapPin size={14} />{shift.offices?.city || "City"}, {shift.offices?.province || "Province"}</span>{officeDistanceKm != null && <span className="inline-flex items-center rounded-full bg-[#edf3fa] px-2 py-0.5 font-black text-[#002757]">{officeDistanceKm < 10 ? officeDistanceKm.toFixed(1) : Math.round(officeDistanceKm)} km away</span>}</div>
       </div>
-      <div className="shrink-0 text-right">
+      {!officeHeader && <div className="shrink-0 text-right">
         <p className="text-base font-black text-[#002757]">${Number(shift.hourly_rate)}/hr</p>
         {status && !isScheduledCard && !status.toLowerCase().includes("interested") && <span className="mt-1 inline-flex rounded-full bg-white px-2 py-1 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm">{status}</span>}
-      </div>
+      </div>}
     </div>
-    <div className="mt-2 border-t border-slate-200/70 pt-2"><div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-600"><button type="button" onClick={() => setExpanded((value) => !value)} className="ml-0.5 inline-flex items-center rounded-full border border-slate-300 bg-white px-2.5 py-1 text-[10px] font-black text-[#002757] hover:bg-slate-50">{expanded ? "Hide Details" : "Details"}</button></div></div>
+    <div className="mt-2 border-t border-slate-200/70 pt-2"><div className="flex min-w-0 flex-wrap items-center gap-1.5 text-[10px] font-bold text-slate-600"><button type="button" onClick={() => setExpanded((value) => !value)} className="ml-0.5 inline-flex items-center rounded-full border border-[#002757] bg-[#002757] px-3 py-1.5 text-[10px] font-black text-white shadow-sm transition hover:bg-[#0a3568] focus:outline-none focus:ring-2 focus:ring-[#002757]/25">{expanded ? "Hide Details" : "Details"}</button></div></div>
     {expanded && <div className="mt-3 rounded-xl border border-slate-200 bg-white/80 p-3"><div className="grid gap-x-4 gap-y-2 text-xs sm:grid-cols-2"><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Languages</p><p className="mt-1 font-extrabold text-[#002757]">{shift.offices?.languages?.length ? shift.offices.languages.join(", ") : "Not listed"}</p></div><div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Dental software</p><p className="mt-1 font-extrabold text-[#002757]">{shift.offices?.software?.length ? shift.offices.software.join(", ") : "Not listed"}</p></div>{shift.offices?.parking_info && <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Parking</p><p className="mt-1 font-semibold text-slate-700">{shift.offices.parking_info}</p></div>}{shift.offices?.benefits && <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Office highlights</p><p className="mt-1 font-semibold text-slate-700">{shift.offices.benefits}</p></div>}</div><p className="mt-2 text-[11px] font-semibold text-slate-500"><ShieldCheck size={13} className="mr-1 inline text-[#34A853]" />Contact information stays protected until booking.</p></div>}
     {action && <div className="mt-4">{action}</div>}
   </article>;
