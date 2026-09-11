@@ -138,6 +138,7 @@ function OfficeScheduledBookingCard({ booking, busy, onCancel, preferred = false
         <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Position</p><p className="mt-0.5 font-extrabold text-[#002757]">{contact?.profession || shift?.profession || "Not listed"}</p></div>
         <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Licence / Registration</p><p className="mt-0.5 font-extrabold text-[#002757]">{contact?.licence_number ? `${contact.licence_number}${contact.licence_province ? ` · ${contact.licence_province}` : ""}` : "Not listed"}</p></div>
         <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Phone</p><p className="mt-0.5 font-extrabold text-[#002757]">{contact?.phone || "Not listed"}</p></div>
+        <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Languages Spoken</p><p className="mt-0.5 font-extrabold text-[#002757]">{contact?.languages?.length ? contact.languages.join(", ") : "Not listed"}</p></div>
         <div className="sm:col-span-2"><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Email</p><p className="mt-0.5 break-all font-extrabold text-[#002757]">{contact?.email || "Not listed"}</p></div>
       </div>
     </div>}
@@ -380,6 +381,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       cancellationsUnder24h: stats?.cancellationsUnder24h ?? 0,
       skills: profile?.skills || null,
       software: profile?.skills || null,
+      languages: profile?.languages || null,
       qualifications: localAnesthetic ? [{ label: "Local Anesthetic", verified: profile?.local_anesthetic_status === "verified" }] : [],
       preferred: data.preferredProfessionals.some((person) => person.matched_professional_id === slot.professional_id),
       interested: Boolean(interest),
@@ -419,6 +421,7 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
           cancellationsUnder24h: stats?.cancellationsUnder24h ?? 0,
           skills: profile?.skills || null,
           software: profile?.skills || null,
+          languages: profile?.languages || null,
           qualifications: [],
           preferred: data.preferredProfessionals.some((person) => person.matched_professional_id === application.professional_id),
           interested: true,

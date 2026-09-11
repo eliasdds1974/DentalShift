@@ -26,6 +26,7 @@ export type ProfessionalDetails = {
   hourly_rate: number | null;
   travel_radius_km: number;
   years_experience: number | null;
+  languages: string[] | null;
   bio: string | null;
   skills: string[] | null;
   cpr_path: string | null;
@@ -210,7 +211,7 @@ async function loadAccountDetailsOnce(userId: string): Promise<AccountDetails> {
   const [{ data: professionalData, error: professionalError }, { data: officeData, error: officeError }] = await Promise.all([
     supabase
       .from("professional_profiles")
-      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,cpr_path,cpr_status,cpr_expiry_month,cpr_submitted_at,cpr_grace_until,cpr_verified_at,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
+      .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,languages,bio,skills,cpr_path,cpr_status,cpr_expiry_month,cpr_submitted_at,cpr_grace_until,cpr_verified_at,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
       .eq("user_id", userId)
       .maybeSingle(),
     supabase
@@ -296,7 +297,7 @@ export async function createProfessionalWorkspace(input: Pick<ProfessionalDetail
       travel_radius_km: 25,
       available_for_work: false,
     })
-    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,bio,skills,cpr_path,cpr_status,cpr_expiry_month,cpr_submitted_at,cpr_grace_until,cpr_verified_at,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
+    .select("user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,languages,bio,skills,cpr_path,cpr_status,cpr_expiry_month,cpr_submitted_at,cpr_grace_until,cpr_verified_at,resume_path,available_for_work,local_anesthetic,local_anesthetic_status")
     .single();
   if (error) throw error;
   return data as ProfessionalDetails;
@@ -473,6 +474,7 @@ export async function saveAccountDetails(input: AccountDetails) {
         hourly_rate: input.professional.hourly_rate,
         travel_radius_km: input.professional.travel_radius_km,
         years_experience: input.professional.years_experience,
+        languages: input.professional.languages,
         bio: input.professional.bio,
         skills: input.professional.skills,
         resume_path: input.professional.resume_path,
@@ -824,7 +826,7 @@ export type WorkflowApplication = {
   id: string; status: string; proposed_rate: number | null; application_kind: string; created_at: string; office_interested_at?: string | null;
   professional_id: string;
   distance_km?: number | null;
-  professional_profiles?: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number; years_experience?: number | null; skills?: string[] | null; hourly_rate?: number | null; local_anesthetic?: boolean; local_anesthetic_status?: string; profiles?: { latitude: number | null; longitude: number | null } | null } | null;
+  professional_profiles?: { profession: string; licence_province: string; rating: number; completed_shifts: number; reliability_score: number; years_experience?: number | null; languages?: string[] | null; skills?: string[] | null; hourly_rate?: number | null; local_anesthetic?: boolean; local_anesthetic_status?: string; profiles?: { latitude: number | null; longitude: number | null } | null } | null;
   shifts?: LiveShift | null;
 };
 
@@ -884,7 +886,7 @@ export type AvailableProfessionalSlot = {
   hourly_rate: number;
   notes?: string | null;
   distance_km?: number | null;
-  professional_profiles: { profession: string; licence_province: string; licence_status?: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; travel_radius_km: number; years_experience: number | null; skills: string[] | null; local_anesthetic: boolean; local_anesthetic_status: string; profiles: { latitude: number | null; longitude: number | null } | null } | null;
+  professional_profiles: { profession: string; licence_province: string; licence_status?: string; rating: number; completed_shifts: number; reliability_score: number; hourly_rate: number | null; travel_radius_km: number; years_experience: number | null; languages: string[] | null; skills: string[] | null; local_anesthetic: boolean; local_anesthetic_status: string; profiles: { latitude: number | null; longitude: number | null } | null } | null;
 };
 
 export type OfficeShift = LiveShift & { applications: WorkflowApplication[] };
@@ -1011,7 +1013,7 @@ export async function loadOfficeWorkflow(officeId: string) {
   if (excludedError) throw excludedError;
   const excludedProfessionalIds = new Set((excludedRows ?? []).map((row: any) => row.matched_professional_id).filter(Boolean));
   const [shiftsResult, bookingsResult, directoryResult, availabilityResult] = await Promise.all([
-    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits),applications(id,status,proposed_rate,application_kind,created_at,office_interested_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,years_experience,skills,hourly_rate,local_anesthetic,local_anesthetic_status,profiles(latitude,longitude)))").eq("office_id", officeId).order("starts_at", { ascending: false }),
+    supabase.from("shifts").select("id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits),applications(id,status,proposed_rate,application_kind,created_at,office_interested_at,professional_id,professional_profiles!applications_professional_id_fkey(profession,licence_province,rating,completed_shifts,reliability_score,years_experience,languages,skills,hourly_rate,local_anesthetic,local_anesthetic_status,profiles(latitude,longitude)))").eq("office_id", officeId).order("starts_at", { ascending: false }),
     supabase.from("bookings").select("id,professional_id,check_in_at,check_out_at,office_confirmed_completion,professional_confirmed_completion,cancelled_at,shifts!bookings_shift_id_fkey(id,office_id,profession,starts_at,ends_at,hourly_rate,required_software,notes,status,interest_only,source_availability_id,offices(name,city,province,website,software,google_place_id,latitude,longitude,languages,parking_info,operatories,benefits)),reviews(id,reviewer_id,rating,comment)").eq("office_id", officeId).order("confirmed_at", { ascending: false }),
     supabase.from("professional_profiles").select("user_id,profession,licence_province,rating,completed_shifts,reliability_score").eq("licence_status", "verified").order("rating", { ascending: false }).limit(12),
     supabase.rpc("office_available_professionals", { p_office_id: officeId }),
