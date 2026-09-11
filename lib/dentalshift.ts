@@ -854,6 +854,7 @@ export type BookingContact = {
   parking_info?: string | null;
   office_hours?: string | null;
   software?: string[] | null;
+  software_experience?: string[] | null;
   languages?: string[] | null;
   operatories?: number | null;
   benefits?: string | null;

@@ -149,7 +149,7 @@ function OfficeScheduledBookingCard({ booking, busy, onCancel, preferred = false
         <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Time</p><p className="mt-0.5 font-extrabold text-[#002757]">{shortTime(shift.starts_at)}–{shortTime(shift.ends_at)}</p></div>
         <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Position</p><p className="mt-0.5 font-extrabold text-[#002757]">{shift.profession}</p></div>
         <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Hourly Rate</p><p className="mt-0.5 font-extrabold text-[#002757]">${Number(shift.hourly_rate).toFixed(2)}/hr</p></div>
-        <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Required Software</p><p className="mt-0.5 font-extrabold text-[#002757]">{shift.required_software || "None specified"}</p></div>
+        <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Dental Software Experience</p><p className="mt-0.5 font-extrabold text-[#002757]">{contact?.software_experience?.length ? contact.software_experience.join(", ") : "Not listed"}</p></div>
         <div><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Status</p><p className="mt-0.5 font-extrabold text-[#017f27]">Scheduled</p></div>
         {shift.notes && <div className="sm:col-span-2"><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Shift Notes</p><p className="mt-0.5 font-semibold text-slate-700">{shift.notes}</p></div>}
       </div>
