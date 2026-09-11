@@ -38,7 +38,6 @@ export function PreferredFirstPostShiftModal({
   const [profession, setProfession] = useState(professions[0]);
   const [days, setDays] = useState<PreferredFirstDayEntry[]>([{ date: todayKey(), startTime: "08:00", endTime: "17:00" }]);
   const [hourlyRate, setHourlyRate] = useState("");
-  const [software, setSoftware] = useState("Any software");
   const [notes, setNotes] = useState("");
   const [audience, setAudience] = useState<"preferred" | "general">("preferred");
   const [duration, setDuration] = useState<"24h" | "custom">("24h");
@@ -86,7 +85,6 @@ export function PreferredFirstPostShiftModal({
         profession,
         days,
         hourlyRate: Number(hourlyRate),
-        software,
         notes,
         preferredFirst: audience === "preferred",
         preferredUntil,
@@ -134,10 +132,7 @@ export function PreferredFirstPostShiftModal({
           </div>)}</div>
         </section>
 
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="field"><span>Dental software</span><select value={software} onChange={(e) => setSoftware(e.target.value)}><option>Any software</option>{(office.software || []).map((item) => <option key={item}>{item}</option>)}</select></label>
-          <label className="field"><span>Shift notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></label>
-        </div>
+        <label className="field"><span>Shift notes</span><input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" /></label>
 
         {audience === "preferred" && <section className="rounded-2xl border border-[#FDB605]/45 bg-[#fffdf5] p-4">
           <div className="grid gap-4 sm:grid-cols-2">
