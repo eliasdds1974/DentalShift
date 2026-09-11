@@ -1,69 +1,37 @@
-import DentalJobsPage from "../classifieds/page";
+import ClassifiedsPage from "../classifieds/page";
 
-export default function DentalJobsRoute() {
+export default function DentalJobsPage() {
   return (
-    <div className="dental-jobs-route">
-      <DentalJobsPage />
+    <div className="dental-jobs-compact-layout">
       <style>{`
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) {
-          position: relative !important;
-          overflow: hidden !important;
-          border-color: #002757 !important;
-          background: #002757 !important;
-          box-shadow: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1) !important;
-          transform: translateY(0);
-        }
+        @media (min-width: 1024px) {
+          .dental-jobs-compact-layout main > section:first-of-type > div:has(> section.relative h2) {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+            column-gap: 1rem;
+            align-items: start;
+          }
 
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round)::before {
-          content: "";
-          position: absolute;
-          inset: 0 0 auto 0;
-          height: 6px;
-          background: #01A32E;
-        }
+          .dental-jobs-compact-layout main > section:first-of-type > div:has(> section.relative h2) > :first-child,
+          .dental-jobs-compact-layout main > section:first-of-type > div:has(> section.relative h2) > section:not(.relative),
+          .dental-jobs-compact-layout main > section:first-of-type > div:has(> section.relative h2) > div.mt-6.grid.gap-3 {
+            grid-column: 1 / -1;
+          }
 
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round):hover {
-          border-color: #01A32E !important;
-          transform: translateY(-4px) !important;
-          box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.25) !important;
-        }
+          .dental-jobs-compact-layout main > section:first-of-type > div:has(> section.relative h2) > div.mt-6.grid.gap-4 {
+            grid-column: 1;
+            max-width: none;
+            margin-top: 1.5rem;
+          }
 
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) > div > span:first-child {
-          background: #01A32E !important;
-          color: #ffffff !important;
-          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
-          outline: 4px solid rgb(255 255 255 / 0.1);
-        }
-
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) p:first-child {
-          color: #9be3ad !important;
-        }
-
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) h2 {
-          color: #ffffff !important;
-        }
-
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) h2 + p {
-          color: #e2e8f0 !important;
-        }
-
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) h2 + p + span {
-          margin-top: 1rem !important;
-          display: inline-flex !important;
-          align-items: center !important;
-          gap: 0.5rem !important;
-          border-radius: 0.75rem !important;
-          background: #01A32E !important;
-          padding: 0.625rem 1rem !important;
-          color: #ffffff !important;
-          box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1) !important;
-        }
-
-        .dental-jobs-route main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round):hover h2 + p + span {
-          background: #ffffff !important;
-          color: #002757 !important;
+          .dental-jobs-compact-layout main > section:first-of-type > div:has(> section.relative h2) > section.relative {
+            grid-column: 2;
+            margin-top: 1.5rem;
+            height: 100%;
+          }
         }
       `}</style>
+      <ClassifiedsPage />
     </div>
   );
 }
