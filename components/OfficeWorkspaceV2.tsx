@@ -24,6 +24,9 @@ import {
 } from "@/lib/dentalshift";
 import { OfficeWorkspace as LegacyOfficeWorkspace } from "./WorkflowWorkspace";
 import { AnonymousAvailableStaffPanel, type AnonymousAvailableStaff } from "./AnonymousAvailableStaffPanel";
+import { PreferredFirstPostShiftModal } from "./PreferredFirstPostShiftModal";
+import { PreferredFirstOfficePanel } from "./PreferredFirstOfficePanel";
+import { preferredFirstIsActive } from "@/lib/preferred-first";
 
 type OfficeView = "overview" | "shifts" | "bookings" | "talent" | "profile";
 type CalendarView = "month" | "week" | "list";
@@ -384,6 +387,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
       languages: profile?.languages || null,
       qualifications: localAnesthetic ? [{ label: "Local Anesthetic", verified: profile?.local_anesthetic_status === "verified" }] : [],
       preferred: data.preferredProfessionals.some((person) => person.matched_professional_id === slot.professional_id),
+      preferredFirst: preferredFirstIsActive(slot),
+      preferredUntil: slot.preferred_until || null,
       interested: Boolean(interest),
       interestApplicationId: interest?.id || null,
       interestElapsed: interest ? interestElapsed(interest.created_at, nowMs) : null,
@@ -538,6 +543,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
     {error && <p className="mt-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
     {loading && <p className="mt-4 text-xs font-bold text-slate-500">Updating your live office calendar…</p>}
 
+    <PreferredFirstOfficePanel shifts={data.shifts} onRefresh={() => refresh(false)} />
+
     <section className="mt-6 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="grid gap-3 border-b border-slate-200 p-3 sm:p-4">
         <div className="contents">
@@ -637,7 +644,8 @@ function OfficeCalendar({ userId, office, onPost, refreshKey }: { userId: string
         </aside>
       </div>}
     </section>
-    {postShiftOpen && typeof document !== "undefined" && createPortal(
+    <PreferredFirstPostShiftModal open={postShiftOpen} office={office} preferredProfessionals={data.preferredProfessionals} onClose={() => setPostShiftOpen(false)} onPosted={() => refresh(false)} />
+    {false && postShiftOpen && typeof document !== "undefined" && createPortal(
       <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/45 p-2 sm:p-6" role="dialog" aria-modal="true" aria-label="Post a shift">
         <div className="h-[calc(100dvh-1rem)] w-full max-w-[1100px] overflow-y-auto rounded-3xl border border-[#04A62F]/35 bg-gradient-to-b from-[#f1fff5] via-white to-white p-4 shadow-2xl sm:h-auto sm:max-h-[92vh] sm:p-7 lg:p-8">
           <div className="flex items-start justify-between gap-4">

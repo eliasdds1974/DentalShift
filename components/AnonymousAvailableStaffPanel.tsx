@@ -25,6 +25,8 @@ export type AnonymousAvailableStaff = {
   languages?: string[] | null;
   qualifications?: { label: string; verified: boolean }[];
   preferred?: boolean;
+  preferredFirst?: boolean;
+  preferredUntil?: string | null;
   interested?: boolean;
   interestApplicationId?: string | null;
   interestElapsed?: string | null;
@@ -96,7 +98,7 @@ export function AnonymousAvailableStaffPanel({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <strong className="text-sm text-[#032757]">{item.role} available</strong>
-                    {item.preferred && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}
+                    {item.preferred && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred</span>}{item.preferredFirst && <span className="inline-flex items-center gap-1 rounded-full bg-[#FFF7D6] px-2 py-0.5 text-[10px] font-black text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={11} className="fill-[#FDB605] text-[#FDB605]" />Preferred First</span>}
                   </div>
                   <p className="mt-1 text-xs font-bold text-slate-500">{shortTime(item.startsAt)}–{shortTime(item.endsAt)}{item.minimumHourlyRate != null ? ` · $${item.minimumHourlyRate.toFixed(2)}/hr` : ""}</p>
                 </div>

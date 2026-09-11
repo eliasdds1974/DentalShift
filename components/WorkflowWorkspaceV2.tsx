@@ -21,6 +21,8 @@ import {
   type WorkflowBooking,
 } from "@/lib/dentalshift";
 import { ProfessionalWorkspace as LegacyProfessionalWorkspace } from "./WorkflowWorkspace";
+import { PreferredFirstPostAvailabilityModal } from "./PreferredFirstPostAvailabilityModal";
+import { PreferredFirstProfessionalPanel } from "./PreferredFirstProfessionalPanel";
 export { OfficeWorkspace } from "./OfficeWorkspaceV2";
 
 type ProfessionalView = "overview" | "shifts" | "bookings" | "talent" | "profile";
@@ -473,6 +475,8 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
     {error && <p className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-bold text-red-700">{error}</p>}
     {loading && <p className="mt-4 text-xs font-bold text-slate-500">Updating your live calendar…</p>}
 
+    <PreferredFirstProfessionalPanel shifts={workflow.open} applications={workflow.applications} busy={busy} onInterest={expressProfessionalInterest} />
+
     <section className="mt-5 overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
       <div className="border-b border-slate-200 p-3 sm:p-5">
         <div>
@@ -574,7 +578,9 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
       </div>}
     </section>
 
-    {availabilityOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/40 p-4" onMouseDown={(event) => { if (event.currentTarget === event.target) setAvailabilityOpen(false); }}>
+    <PreferredFirstPostAvailabilityModal open={availabilityOpen} professionalId={userId} favourites={workflow.favourites} defaultHourlyRate={profileHourlyRate} onClose={() => setAvailabilityOpen(false)} onPosted={() => refresh(false)} />
+
+    {false && availabilityOpen && <div className="fixed inset-0 z-[120] grid place-items-center bg-slate-950/40 p-4" onMouseDown={(event) => { if (event.currentTarget === event.target) setAvailabilityOpen(false); }}>
       <form onSubmit={addAvailability} className="w-full max-w-md rounded-3xl bg-white p-5 shadow-2xl">
         <p className="text-xs font-black uppercase tracking-[.12em] text-[#34A853]">Availability</p>
         <h3 className="mt-1 text-xl font-black text-[#002757]">{longDate(selectedDate)}</h3>
