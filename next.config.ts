@@ -14,6 +14,15 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  async redirects() {
+    return [
+      {
+        source: "/classifieds",
+        destination: "/dental-jobs",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
