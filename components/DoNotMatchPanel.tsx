@@ -24,6 +24,7 @@ export function DoNotMatchPanel() {
   const [cityValue, setCityValue] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [open, setOpen] = useState(false);
 
   const loadRows = async (id: string) => {
     const { data, error: loadError } = await supabase
@@ -118,64 +119,98 @@ export function DoNotMatchPanel() {
   if (!isOffice) return null;
 
   return (
-    <aside className="do-not-match-native" aria-label="Do Not Match list">
+    <aside className={`do-not-match-native ${open ? "is-open" : "is-closed"}`} aria-label="Do Not Match list">
       <div className="do-not-match-native-header">
-        <div>
+        <div className="do-not-match-native-heading-wrap">
+          <button type="button" className="do-not-match-view" onClick={() => setOpen((value) => !value)}>
+            {open ? "Hide" : "View"}
+          </button>
           <div className="do-not-match-native-kicker">Office exclusions</div>
           <h2>Do Not Match</h2>
-          <p>Keep professionals you do not want matched with this office on a private list.</p>
+          {open && <p>Keep professionals you do not want matched with this office on a private list.</p>}
         </div>
         <span>{sortedRows.length}</span>
       </div>
 
-      <form onSubmit={addPerson} className="do-not-match-native-form">
-        <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required />
-        <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" required />
-        <select value={cityValue} onChange={(e) => setCityValue(e.target.value)} required>
-          <option value="">Select city</option>
-          {cities.map((item) => (
-            <option key={`${item.city}-${item.province}`} value={`${item.city}|||${item.province}`}>
-              {item.province ? `${item.city}, ${item.province}` : item.city}
-            </option>
-          ))}
-        </select>
-        <button type="submit" disabled={busy}>{busy ? "Adding…" : "Add"}</button>
-      </form>
+      {open && (
+        <>
+          <form onSubmit={addPerson} className="do-not-match-native-form">
+            <input value={firstName} onChange={(e) => setFirstName(e.target.value)} placeholder="First name" required />
+            <input value={lastName} onChange={(e) => setLastName(e.target.value)} placeholder="Last name" required />
+            <select value={cityValue} onChange={(e) => setCityValue(e.target.value)} required>
+              <option value="">Select city</option>
+              {cities.map((item) => (
+                <option key={`${item.city}-${item.province}`} value={`${item.city}|||${item.province}`}>
+                  {item.province ? `${item.city}, ${item.province}` : item.city}
+                </option>
+              ))}
+            </select>
+            <button type="submit" disabled={busy}>{busy ? "Adding…" : "Add"}</button>
+          </form>
 
-      {error && <div className="do-not-match-native-error">{error}</div>}
+          {error && <div className="do-not-match-native-error">{error}</div>}
 
-      <div className="do-not-match-native-list">
-        {!sortedRows.length ? (
-          <div className="do-not-match-native-empty">No professionals have been added yet.</div>
-        ) : (
-          sortedRows.map((row) => (
-            <div key={row.id} className="do-not-match-native-row">
-              <div>
-                <strong>{row.last_name}, {row.first_name}</strong>
-                <span>{row.city}{row.province ? `, ${row.province}` : ""}</span>
-              </div>
-              <button type="button" onClick={() => void removePerson(row.id)} aria-label={`Remove ${row.first_name} ${row.last_name}`}>×</button>
-            </div>
-          ))
-        )}
-      </div>
+          <div className="do-not-match-native-list">
+            {!sortedRows.length ? (
+              <div className="do-not-match-native-empty">No professionals have been added yet.</div>
+            ) : (
+              sortedRows.map((row) => (
+                <div key={row.id} className="do-not-match-native-row">
+                  <div>
+                    <strong>{row.last_name}, {row.first_name}</strong>
+                    <span>{row.city}{row.province ? `, ${row.province}` : ""}</span>
+                  </div>
+                  <button type="button" onClick={() => void removePerson(row.id)} aria-label={`Remove ${row.first_name} ${row.last_name}`}>×</button>
+                </div>
+              ))
+            )}
+          </div>
+
+          <div className="do-not-match-native-footer">
+            <button type="button" onClick={() => setOpen(false)}>Close</button>
+          </div>
+        </>
+      )}
 
       <style jsx>{`
         .do-not-match-native {
           position: fixed;
           right: 18px;
-          top: 150px;
+          top: 112px;
           z-index: 25;
           width: min(390px, calc(100vw - 36px));
-          max-height: calc(100vh - 180px);
-          overflow: auto;
           border: 2px solid #F21C13;
           border-radius: 18px;
           background: #fff;
-          padding: 16px;
+          padding: 14px 16px;
           box-shadow: 0 18px 45px rgba(15, 23, 42, .16);
+          transition: box-shadow .18s ease;
+        }
+        .do-not-match-native.is-open {
+          max-height: calc(100vh - 138px);
+          overflow: auto;
+        }
+        .do-not-match-native.is-closed {
+          width: min(330px, calc(100vw - 36px));
         }
         .do-not-match-native-header { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; }
+        .do-not-match-native-heading-wrap { min-width:0; }
+        .do-not-match-view {
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          min-width:52px;
+          height:26px;
+          margin-bottom:6px;
+          border:1px solid #F21C13;
+          border-radius:8px;
+          background:#fff;
+          color:#F21C13;
+          font-size:10px;
+          font-weight:900;
+          cursor:pointer;
+        }
+        .do-not-match-view:hover { background:#fff3f2; }
         .do-not-match-native-kicker { color:#F21C13; font-size:11px; font-weight:900; text-transform:uppercase; letter-spacing:.12em; }
         h2 { margin:3px 0 0; color:#F21C13; font-size:22px; font-weight:950; }
         p { margin:5px 0 0; color:#64748b; font-size:12px; line-height:1.45; }
@@ -192,8 +227,12 @@ export function DoNotMatchPanel() {
         .do-not-match-native-row span { display:block; margin-top:2px; color:#64748b; font-size:10px; }
         .do-not-match-native-row button { width:28px; height:28px; border:0; border-radius:8px; background:#F21C13; color:#fff; font-size:18px; line-height:1; cursor:pointer; }
         .do-not-match-native-empty { border:1px dashed #efb6b2; border-radius:11px; padding:12px; color:#8b5e5a; font-size:11px; text-align:center; }
+        .do-not-match-native-footer { display:flex; justify-content:flex-end; margin-top:12px; padding-top:10px; border-top:1px solid #f4d4d1; }
+        .do-not-match-native-footer button { min-width:62px; height:32px; border:0; border-radius:9px; background:#002757; color:#fff; font-size:11px; font-weight:900; cursor:pointer; }
+        .do-not-match-native-footer button:hover { background:#01A32E; }
         @media (max-width: 1100px) {
-          .do-not-match-native { position:relative; right:auto; top:auto; z-index:auto; width:auto; max-height:none; margin:14px 14px 0; }
+          .do-not-match-native,
+          .do-not-match-native.is-closed { position:relative; right:auto; top:auto; z-index:auto; width:auto; max-height:none; margin:10px 14px 0; }
         }
       `}</style>
     </aside>
