@@ -32,6 +32,7 @@ type WorkflowState = {
   bookings: WorkflowBooking[];
   availability: ProfessionalAvailability[];
   favourites: FavouriteOffice[];
+  preferredByOfficeIds: string[];
 };
 
 function localDateKey(value: Date | string) {
@@ -192,7 +193,7 @@ function ProfessionalCancellationModal({ booking, busy, close, confirm }: { book
 }
 
 function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate }: { userId: string; profile: AccountProfile; refreshKey: number; onNavigate: (view: ProfessionalView) => void }) {
-  const [workflow, setWorkflow] = useState<WorkflowState>({ open: [], applications: [], bookings: [], availability: [], favourites: [] });
+  const [workflow, setWorkflow] = useState<WorkflowState>({ open: [], applications: [], bookings: [], availability: [], favourites: [], preferredByOfficeIds: [] });
   const [profession, setProfession] = useState("Dental Professional");
   const [profileHourlyRate, setProfileHourlyRate] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -224,6 +225,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
         bookings: nextWorkflow.bookings,
         availability: nextWorkflow.availability,
         favourites: nextWorkflow.favourites,
+        preferredByOfficeIds: nextWorkflow.preferredByOfficeIds,
       });
     } catch (value) {
       setError(value instanceof Error ? value.message : "DentalShift could not load your shifts.");
@@ -255,6 +257,8 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
   const preferredOfficeIds = new Set(workflow.favourites.map((favourite) => favourite.office_id).filter((value): value is string => Boolean(value)));
   const preferredPlaceIds = new Set(workflow.favourites.map((favourite) => favourite.google_place_id).filter((value): value is string => Boolean(value)));
   const isPreferredOffice = (shift?: LiveShift | null) => Boolean(shift && (preferredOfficeIds.has(shift.office_id) || (shift.offices?.google_place_id && preferredPlaceIds.has(shift.offices.google_place_id))));
+  const preferredByOfficeIds = new Set(workflow.preferredByOfficeIds);
+  const isPreferredByOffice = (shift?: LiveShift | null) => Boolean(shift && preferredByOfficeIds.has(shift.office_id));
 
   const CALENDAR_HORIZON_DAYS = 400;
   const CALENDAR_PAGE_DAYS = 35;
@@ -536,7 +540,7 @@ function ProfessionalCalendarWorkspace({ userId, profile, refreshKey, onNavigate
               <div className="space-y-3">{visibleOpen.map((shift) => {
                 const interest = interestByShiftId.get(shift.id);
                 const officeInterest = officeInterestByShiftId.get(shift.id);
-                return <ShiftCard key={shift.id} professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={shift} tone="blue" officeHeader action={interest ? <div className="space-y-2">
+                return <ShiftCard key={shift.id} professionalLatitude={profile.latitude} professionalLongitude={profile.longitude} shift={shift} tone="blue" officeHeader preferredOffice={isPreferredByOffice(shift)} action={interest ? <div className="space-y-2">
                   <div className="flex items-center justify-between gap-2 rounded-xl border border-[#01A32E]/35 bg-[#eaf8ee] px-3 py-2">
                     <span className="text-xs font-black text-[#017f27]">✓ I’m Interested</span>
                     <span className="inline-flex items-center gap-1.5 font-mono text-xs font-black tabular-nums text-[#017f27]"><Clock3 size={14} />{interestElapsed(interest.created_at, nowMs)}</span>

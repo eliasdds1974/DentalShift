@@ -981,9 +981,10 @@ export async function loadProfessionalWorkflow(userId: string) {
     supabase.from("availability").select("id,starts_at,ends_at,available,hourly_rate,notes").eq("professional_id", userId).order("starts_at", { ascending: true }),
     supabase.from("favourites").select("id,office_id,google_place_id,name,formatted_address,city,province,website,offices!favourites_office_id_fkey(id,name,address,city,province,postal_code,google_place_id,latitude,longitude,website)").eq("professional_id", userId).order("created_at", { ascending: false }),
     supabase.from("professional_excluded_offices").select("office_id,google_place_id").eq("professional_id", userId),
+    supabase.rpc("professional_preferred_office_ids"),
   ]);
 
-  const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult, excludedResult] = await Promise.race([
+  const [open, applicationsResult, bookingsResult, availabilityResult, favouritesResult, excludedResult, preferredByOfficeResult] = await Promise.race([
     workflowPromise,
     new Promise<never>((_, reject) => setTimeout(() => reject(new Error("DentalShift could not finish loading your workflow. Please refresh and try again.")), 10000)),
   ]);
@@ -992,6 +993,7 @@ export async function loadProfessionalWorkflow(userId: string) {
   if (availabilityResult.error) throw availabilityResult.error;
   if (favouritesResult.error) throw favouritesResult.error;
   if (excludedResult.error) throw excludedResult.error;
+  if (preferredByOfficeResult.error) throw preferredByOfficeResult.error;
   const excludedOfficeIds = new Set((excludedResult.data ?? []).map((item: any) => item.office_id).filter(Boolean));
   const excludedPlaceIds = new Set((excludedResult.data ?? []).map((item: any) => item.google_place_id).filter(Boolean));
   const visibleOpen = open.filter((shift) => !excludedOfficeIds.has(shift.office_id) && !(shift.offices?.google_place_id && excludedPlaceIds.has(shift.offices.google_place_id)));
@@ -1000,7 +1002,7 @@ export async function loadProfessionalWorkflow(userId: string) {
     return !shift || (!excludedOfficeIds.has(shift.office_id) && !(shift.offices?.google_place_id && excludedPlaceIds.has(shift.offices.google_place_id)));
   });
   const bookings = await addBookingContacts((bookingsResult.data ?? []) as unknown as WorkflowBooking[], "professional");
-  return { open: visibleOpen, applications: visibleApplications, bookings, availability: (availabilityResult.data ?? []) as ProfessionalAvailability[], favourites: (favouritesResult.data ?? []) as unknown as FavouriteOffice[] };
+  return { open: visibleOpen, applications: visibleApplications, bookings, availability: (availabilityResult.data ?? []) as ProfessionalAvailability[], favourites: (favouritesResult.data ?? []) as unknown as FavouriteOffice[], preferredByOfficeIds: (preferredByOfficeResult.data ?? []).map((row: any) => String(row.office_id)).filter(Boolean) };
 }
 
 export async function loadOfficeWorkflow(officeId: string) {
