@@ -41,13 +41,14 @@ export function PreferredFirstPostShiftModal({
   const [audience, setAudience] = useState<"preferred" | "general">("preferred");
   const [duration, setDuration] = useState<"24h" | "custom">("24h");
   const [customUntil, setCustomUntil] = useState("");
-  const [recipientMode, setRecipientMode] = useState<"all" | "selected">("all");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const matchingPreferred = useMemo(() => preferredProfessionals.filter((p) => p.matched_professional_id && roleCode(p.profession) === roleCode(profession)), [preferredProfessionals, profession]);
+  const matchingIds = useMemo(() => matchingPreferred.map((person) => person.matched_professional_id!).filter(Boolean), [matchingPreferred]);
+  const allSelected = matchingIds.length > 0 && matchingIds.every((id) => selectedIds.includes(id));
 
   if (!open) return null;
 
@@ -65,7 +66,7 @@ export function PreferredFirstPostShiftModal({
     if (days.some((day) => !day.date || !day.startTime || !day.endTime || day.endTime <= day.startTime)) return setError("Please complete each day with a valid start and end time.");
     if (!Number(hourlyRate) || Number(hourlyRate) <= 0) return setError("Please enter the hourly rate.");
     if (audience === "preferred" && matchingPreferred.length === 0) return setError(`You do not have a matching Preferred Professional for ${profession}. Choose General Calendar or add a Preferred Professional first.`);
-    if (audience === "preferred" && recipientMode === "selected" && selectedIds.length === 0) return setError("Select at least one Preferred Professional.");
+    if (audience === "preferred" && selectedIds.length === 0) return setError("Select at least one Preferred Professional.");
 
     let preferredUntil: string | null = null;
     if (audience === "preferred") {
@@ -86,7 +87,7 @@ export function PreferredFirstPostShiftModal({
         hourlyRate: Number(hourlyRate),
         preferredFirst: audience === "preferred",
         preferredUntil,
-        recipientIds: audience === "preferred" && recipientMode === "selected" ? selectedIds : undefined,
+        recipientIds: audience === "preferred" ? selectedIds : undefined,
       });
       if (audience === "preferred") void emailPreferredFirstBatch("shift", result.batch_id);
       setSuccess(audience === "preferred" ? `${result.item_count} shift${result.item_count === 1 ? "" : "s"} sent Preferred First to ${result.recipient_count} professional${result.recipient_count === 1 ? "" : "s"}.` : `${result.item_count} shift${result.item_count === 1 ? "" : "s"} posted to the General Calendar.`);
@@ -131,11 +132,33 @@ export function PreferredFirstPostShiftModal({
         </section>
 
         {audience === "preferred" && <section className="rounded-2xl border border-[#FDB605]/45 bg-[#fffdf5] p-4">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div><p className="text-sm font-black text-[#002757]">Preferred First duration</p><div className="mt-2 flex gap-2"><button type="button" onClick={() => setDuration("24h")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "24h" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>24 hours</button><button type="button" onClick={() => setDuration("custom")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "custom" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Custom</button></div>{duration === "custom" && <label className="field mt-2"><span>Release to General Calendar</span><input type="datetime-local" value={customUntil} onChange={(e) => setCustomUntil(e.target.value)} /></label>}</div>
-            <div><p className="text-sm font-black text-[#002757]">Send to</p><div className="mt-2 flex gap-2"><button type="button" onClick={() => setRecipientMode("all")} className={`rounded-xl px-3 py-2 text-xs font-black ${recipientMode === "all" ? "bg-[#002757] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>All matching Preferred</button><button type="button" onClick={() => setRecipientMode("selected")} className={`rounded-xl px-3 py-2 text-xs font-black ${recipientMode === "selected" ? "bg-[#002757] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Select specific</button></div><p className="mt-2 text-xs text-slate-500">{matchingPreferred.length} matching Preferred Professional{matchingPreferred.length === 1 ? "" : "s"}</p></div>
+          <div>
+            <p className="text-sm font-black text-[#002757]">Preferred First duration</p>
+            <div className="mt-2 flex gap-2"><button type="button" onClick={() => setDuration("24h")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "24h" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>24 hours</button><button type="button" onClick={() => setDuration("custom")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "custom" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Custom</button></div>
+            {duration === "custom" && <label className="field mt-2"><span>Release to General Calendar</span><input type="datetime-local" value={customUntil} onChange={(e) => setCustomUntil(e.target.value)} /></label>}
           </div>
-          {recipientMode === "selected" && <div className="mt-3 grid gap-2 sm:grid-cols-2">{matchingPreferred.map((person) => <label key={person.id} className="flex cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-white p-2.5 text-xs font-bold text-slate-700"><input type="checkbox" className="h-4 w-4 accent-[#FDB605]" checked={Boolean(person.matched_professional_id && selectedIds.includes(person.matched_professional_id))} onChange={(e) => { const id = person.matched_professional_id!; setSelectedIds((current) => e.target.checked ? [...new Set([...current, id])] : current.filter((value) => value !== id)); }} /><Star size={13} className="fill-[#FDB605] text-[#FDB605]" />{person.first_name} {person.last_name}</label>)}</div>}
+
+          <div className="mt-5 border-t border-[#FDB605]/25 pt-4">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-sm font-black text-[#002757]">Send to</p>
+              <p className="text-xs font-bold text-slate-500">{matchingPreferred.length} matching Preferred Professional{matchingPreferred.length === 1 ? "" : "s"}</p>
+            </div>
+            {matchingPreferred.length > 0 ? <>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2">{matchingPreferred.map((person) => {
+                const id = person.matched_professional_id!;
+                const selected = selectedIds.includes(id);
+                return <label key={person.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 text-sm font-bold transition ${selected ? "border-[#FDB605] bg-[#FFF7D6] text-[#7A5600]" : "border-slate-200 bg-white text-slate-700 hover:border-[#FDB605]/60"}`}>
+                  <input type="checkbox" className="h-5 w-5 accent-[#FDB605]" checked={selected} onChange={(e) => setSelectedIds((current) => e.target.checked ? [...new Set([...current, id])] : current.filter((value) => value !== id))} />
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#FFF7D6] text-[#9A6D00] ring-1 ring-inset ring-[#FDB605]/45"><Star size={14} className="fill-[#FDB605] text-[#FDB605]" /></span>
+                  <span>{person.first_name} {person.last_name}</span>
+                </label>;
+              })}</div>
+              <label className={`mt-3 flex cursor-pointer items-center gap-3 rounded-xl border-2 p-3 text-sm font-black transition ${allSelected ? "border-[#FDB605] bg-[#FFF7D6] text-[#7A5600]" : "border-[#002757]/15 bg-white text-[#002757]"}`}>
+                <input type="checkbox" className="h-5 w-5 accent-[#FDB605]" checked={allSelected} onChange={(e) => setSelectedIds(e.target.checked ? matchingIds : [])} />
+                <span>{allSelected ? "✓ " : ""}Select everyone</span>
+              </label>
+            </> : <p className="mt-3 rounded-xl bg-white p-3 text-sm font-bold text-slate-500">No matching Preferred Professionals are currently available for this profession.</p>}
+          </div>
         </section>}
 
         {audience === "preferred" && <p className="rounded-2xl border border-[#EA4335]/25 bg-red-50 px-4 py-3 text-center text-sm font-black leading-6 text-[#EA4335]">
