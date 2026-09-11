@@ -182,15 +182,16 @@ function footerContact(contact: ContactSettings) {
 function makePageContent(options: {
   role: Exclude<PortalRole, null>;
   subjectName: string;
-  subjectLocation: string;
+  subjectDetails: string[];
   generated: string;
   contact: ContactSettings;
   rows: ReportRow[];
   pageIndex: number;
   pageCount: number;
+  totalRows: number;
   hasLogo: boolean;
 }) {
-  const { role, subjectName, subjectLocation, generated, contact, rows, pageIndex, pageCount, hasLogo } = options;
+  const { role, subjectName, subjectDetails, generated, contact, rows, pageIndex, pageCount, totalRows, hasLogo } = options;
   const commands: string[] = [];
 
   commands.push(rect(0, 0, 612, 792, WHITE));
@@ -212,16 +213,18 @@ function makePageContent(options: {
   commands.push(rect(455, 661, 96, 23, GREEN));
   commands.push(text(467, 669, 9, "CONFIDENTIAL", true, WHITE));
 
-  commands.push(rect(40, 566, 532, 44, LIGHT, BORDER));
+  commands.push(rect(40, 540, 532, 70, LIGHT, BORDER));
   commands.push(text(54, 592, 8, "PREPARED FOR", true, SLATE));
-  commands.push(text(54, 575, 11, fit(subjectName, 38), true, NAVY));
-  if (subjectLocation) commands.push(text(226, 575, 9, fit(subjectLocation, 30), false, SLATE));
-  commands.push(text(400, 592, 8, "GENERATED", true, SLATE));
+  commands.push(text(54, 575, 11, fit(subjectName, 42), true, NAVY));
+  subjectDetails.slice(0, 3).forEach((value, index) => {
+    commands.push(text(54, 560 - index * 11, 8.2, fit(value, 58), false, SLATE));
+  });
+  commands.push(text(400, 592, 8, "DATE", true, SLATE));
   commands.push(text(400, 575, 9.5, fit(generated, 25), true, NAVY));
   commands.push(text(510, 592, 8, "TOTAL", true, SLATE));
-  commands.push(text(520, 575, 11, String(options.pageCount === 0 ? 0 : ""), true, NAVY));
+  commands.push(text(520, 575, 11, String(totalRows), true, NAVY));
 
-  const tableY = 536;
+  const tableY = 512;
   commands.push(rect(40, tableY, 532, 24, GREEN));
 
   if (role === "office") {
@@ -245,7 +248,7 @@ function makePageContent(options: {
     rows.forEach((row, index) => {
       const bg = index % 2 === 0 ? WHITE : LIGHT;
       commands.push(rect(40, y, 532, rowHeight, bg, BORDER, 0.45));
-      commands.push(text(50, y + (role === "office" ? 8 : 12), 8.5, String((pageIndex * (role === "office" ? 18 : 14)) + index + 1), true, SLATE));
+      commands.push(text(50, y + (role === "office" ? 8 : 12), 8.5, String((pageIndex * (role === "office" ? 17 : 13)) + index + 1), true, SLATE));
       if (role === "office") {
         commands.push(text(78, y + 8, 9.5, fit(row.primary, 32), true, NAVY));
         commands.push(text(280, y + 8, 9, fit(row.secondary, 25), false, SLATE));
@@ -270,13 +273,13 @@ function makePageContent(options: {
 function buildBrandedPdf(options: {
   role: Exclude<PortalRole, null>;
   subjectName: string;
-  subjectLocation: string;
+  subjectDetails: string[];
   generated: string;
   contact: ContactSettings;
   rows: ReportRow[];
   logo: LogoImage | null;
 }) {
-  const perPage = options.role === "office" ? 18 : 14;
+  const perPage = options.role === "office" ? 17 : 13;
   const pageRows: ReportRow[][] = [];
   for (let i = 0; i < options.rows.length; i += perPage) pageRows.push(options.rows.slice(i, i + perPage));
   if (pageRows.length === 0) pageRows.push([]);
@@ -313,6 +316,7 @@ function buildBrandedPdf(options: {
       rows,
       pageIndex: index,
       pageCount: pageRows.length,
+      totalRows: options.rows.length,
       hasLogo: Boolean(options.logo && logoId),
     });
     const contentBytes = bytesFromText(content);
@@ -392,12 +396,10 @@ export function DoNotMatchPdfDownload() {
       if (!user) throw new Error("Not signed in");
 
       const details = await loadAccountDetails(user.id);
-      const generated = new Date().toLocaleString("en-CA", {
+      const generated = new Date().toLocaleDateString("en-CA", {
         year: "numeric",
         month: "long",
         day: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
       });
 
       const { data: contactData } = await supabase
@@ -412,14 +414,29 @@ export function DoNotMatchPdfDownload() {
       };
 
       let subjectName = "DentalShift Member";
-      let subjectLocation = "";
+      let subjectDetails: string[] = [];
       let rows: ReportRow[] = [];
 
       if (role === "office") {
         const officeId = details.office?.id;
         if (!officeId) throw new Error("Office not found");
         subjectName = details.office?.name || "Dental Office";
-        subjectLocation = [details.office?.city, details.office?.province].filter(Boolean).join(", ");
+
+        const { data: officeData } = await supabase
+          .from("offices")
+          .select("address,city,province,postal_code,phone,contact_phone,communication_email,website")
+          .eq("id", officeId)
+          .maybeSingle();
+
+        const officeAddress = [
+          clean(officeData?.address),
+          [clean(officeData?.city), clean(officeData?.province), clean(officeData?.postal_code)].filter(Boolean).join(" "),
+        ].filter(Boolean).join(", ");
+        const officePhones = [formatPhone(officeData?.contact_phone), formatPhone(officeData?.phone)].filter(Boolean);
+        const uniquePhones = Array.from(new Set(officePhones));
+        const contactLine = [uniquePhones.join(" / "), clean(officeData?.communication_email)].filter(Boolean).join("  |  ");
+        const websiteLine = clean(officeData?.website);
+        subjectDetails = [officeAddress, contactLine, websiteLine].filter(Boolean);
 
         const { data, error } = await supabase
           .from("office_do_not_match")
@@ -436,7 +453,7 @@ export function DoNotMatchPdfDownload() {
         }));
       } else {
         subjectName = [details.profile.first_name, details.profile.last_name].filter(Boolean).join(" ") || "Dental Professional";
-        subjectLocation = [details.profile.city, details.profile.province].filter(Boolean).join(", ");
+        subjectDetails = [[details.profile.city, details.profile.province].filter(Boolean).join(", ")].filter(Boolean);
 
         const { data, error } = await supabase
           .from("professional_do_not_match_offices")
@@ -460,7 +477,7 @@ export function DoNotMatchPdfDownload() {
       const blob = buildBrandedPdf({
         role,
         subjectName,
-        subjectLocation,
+        subjectDetails,
         generated,
         contact,
         rows,
