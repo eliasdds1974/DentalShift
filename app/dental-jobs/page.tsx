@@ -13,6 +13,15 @@ type DistanceMaps = {
   provinceKm: Map<string, number>;
 };
 
+const demoListingTitles = new Set([
+  "Registered Dental Hygienist — Permanent Full-Time",
+  "Certified Dental Assistant Seeking Permanent Position",
+  "Dental Administrator — 4 Days / Week",
+  "Associate Dentist — 3 to 4 Days / Week",
+  "Registered Dental Hygienist Looking for an Office",
+  "Sterilization Technician",
+]);
+
 function haversineKm(a: Point, b: Point) {
   const toRad = (value: number) => (value * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
@@ -117,6 +126,13 @@ export default function DentalJobsPage() {
       if (!grid) return;
 
       grid.querySelectorAll(":scope > .dentaljobs-group-heading").forEach((node) => node.remove());
+
+      const allCards = Array.from(grid.querySelectorAll<HTMLElement>(":scope > article"));
+      for (const card of allCards) {
+        const title = card.querySelector("h3")?.textContent?.trim() || "";
+        if (demoListingTitles.has(title)) card.remove();
+      }
+
       const cards = Array.from(grid.querySelectorAll<HTMLElement>(":scope > article"));
       if (!cards.length) return;
 
