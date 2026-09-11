@@ -201,15 +201,15 @@ export function DoNotMatchPanel() {
           min-width:52px;
           height:26px;
           margin-bottom:6px;
-          border:1px solid #F21C13;
+          border:1px solid #002757;
           border-radius:8px;
-          background:#fff;
-          color:#F21C13;
+          background:#002757;
+          color:#ffffff;
           font-size:10px;
           font-weight:900;
           cursor:pointer;
         }
-        .do-not-match-view:hover { background:#fff3f2; }
+        .do-not-match-view:hover { background:#01A32E; border-color:#01A32E; }
         h2 { margin:3px 0 0; color:#F21C13; font-size:22px; font-weight:950; }
         p { margin:5px 0 0; color:#64748b; font-size:12px; line-height:1.45; }
         .do-not-match-native-header > span { display:grid; place-items:center; min-width:30px; height:30px; border-radius:999px; background:#F21C13; color:#fff; font-size:12px; font-weight:900; }
