@@ -26,6 +26,10 @@ export function DentalJobsCancelPostingPolish() {
           button.innerHTML = button.innerHTML.replace("Close Posting", "Cancel Posting");
           button.className = "mx-3 my-1 inline-flex w-auto items-center gap-2 rounded-lg border border-[#002757] bg-[#002757] px-3 py-1.5 text-left text-xs font-black text-white shadow-sm transition hover:border-[#01A32E] hover:bg-[#01A32E]";
         }
+
+        if (label === "Delete Posting") {
+          button.style.display = "none";
+        }
       }
     };
 
