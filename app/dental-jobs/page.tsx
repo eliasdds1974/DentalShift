@@ -129,7 +129,16 @@ export default function DentalJobsPage() {
       if (!index) {
         index = document.createElement("div");
         index.className = "dentaljobs-city-index";
-        filterBar.parentElement?.insertBefore(index, filterBar);
+      }
+
+      const myDentalJobsSection = Array.from(topSection.querySelectorAll<HTMLElement>("section.relative")).find((section) =>
+        section.querySelector("h2")?.textContent?.trim() === "My DentalJobs"
+      );
+
+      if (myDentalJobsSection?.parentElement) {
+        myDentalJobsSection.insertAdjacentElement("afterend", index);
+      } else if (filterBar.parentElement) {
+        filterBar.parentElement.insertBefore(index, filterBar);
       }
 
       const provinceOrder = [...new Set(groups.map((group) => group.province))];
