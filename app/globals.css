@@ -37,12 +37,62 @@ fieldset:has(input[name="software"]) > div { gap:.35rem!important; }
 fieldset:has(input[name="software"]) label { gap:.35rem!important; border-radius:.6rem!important; padding:.38rem .5rem!important; font-size:.72rem!important; line-height:1.1!important; }
 fieldset:has(input[name="software"]) input[name="software"] { width:.85rem!important; height:.85rem!important; }
 
-/* DentalJobs: keep Professional My DentalJobs management card visually consistent with Office Portal */
-section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] { border-color:rgb(1 163 46 / .55)!important; background:#effaf2!important; }
-section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] > div[class*='bg-[#4285F4]'] { background:#01A32E!important; }
-section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] p[class*='text-[#245FB8]'] { color:#017f27!important; }
-section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] span[class*='border-[#4285F4]/30'] { border-color:rgb(1 163 46 / .30)!important; color:#017f27!important; }
-section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] div[class*='border-[#4285F4]/40'] { border-color:rgb(1 163 46 / .40)!important; }
+/* DentalJobs: Professional "Looking for an Office" card mirrors Office "Post a Position" */
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) {
+  position:relative!important;
+  overflow:hidden!important;
+  border-color:#002757!important;
+  background:#002757!important;
+  box-shadow:0 20px 25px -5px rgb(0 0 0/.1),0 8px 10px -6px rgb(0 0 0/.1)!important;
+  transform:translateY(0);
+}
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round)::before {
+  content:"";
+  position:absolute;
+  inset:0 0 auto 0;
+  height:6px;
+  background:#01A32E;
+}
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round):hover {
+  border-color:#01A32E!important;
+  transform:translateY(-4px)!important;
+  box-shadow:0 25px 50px -12px rgb(0 0 0/.25)!important;
+}
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) > div > span:first-child {
+  background:#01A32E!important;
+  color:#fff!important;
+  box-shadow:0 4px 6px -1px rgb(0 0 0/.1)!important;
+  outline:4px solid rgb(255 255 255/.1);
+}
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) p:first-child { color:#9be3ad!important; }
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) h2 { color:#fff!important; }
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) h2 + p { color:#e2e8f0!important; }
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) h2 + p + span {
+  margin-top:1rem!important;
+  display:inline-flex!important;
+  align-items:center!important;
+  gap:.5rem!important;
+  border-radius:.75rem!important;
+  background:#01A32E!important;
+  padding:.625rem 1rem!important;
+  color:#fff!important;
+  box-shadow:0 4px 6px -1px rgb(0 0 0/.1)!important;
+}
+.dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round):hover h2 + p + span { background:#fff!important; color:#002757!important; }
+
+/* DentalJobs: Professional My DentalJobs mirrors Office My DentalJobs colors */
+.dental-jobs-compact-layout section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] {
+  border-color:rgb(1 163 46/.55)!important;
+  background:#effaf2!important;
+}
+.dental-jobs-compact-layout section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] > div[class*='bg-[#4285F4]'] { background:#01A32E!important; }
+.dental-jobs-compact-layout section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] p[class*='text-[#245FB8]'] { color:#017f27!important; }
+.dental-jobs-compact-layout section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] h2 { color:#002757!important; }
+.dental-jobs-compact-layout section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] span[class*='border-[#4285F4]/30'] {
+  border-color:rgb(1 163 46/.30)!important;
+  color:#017f27!important;
+}
+.dental-jobs-compact-layout section[class*='border-[#4285F4]/55'][class*='bg-[#eef4ff]'] div[class*='border-[#4285F4]/40'] { border-color:rgb(1 163 46/.40)!important; }
 
 @media (min-width:640px) {
   .page-wrap { padding:2.25rem 1.75rem 5rem; }
