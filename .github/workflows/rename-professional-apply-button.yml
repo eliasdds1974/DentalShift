@@ -1,0 +1,28 @@
+name: Rename professional Apply button
+
+on:
+  push:
+    paths:
+      - '.github/workflows/rename-professional-apply-button.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Rename professional office-ad action
+        run: python3 .github/scripts/rename-professional-apply-button.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add components/DentalJobsNativeMarketplace.tsx
+          git diff --cached --quiet || git commit -m "Rename professional Apply button to I'm Interested"
+          git push origin main
