@@ -15,28 +15,29 @@ export function DentalJobsPortalMarketplaceFilter() {
   useEffect(() => {
     let disposed = false;
 
-    const enforceNativeKindFilter = (portalRole: "office" | "professional") => {
-      const expectedLabel = portalRole === "professional" ? "Hiring" : "Seeking";
-      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
-      const target = buttons.find((button) => (button.textContent || "").trim() === expectedLabel);
-      if (!target) return;
-
-      const alreadySelected = target.className.includes("bg-[#002757]") && target.className.includes("text-white");
-      if (!alreadySelected) target.click();
-    };
-
     const apply = () => {
       if (disposed) return;
 
       const storedRole = window.localStorage.getItem("dentalshift_portal_role");
-      const portalRole = storedRole === "office" ? "office" : storedRole === "professional" ? "professional" : null;
+      const portalRole =
+        storedRole === "office"
+          ? "office"
+          : storedRole === "professional"
+            ? "professional"
+            : null;
       if (!portalRole) return;
 
       document.documentElement.dataset.dentaljobsPortalRole = portalRole;
-      enforceNativeKindFilter(portalRole);
 
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
-      const heading = headings.find((item) => (item.textContent || "").trim().startsWith("Dental job opportunities"));
+      const heading = headings.find((item) => {
+        const text = (item.textContent || "").trim();
+        return (
+          text.startsWith("Dental job opportunities") ||
+          text === "DentalJobs Near You" ||
+          text.startsWith("DentalJobs Near You")
+        );
+      });
       const section = heading?.closest("section") as HTMLElement | null;
       if (!section) return;
 
@@ -57,17 +58,24 @@ export function DentalJobsPortalMarketplaceFilter() {
         const cardKind = isOfficePosting ? "office" : "professional";
         card.dataset.dentaljobsCardKind = cardKind;
 
-        const shouldShow = portalRole === "professional"
-          ? cardKind === "office"
-          : cardKind === "professional";
+        const shouldShow =
+          portalRole === "professional"
+            ? cardKind === "office"
+            : cardKind === "professional";
         card.dataset.dentaljobsPortalAllowed = shouldShow ? "true" : "false";
       }
 
-      const groupHeadings = Array.from(section.querySelectorAll<HTMLElement>(".dentaljobs-group-heading"));
+      const groupHeadings = Array.from(
+        section.querySelectorAll<HTMLElement>(".dentaljobs-group-heading")
+      );
       for (const groupHeading of groupHeadings) {
         const label = groupHeading.textContent || "";
-        if (label.includes("Office Hiring")) groupHeading.dataset.dentaljobsGroupKind = "office";
-        if (label.includes("Professionals Seeking an Office")) groupHeading.dataset.dentaljobsGroupKind = "professional";
+        if (label.includes("Office Hiring")) {
+          groupHeading.dataset.dentaljobsGroupKind = "office";
+        }
+        if (label.includes("Professionals Seeking an Office")) {
+          groupHeading.dataset.dentaljobsGroupKind = "professional";
+        }
       }
 
       const visibleCards = cards.filter((card) => {
@@ -75,10 +83,16 @@ export function DentalJobsPortalMarketplaceFilter() {
         return card.dataset.dentaljobsPortalAllowed === "true";
       });
       const countText = heading?.parentElement?.querySelector("p");
-      if (countText) countText.textContent = `${visibleCards.length} active listing${visibleCards.length === 1 ? "" : "s"} shown`;
+      if (countText) {
+        countText.textContent = `${visibleCards.length} active listing${
+          visibleCards.length === 1 ? "" : "s"
+        } shown`;
+      }
     };
 
-    const timers = [0, 100, 250, 500, 900, 1500, 2500, 4000, 6000].map((delay) => window.setTimeout(apply, delay));
+    const timers = [0, 100, 250, 500, 900, 1500, 2500, 4000, 6000].map(
+      (delay) => window.setTimeout(apply, delay)
+    );
     const interval = window.setInterval(apply, 1500);
 
     const handleInteraction = () => {
