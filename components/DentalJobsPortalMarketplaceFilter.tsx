@@ -70,10 +70,13 @@ export function DentalJobsPortalMarketplaceFilter() {
       );
       for (const groupHeading of groupHeadings) {
         const label = groupHeading.textContent || "";
-        if (label.includes("Office Hiring")) {
+        if (label.includes("Office Hiring") || label.includes("Dental Office Hiring")) {
           groupHeading.dataset.dentaljobsGroupKind = "office";
         }
-        if (label.includes("Professionals Seeking an Office")) {
+        if (
+          label.includes("Professionals Seeking an Office") ||
+          label.includes("Professionals Looking for an Office")
+        ) {
           groupHeading.dataset.dentaljobsGroupKind = "professional";
         }
       }
@@ -83,7 +86,7 @@ export function DentalJobsPortalMarketplaceFilter() {
         return card.dataset.dentaljobsPortalAllowed === "true";
       });
       const countText = heading?.parentElement?.querySelector("p");
-      if (countText) {
+      if (countText && portalRole !== "professional") {
         countText.textContent = `${visibleCards.length} active listing${
           visibleCards.length === 1 ? "" : "s"
         } shown`;
@@ -120,8 +123,11 @@ export function DentalJobsPortalMarketplaceFilter() {
         display: none !important;
       }
 
-      html[data-dentaljobs-portal-role="professional"] article[data-dentaljobs-card-kind="professional"],
-      html[data-dentaljobs-portal-role="professional"] .dentaljobs-group-heading[data-dentaljobs-group-kind="professional"] {
+      html[data-dentaljobs-portal-role="professional"] article[data-dentaljobs-card-kind="professional"] {
+        display: none !important;
+      }
+
+      html[data-dentaljobs-portal-role="professional"] .dentaljobs-group-heading {
         display: none !important;
       }
 
