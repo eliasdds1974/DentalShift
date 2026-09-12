@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { BriefcaseBusiness, Building2, Clock3, MapPin, ShieldCheck, UserRound, X } from "lucide-react";
+import { BriefcaseBusiness, Building2, Clock3, Eye, MapPin, UserRound, X } from "lucide-react";
 import { ShareListingButton } from "@/components/ShareListingButton";
 import { loadAccountDetails } from "@/lib/dentalshift";
 import { supabase } from "@/lib/supabase";
@@ -322,9 +322,14 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
           <p className="mt-3 line-clamp-4 text-xs leading-5 text-slate-600">{listing.description}</p>
 
           <div className="mt-auto pt-4">
-            <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
-              <ShieldCheck size={13} />Privacy protected
-            </div>
+            <a
+              href={`/jobs/${listing.id}`}
+              target="_blank"
+              rel="noreferrer"
+              className="mb-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#002757] underline decoration-[#002757]/30 underline-offset-4 transition hover:text-[#01A32E]"
+            >
+              <Eye size={13} />View listing
+            </a>
             <div className="flex items-center gap-2">
               <ShareListingButton listingId={listing.id} compact />
               <button
