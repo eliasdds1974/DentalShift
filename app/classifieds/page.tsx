@@ -218,6 +218,7 @@ export default function DentalJobsPage() {
   const [publishError, setPublishError] = useState("");
   const [posted, setPosted] = useState(false);
   const [portalRole, setPortalRole] = useState<"office" | "professional" | null>(null);
+  const [accountDisplayName, setAccountDisplayName] = useState("");
   const [myOfficeJobs, setMyOfficeJobs] = useState<OfficeJobListing[]>([]);
   const [professionalId, setProfessionalId] = useState<string | null>(null);
   const [professionalLocation, setProfessionalLocation] = useState({ city: "", province: "AB" });
@@ -270,6 +271,7 @@ export default function DentalJobsPage() {
           const province = details.office?.province || details.profile.province || "AB";
           setOfficeLocation({ city, province });
           setOfficeId(details.office?.id || null);
+          setAccountDisplayName(details.office?.name || details.profile.first_name || "");
           if (details.office?.id) await loadMyOfficeJobs(details.office.id);
           await loadConnections("office");
           await loadNotifications();
@@ -288,6 +290,7 @@ export default function DentalJobsPage() {
           const details = await loadAccountDetails(user.id);
           if (!details.professional) return;
           setProfessionalId(user.id);
+          setAccountDisplayName(details.profile.first_name || "");
           setProfessionalLocation({ city: details.profile.city || "", province: details.profile.province || details.professional.licence_province || "AB" });
           setProfessionalProfession(details.professional.profession || "");
           const { data: professionalRow } = await supabase.from("professional_profiles").select("resume_path").eq("user_id", user.id).maybeSingle();
@@ -927,7 +930,7 @@ export default function DentalJobsPage() {
 
     <section className="border-b border-[#002757]/10 bg-white">
       <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
-        <div><h1 className="mt-3 text-3xl font-black tracking-tight text-[#002757] sm:text-4xl">DentalJobs</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Dental offices and dental professionals can find each other while remaining anonymous until there is a genuine application or expression of interest.</p></div>
+        <div><h1 className="mt-3 text-3xl font-black tracking-tight text-[#002757] sm:text-4xl">DentalJobs{accountDisplayName ? ` - ${accountDisplayName}` : ""}</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Dental offices and dental professionals can find each other while remaining anonymous until there is a genuine application or expression of interest.</p></div>
 
         <div className={portalRole === "office" ? "mt-6 grid items-stretch gap-4 lg:grid-cols-3" : ""}>
         {portalRole === "office" ? <div className="h-full min-w-0">
