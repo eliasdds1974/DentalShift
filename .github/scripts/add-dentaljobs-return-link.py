@@ -17,11 +17,11 @@ if old_sig not in s:
     raise SystemExit('page signature not found')
 s = s.replace(old_sig, new_sig, 1)
 
-old_after = '  const { id } = await params;\n  const listing = await getActivePublicJob(id);'
-new_after = '  const { id } = await params;\n  const { returnTo } = await searchParams;\n  const backHref = returnTo === "/dental-jobs" ? "/dental-jobs" : "/jobs";\n  const backLabel = returnTo === "/dental-jobs" ? "Back to DentalJobs" : "Browse DentalJobs";\n  const listing = await getActivePublicJob(id);'
-if old_after not in s:
-    raise SystemExit('params block not found')
-s = s.replace(old_after, new_after, 1)
+old_page_start = new_sig + '\n  const { id } = await params;\n  const listing = await getActivePublicJob(id);'
+new_page_start = new_sig + '\n  const { id } = await params;\n  const { returnTo } = await searchParams;\n  const backHref = returnTo === "/dental-jobs" ? "/dental-jobs" : "/jobs";\n  const backLabel = returnTo === "/dental-jobs" ? "Back to DentalJobs" : "Browse DentalJobs";\n  const listing = await getActivePublicJob(id);'
+if old_page_start not in s:
+    raise SystemExit('default page params block not found')
+s = s.replace(old_page_start, new_page_start, 1)
 
 old_button = '<Link href="/jobs" className="inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-[#002757] bg-white px-5 py-3 text-center font-black text-[#002757]">Browse DentalJobs</Link>'
 new_button = '<Link href={backHref} className="inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-[#002757] bg-white px-5 py-3 text-center font-black text-[#002757]">{backLabel}</Link>'
