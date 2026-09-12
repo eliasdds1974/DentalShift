@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Apply professional DentalJobs grid fix
+      - name: Apply professional DentalJobs top-card grid fix
         run: python3 .github/scripts/professional-dentaljobs-three-column-grid.py
       - name: Install dependencies
         run: npm install
@@ -24,5 +24,5 @@ jobs:
           git config user.name "eliasdds1974"
           git config user.email "eliasdds@gmail.com"
           git add app/classifieds/page.tsx
-          git diff --cached --quiet || git commit -m "Show professional DentalJobs cards in 3 columns"
+          git diff --cached --quiet || git commit -m "Arrange professional DentalJobs portal cards in 3 columns"
           git push origin main
