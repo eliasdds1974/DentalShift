@@ -4,6 +4,7 @@ import { DoNotMatchPdfDownload } from "@/components/DoNotMatchPdfDownload";
 import { DentalJobsRoleSync } from "@/components/DentalJobsRoleSync";
 import { DentalJobsHeadingSync } from "@/components/DentalJobsHeadingSync";
 import { DentalJobsCancelPostingPolish } from "@/components/DentalJobsCancelPostingPolish";
+import { DentalJobsDistanceSync } from "@/components/DentalJobsDistanceSync";
 
 export default function DentalJobsLayout({ children }: { children: ReactNode }) {
   return (
@@ -11,6 +12,7 @@ export default function DentalJobsLayout({ children }: { children: ReactNode }) 
       <DentalJobsRoleSync />
       <DentalJobsHeadingSync />
       <DentalJobsCancelPostingPolish />
+      <DentalJobsDistanceSync />
       <DentalJobsDoNotMatchPlacement />
       <DoNotMatchPdfDownload />
       {children}
