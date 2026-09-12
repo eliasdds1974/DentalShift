@@ -1042,12 +1042,12 @@ export default function DentalJobsPage() {
                   <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Employment Type</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{job.employment_type}</p></div>
                   <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Hours / Schedule</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{job.schedule || job.days_per_week || "To be discussed"}</p></div>
                   <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Location</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{job.city}, {job.province}</p></div>
-                  <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Applications</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{jobConnections.length} professional{jobConnections.length === 1 ? "" : "s"} interested</p></div>
+                  <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Interested Dental Professionals</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{jobConnections.length} professional{jobConnections.length === 1 ? "" : "s"} interested</p></div>
                 </div>
               </div>
 
               <div className="mt-5 border-t border-slate-200 pt-5">
-                <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Interested Professionals</p><p className="mt-0.5 text-xs font-semibold text-slate-400">{jobConnections.length} active connection{jobConnections.length === 1 ? "" : "s"}</p></div>{jobConnections.length > 3 && <button type="button" onClick={() => setExpandedOfficeInterestJobs((current) => ({ ...current, [job.id]: !expanded }))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-[#002757] hover:bg-slate-50">{expanded ? "Show less" : `View all ${jobConnections.length}`}</button>}</div>
+                {jobConnections.length > 3 && <div className="flex justify-end"><button type="button" onClick={() => setExpandedOfficeInterestJobs((current) => ({ ...current, [job.id]: !expanded }))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-[#002757] hover:bg-slate-50">{expanded ? "Show less" : `View all ${jobConnections.length}`}</button></div>}
                 {jobConnections.length === 0 ? <div className="mt-2" /> : <div className="mt-3 grid gap-2">{shownConnections.map((item) => {
                   const preview = item.candidatePreview;
                   const unlocked = isCandidateUnlocked(item);
