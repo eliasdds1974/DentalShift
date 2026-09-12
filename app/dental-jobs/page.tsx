@@ -93,15 +93,15 @@ export default function DentalJobsPage() {
           padding-bottom: 1.25rem !important;
         }
 
-        /* Keep the live Office DentalJobs action cards in one equal three-column row. */
+        /* Only the three Office action cards use the forced three-column layout. */
         @media (min-width: 768px) {
-          .dentaljobs-role-office .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid {
+          .dentaljobs-role-office .dentaljobs-office-action-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
             max-width: none !important;
             align-items: stretch !important;
           }
 
-          .dentaljobs-role-office .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid > button {
+          .dentaljobs-role-office .dentaljobs-office-action-grid > button {
             width: 100% !important;
             height: 100% !important;
             min-height: 230px !important;
