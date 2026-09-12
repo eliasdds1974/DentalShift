@@ -16,18 +16,24 @@ export function DentalJobsRoleSync() {
         const details = await loadAccountDetails(user.id);
         if (cancelled) return;
 
-        const hasOffice = Boolean(details.office?.id);
-        const hasProfessional = Boolean(details.professional);
+        const accountRole = details.profile.role;
+        const correctRole =
+          accountRole === "office"
+            ? "office"
+            : accountRole === "professional"
+              ? "professional"
+              : null;
+
+        if (!correctRole) return;
+
         const storedRole = window.localStorage.getItem("dentalshift_portal_role");
-
-        let correctRole: "office" | "professional" | null = null;
-        if (hasProfessional && !hasOffice) correctRole = "professional";
-        if (hasOffice && !hasProfessional) correctRole = "office";
-
-        if (correctRole && storedRole !== correctRole) {
+        if (storedRole !== correctRole) {
           window.localStorage.setItem("dentalshift_portal_role", correctRole);
           window.location.reload();
+          return;
         }
+
+        document.documentElement.dataset.dentaljobsPortalRole = correctRole;
       } catch {
         // Leave the existing portal role unchanged if account details cannot be loaded.
       }
