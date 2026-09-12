@@ -31,7 +31,9 @@ export function DentalJobsPortalMarketplaceFilter() {
       for (const card of cards) {
         const title = card.querySelector("h3")?.textContent?.trim() || "";
         if (demoListingTitles.has(title)) {
-          card.remove();
+          card.dataset.dentaljobsPortalAllowed = "false";
+          card.dataset.dentaljobsDemo = "true";
+          card.style.display = "none";
           continue;
         }
 
@@ -55,8 +57,7 @@ export function DentalJobsPortalMarketplaceFilter() {
         }
       }
 
-      const currentCards = Array.from(section.querySelectorAll<HTMLElement>("article"));
-      const visibleCards = currentCards.filter((card) => card.dataset.dentaljobsPortalAllowed === "true" && card.style.display !== "none");
+      const visibleCards = cards.filter((card) => card.dataset.dentaljobsPortalAllowed === "true" && card.style.display !== "none");
       const countText = heading?.parentElement?.querySelector("p");
       if (countText) countText.textContent = `${visibleCards.length} active listing${visibleCards.length === 1 ? "" : "s"} shown`;
     };
