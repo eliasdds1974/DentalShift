@@ -1,0 +1,33 @@
+name: Reorganize classifieds office cards
+
+on:
+  push:
+    paths:
+      - '.github/workflows/reorganize-classifieds-office-cards.yml'
+      - '.github/scripts/reorganize-classifieds-office-cards.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Reorganize office DentalJobs cards
+        run: python .github/scripts/reorganize-classifieds-office-cards.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Restore three equal DentalJobs office cards"
+            git push
+          fi
