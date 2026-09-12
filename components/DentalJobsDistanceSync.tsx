@@ -116,7 +116,9 @@ export function DentalJobsDistanceSync() {
       if (disposed || listings.length === 0) return;
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
       const heading = headings.find((item) => item.textContent?.includes("Dental job opportunities within"));
-      const section = heading?.closest("section") as HTMLElement | null;
+      if (!heading) return;
+
+      const section = heading.closest("section") as HTMLElement | null;
       if (!section) return;
 
       const grid = Array.from(section.querySelectorAll<HTMLElement>("div")).find((element) => {
