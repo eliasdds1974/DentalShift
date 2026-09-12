@@ -1026,10 +1026,12 @@ export default function DentalJobsPage() {
                 <p className="shrink-0 text-xs font-semibold text-slate-400">Posted {new Date(job.created_at).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}</p>
               </div>
 
-              <div className="mt-4 flex w-full flex-wrap items-center gap-2.5">
+              <div className="relative z-10 mt-4 flex w-full flex-wrap items-center gap-2.5">
                 <button type="button" onClick={() => setOfficeManageListing(job)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#002757] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#01A32E]"><MoreVertical size={15}/> Manage</button>
-                <Link href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border-2 border-[#4285F4]/45 bg-white px-4 py-2.5 text-sm font-black text-[#245FB8] shadow-sm transition hover:bg-[#eef4ff]"><FileText size={15}/> View Ad</Link>
-                <div className="inline-flex"><ShareListingButton listingId={job.id} compact /></div>
+                <div className="flex flex-nowrap items-center gap-2.5">
+                  <Link href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`} className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-[#4285F4]/45 bg-white px-4 py-2.5 text-sm font-black text-[#245FB8] shadow-sm transition hover:bg-[#eef4ff]"><FileText size={15}/> View Ad</Link>
+                  <div className="relative z-20 inline-flex shrink-0"><ShareListingButton listingId={job.id} compact /></div>
+                </div>
               </div>
 
               <div className="mt-5 grid gap-4 border-t border-slate-200 pt-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(220px,.8fr)]">
