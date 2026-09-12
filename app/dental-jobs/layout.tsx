@@ -6,6 +6,7 @@ import { DentalJobsHeadingSync } from "@/components/DentalJobsHeadingSync";
 import { DentalJobsCancelPostingPolish } from "@/components/DentalJobsCancelPostingPolish";
 import { DentalJobsDistanceSync } from "@/components/DentalJobsDistanceSync";
 import { DentalJobsDynamicFooter } from "@/components/DentalJobsDynamicFooter";
+import { DentalJobsPortalMarketplaceFilter } from "@/components/DentalJobsPortalMarketplaceFilter";
 
 export default function DentalJobsLayout({ children }: { children: ReactNode }) {
   return (
@@ -14,6 +15,7 @@ export default function DentalJobsLayout({ children }: { children: ReactNode }) 
       <DentalJobsHeadingSync />
       <DentalJobsCancelPostingPolish />
       <DentalJobsDistanceSync />
+      <DentalJobsPortalMarketplaceFilter />
       <DentalJobsDoNotMatchPlacement />
       <DoNotMatchPdfDownload />
       {children}
