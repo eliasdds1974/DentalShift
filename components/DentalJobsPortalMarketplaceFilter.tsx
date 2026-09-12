@@ -2,6 +2,15 @@
 
 import { useEffect } from "react";
 
+const demoListingTitles = new Set([
+  "Registered Dental Hygienist — Permanent Full-Time",
+  "Certified Dental Assistant Seeking Permanent Position",
+  "Dental Administrator — 4 Days / Week",
+  "Associate Dentist — 3 to 4 Days / Week",
+  "Registered Dental Hygienist Looking for an Office",
+  "Sterilization Technician",
+]);
+
 export function DentalJobsPortalMarketplaceFilter() {
   useEffect(() => {
     let disposed = false;
@@ -20,6 +29,14 @@ export function DentalJobsPortalMarketplaceFilter() {
 
       const cards = Array.from(section.querySelectorAll<HTMLElement>("article"));
       for (const card of cards) {
+        const title = card.querySelector("h3")?.textContent?.trim() || "";
+        if (demoListingTitles.has(title)) {
+          card.dataset.dentaljobsPortalAllowed = "false";
+          card.dataset.dentaljobsDemo = "true";
+          card.style.display = "none";
+          continue;
+        }
+
         const text = card.textContent || "";
         const isOfficePosting = text.includes("OFFICE HIRING");
         const isProfessionalAd = text.includes("PROFESSIONAL SEEKING OFFICE");
