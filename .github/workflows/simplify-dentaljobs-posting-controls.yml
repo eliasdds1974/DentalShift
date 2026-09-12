@@ -1,0 +1,28 @@
+name: Simplify DentalJobs posting controls
+
+on:
+  push:
+    paths:
+      - '.github/workflows/simplify-dentaljobs-posting-controls.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Simplify posting controls
+        run: python3 .github/scripts/simplify-dentaljobs-posting-controls.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/classifieds/page.tsx
+          git diff --cached --quiet || git commit -m "Simplify DentalJobs posting management"
+          git push origin main
