@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { DentalJobsDynamicFooter } from "@/components/DentalJobsDynamicFooter";
 import { PublicDentalJobs } from "@/components/PublicDentalJobs";
 import { getActivePublicJobs } from "@/lib/public-dentaljobs";
 
@@ -19,5 +20,11 @@ export const metadata: Metadata = {
 
 export default async function DentalJobsPublicHome() {
   const listings = await getActivePublicJobs();
-  return <PublicDentalJobs listings={listings} />;
+
+  return (
+    <>
+      <PublicDentalJobs listings={listings} />
+      <DentalJobsDynamicFooter />
+    </>
+  );
 }
