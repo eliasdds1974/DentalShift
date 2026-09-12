@@ -989,7 +989,7 @@ export default function DentalJobsPage() {
         {portalRole === "office" && <section id="my-dentaljobs" className="relative h-full min-h-[250px] min-w-0 scroll-mt-24 overflow-hidden rounded-2xl border-2 border-[#01A32E]/55 bg-[#effaf2] p-4 shadow-md sm:p-5">
           <div className="absolute inset-y-0 left-0 w-1.5 bg-[#01A32E]" />
           <div className="flex items-end justify-between gap-3">
-            <div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Office postings</p><h2 className="mt-1 text-xl font-black text-[#002757]">My DentalJobs</h2><p className="mt-1 text-sm text-slate-500">Manage each job and the professionals interested in it.</p></div>
+            <div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Office postings</p><h2 className="mt-1 text-xl font-black text-[#002757]">My DentalJobs</h2><div className="mt-1 space-y-0.5"><p className="text-sm font-semibold text-slate-600">No professionals have expressed interest in any of your postings yet.</p><p className="text-xs font-semibold text-slate-400">When a professional selects I’m Interested or Apply to this Position, they will appear here.</p></div></div>
             <span className="rounded-full border border-[#01A32E]/30 bg-white px-3 py-1.5 text-xs font-black text-[#017f27] shadow-sm">{myOfficeJobs.length} posting{myOfficeJobs.length === 1 ? "" : "s"}</span>
           </div>
           {manageError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{manageError}</p>}
@@ -1048,7 +1048,7 @@ export default function DentalJobsPage() {
 
               <div className="mt-5 border-t border-slate-200 pt-5">
                 <div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Interested Professionals</p><p className="mt-0.5 text-xs font-semibold text-slate-400">{jobConnections.length} active connection{jobConnections.length === 1 ? "" : "s"}</p></div>{jobConnections.length > 3 && <button type="button" onClick={() => setExpandedOfficeInterestJobs((current) => ({ ...current, [job.id]: !expanded }))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-[#002757] hover:bg-slate-50">{expanded ? "Show less" : `View all ${jobConnections.length}`}</button>}</div>
-                {jobConnections.length === 0 ? <div className="mt-3 rounded-2xl border border-slate-200 bg-[#f5f8fc] px-4 py-4 text-center"><UserRound size={22} className="mx-auto text-slate-400"/><p className="mt-2 text-[11px] font-bold leading-4 text-slate-500">No professionals have expressed interest in this posting yet.</p><p className="mt-1 text-[10px] font-semibold leading-4 text-slate-400">When a professional selects I’m Interested or Apply to this Position, they will appear here.</p></div> : <div className="mt-3 grid gap-2">{shownConnections.map((item) => {
+                {jobConnections.length === 0 ? <div className="mt-2" /> : <div className="mt-3 grid gap-2">{shownConnections.map((item) => {
                   const preview = item.candidatePreview;
                   const unlocked = isCandidateUnlocked(item);
                   const statusLabel = unlocked ? "Connected" : item.initiatorRole === "office" && item.status === "interested" ? "Mutual Interest" : item.initiatorRole === "professional" && item.status === "pending" ? "New Interest" : item.initiatorRole === "office" && item.status === "pending" ? "Awaiting Professional" : "Interested";
