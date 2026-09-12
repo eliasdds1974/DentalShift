@@ -93,6 +93,20 @@ export default function DentalJobsPage() {
           padding-bottom: 1.25rem !important;
         }
 
+        /* DentalJobs listings are always a maximum of three cards across on desktop. */
+        @media (min-width: 1024px) {
+          .dentaljobs-native-shell .dentaljobs-listing-grid {
+            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          }
+        }
+
+        /* Search is intentionally not part of DentalJobs. */
+        .dentaljobs-native-shell input[type="search"],
+        .dentaljobs-native-shell [role="search"],
+        .dentaljobs-native-shell form[role="search"] {
+          display: none !important;
+        }
+
         /* Only the three Office action cards use the forced three-column layout. */
         @media (min-width: 768px) {
           .dentaljobs-role-office .dentaljobs-office-action-grid {
