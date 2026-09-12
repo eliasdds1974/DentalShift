@@ -4,7 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
-import { BriefcaseBusiness, MapPin, Search, ShieldCheck, UserRound } from "lucide-react";
+import { BriefcaseBusiness, MapPin, ShieldCheck, UserRound } from "lucide-react";
 import { citySlug, payLabel, type PublicJobListing } from "@/lib/public-dentaljobs";
 
 const publicSupabase = createClient(
@@ -19,7 +19,24 @@ const publicSupabase = createClient(
   }
 );
 
-const themes: Record<string, { accent: string; pale: string; text: string }> = {
+const provinceNames: Record<string, string> = {
+  AB: "Alberta",
+  BC: "British Columbia",
+  MB: "Manitoba",
+  NB: "New Brunswick",
+  NL: "Newfoundland & Labrador",
+  NS: "Nova Scotia",
+  NT: "Northwest Territories",
+  NU: "Nunavut",
+  ON: "Ontario",
+  PE: "Prince Edward Island",
+  QC: "Quebec",
+  SK: "Saskatchewan",
+  YT: "Yukon",
+};
+
+// Keep these colours aligned with the DentalShift professional calendar.
+const professionalThemes: Record<string, { accent: string; pale: string; text: string }> = {
   "Registered Dental Hygienist": { accent: "#4285F4", pale: "#EEF4FF", text: "#245FB8" },
   "Certified Dental Assistant": { accent: "#EA4335", pale: "#FFF0EE", text: "#B52C22" },
   "Dental Administrator": { accent: "#FBBC05", pale: "#FFF8DF", text: "#805F00" },
@@ -28,24 +45,117 @@ const themes: Record<string, { accent: string; pale: string; text: string }> = {
 };
 
 function themeFor(profession: string) {
-  return themes[profession] ?? { accent: "#01A32E", pale: "#EAF8EE", text: "#017F27" };
+  return professionalThemes[profession] ?? { accent: "#01A32E", pale: "#EAF8EE", text: "#017F27" };
 }
 
-function uniqueCities(listings: PublicJobListing[]) {
-  const map = new Map<string, { city: string; province: string; count: number }>();
+type CityGroup = {
+  city: string;
+  office: PublicJobListing[];
+  professional: PublicJobListing[];
+};
+
+type ProvinceGroup = {
+  province: string;
+  label: string;
+  total: number;
+  cities: CityGroup[];
+};
+
+function groupListings(listings: PublicJobListing[]): ProvinceGroup[] {
+  const provinceMap = new Map<string, Map<string, CityGroup>>();
+
   for (const listing of listings) {
-    const slug = citySlug(listing.city);
-    const current = map.get(slug);
-    if (current) current.count += 1;
-    else map.set(slug, { city: listing.city, province: listing.province, count: 1 });
+    const province = String(listing.province || "").trim().toUpperCase();
+    const city = String(listing.city || "").trim();
+    if (!province || !city) continue;
+
+    if (!provinceMap.has(province)) provinceMap.set(province, new Map());
+    const cityMap = provinceMap.get(province)!;
+
+    if (!cityMap.has(city)) {
+      cityMap.set(city, { city, office: [], professional: [] });
+    }
+
+    const group = cityMap.get(city)!;
+    if (listing.listing_type === "office_hiring") group.office.push(listing);
+    if (listing.listing_type === "professional_available") group.professional.push(listing);
   }
-  return [...map.entries()].sort((a, b) => b[1].count - a[1].count || a[1].city.localeCompare(b[1].city));
+
+  return Array.from(provinceMap.entries())
+    .map(([province, cityMap]) => {
+      const cities = Array.from(cityMap.values()).sort((a, b) => {
+        const aTotal = a.office.length + a.professional.length;
+        const bTotal = b.office.length + b.professional.length;
+        return bTotal - aTotal || a.city.localeCompare(b.city);
+      });
+
+      return {
+        province,
+        label: provinceNames[province] || province,
+        total: cities.reduce((sum, city) => sum + city.office.length + city.professional.length, 0),
+        cities,
+      };
+    })
+    .sort((a, b) => b.total - a.total || a.label.localeCompare(b.label));
+}
+
+function ListingCard({ listing }: { listing: PublicJobListing }) {
+  const professional = listing.listing_type === "professional_available";
+  const theme = themeFor(listing.profession);
+  const accent = professional ? theme.accent : "#002757";
+  const pale = professional ? theme.pale : "#EDF3FA";
+  const text = professional ? theme.text : "#002757";
+
+  return (
+    <article className="flex min-h-[315px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
+      <div className="h-1.5" style={{ backgroundColor: accent }} />
+      <div className="flex flex-1 flex-col p-4">
+        <div className="flex items-start gap-3">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: accent }}>
+            {professional ? <UserRound size={20} /> : <BriefcaseBusiness size={20} />}
+          </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: text }}>
+              {professional ? "Professional looking for an office" : "Dental office hiring"}
+            </p>
+            <h4 className="mt-1 text-base font-black leading-5 text-[#002757]">
+              {professional ? `${listing.profession} Available` : listing.profession}
+            </h4>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-600">
+            {listing.employment_type}
+          </span>
+          <span className="rounded-lg px-2.5 py-1.5 text-[11px] font-black" style={{ backgroundColor: pale, color: text }}>
+            {payLabel(listing)}
+          </span>
+        </div>
+
+        <p className="mt-3 line-clamp-4 text-xs leading-5 text-slate-600">{listing.description}</p>
+
+        <div className="mt-auto pt-4">
+          <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+            <ShieldCheck size={13} /> Privacy protected
+          </div>
+          <Link
+            href={`/jobs/${listing.id}`}
+            className="block w-full rounded-xl px-3 py-2.5 text-center text-xs font-black text-white transition hover:brightness-95"
+            style={{ backgroundColor: accent }}
+          >
+            View Listing
+          </Link>
+        </div>
+      </div>
+    </article>
+  );
 }
 
 export function PublicDentalJobs({
   listings,
-  title = "DentalJobs by DentalShift",
-  intro = "Browse current dental opportunities and professionals looking for offices across Canada.",
+  title = "DentalJobs Marketplace",
+  intro = "Browse dental office hiring opportunities and dental professionals looking for offices across Canada.",
 }: {
   listings: PublicJobListing[];
   title?: string;
@@ -89,64 +199,116 @@ export function PublicDentalJobs({
     };
   }, []);
 
-  const cities = useMemo(() => uniqueCities(liveListings), [liveListings]);
+  const provinces = useMemo(() => groupListings(liveListings), [liveListings]);
+  const officeTotal = liveListings.filter((listing) => listing.listing_type === "office_hiring").length;
+  const professionalTotal = liveListings.filter((listing) => listing.listing_type === "professional_available").length;
 
-  return <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
-    <header className="border-b border-slate-200 bg-white">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-4 sm:px-6">
-        <Link href="/" aria-label="DentalShift home"><Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-12 w-auto sm:h-14" priority /></Link>
-        <div className="flex items-center gap-2">
-          <Link href="/?signin=1" className="rounded-xl border-2 border-[#002757] bg-white px-3 py-2 text-sm font-black text-[#002757] sm:px-4">Sign in</Link>
-          <Link href="/?signin=1" className="rounded-xl bg-[#01A32E] px-3 py-2 text-sm font-black text-white sm:px-4">Post a Listing</Link>
+  return (
+    <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
+      <header className="border-b border-slate-200 bg-white">
+        <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+          <Link href="/" aria-label="DentalShift home">
+            <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-12 w-auto sm:h-14" priority />
+          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/?signin=1" className="rounded-xl border-2 border-[#002757] bg-white px-3 py-2 text-sm font-black text-[#002757] sm:px-4">Sign in</Link>
+            <Link href="/?signin=1" className="rounded-xl bg-[#01A32E] px-3 py-2 text-sm font-black text-white sm:px-4">Post a Listing</Link>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
 
-    <section className="border-b border-[#dfe8f2] bg-white">
-      <div className="mx-auto max-w-6xl px-4 py-9 sm:px-6 sm:py-12">
-        <p className="text-xs font-black uppercase tracking-[0.14em] text-[#01A32E]">Public Dental Marketplace</p>
-        <h1 className="mt-2 text-3xl font-black tracking-tight text-[#002757] sm:text-5xl">{title}</h1>
-        <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600 sm:text-lg">{intro}</p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          <Link href="/?signin=1" className="rounded-xl bg-[#002757] px-5 py-3 font-black text-white">Post a Position</Link>
-          <Link href="/?signin=1" className="rounded-xl border-2 border-[#4285F4] bg-white px-5 py-3 font-black text-[#245FB8]">Looking for an Office</Link>
+      <section className="border-b border-[#dfe8f2] bg-white">
+        <div className="mx-auto max-w-[1500px] px-4 py-8 sm:px-6 lg:px-8">
+          <p className="text-xs font-black uppercase tracking-[0.14em] text-[#01A32E]">Public Dental Marketplace</p>
+          <h1 className="mt-2 text-3xl font-black tracking-tight text-[#002757] sm:text-5xl">{title}</h1>
+          <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">{intro}</p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <span className="rounded-full bg-[#edf3fa] px-3.5 py-2 text-xs font-black text-[#002757]">{liveListings.length} active ads</span>
+            <span className="rounded-full bg-[#edf3fa] px-3.5 py-2 text-xs font-black text-[#002757]">{officeTotal} office hiring</span>
+            <span className="rounded-full bg-[#eaf8ee] px-3.5 py-2 text-xs font-black text-[#017f27]">{professionalTotal} professionals looking</span>
+          </div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <section className="mx-auto max-w-6xl px-4 py-7 sm:px-6 sm:py-10">
-      {cities.length > 0 && <div className="mb-8 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex items-center gap-2 text-[#002757]"><MapPin size={18}/><h2 className="text-lg font-black">Browse by city</h2></div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {cities.map(([slug, city]) => <Link key={slug} href={`/jobs/${slug}`} className="rounded-full bg-[#edf3fa] px-3.5 py-2 text-sm font-black text-[#002757] hover:bg-[#dfeaf6]">{city.city}, {city.province} <span className="text-slate-400">({city.count})</span></Link>)}
-        </div>
-      </div>}
+      <section className="mx-auto max-w-[1500px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10">
+        {loadError && (
+          <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">
+            DentalJobs could not refresh the public listings: {loadError}
+          </div>
+        )}
 
-      <div className="mb-5 flex items-end justify-between gap-4">
-        <div><h2 className="text-2xl font-black text-[#002757]">Current listings</h2><p className="mt-1 text-sm font-semibold text-slate-500">{liveListings.length} active {liveListings.length === 1 ? "listing" : "listings"}</p></div>
-        <div className="hidden items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-slate-500 shadow-sm sm:flex"><Search size={16}/> Publicly browseable</div>
-      </div>
+        {provinces.length === 0 ? (
+          <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+            <BriefcaseBusiness className="mx-auto text-slate-300" size={38} />
+            <h3 className="mt-4 text-xl font-black text-[#002757]">No active listings yet</h3>
+            <p className="mt-2 text-sm text-slate-500">New DentalJobs listings will appear here automatically.</p>
+          </div>
+        ) : (
+          <div className="space-y-10">
+            {provinces.map((province) => (
+              <section key={province.province}>
+                <div className="mb-5 flex items-end justify-between gap-4 border-b-2 border-[#002757] pb-3">
+                  <div>
+                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#01A32E]">{province.province}</p>
+                    <h2 className="text-2xl font-black text-[#002757] sm:text-3xl">{province.label}</h2>
+                  </div>
+                  <span className="rounded-full bg-[#002757] px-3 py-1.5 text-xs font-black text-white">{province.total} active</span>
+                </div>
 
-      {loadError && <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">DentalJobs could not refresh the public listings: {loadError}</div>}
+                <div className="space-y-8">
+                  {province.cities.map((city) => {
+                    const cityTotal = city.office.length + city.professional.length;
+                    return (
+                      <section key={`${province.province}-${city.city}`} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 pb-4">
+                          <div className="flex items-center gap-2">
+                            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#edf3fa] text-[#002757]"><MapPin size={17} /></span>
+                            <div>
+                              <h3 className="text-xl font-black text-[#002757]">{city.city}</h3>
+                              <p className="text-xs font-semibold text-slate-500">{cityTotal} active listing{cityTotal === 1 ? "" : "s"}</p>
+                            </div>
+                          </div>
+                          <Link href={`/jobs/${citySlug(city.city)}`} className="text-xs font-black text-[#4285F4] hover:underline">View {city.city}</Link>
+                        </div>
 
-      {liveListings.length === 0 ? <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm"><BriefcaseBusiness className="mx-auto text-slate-300" size={38}/><h3 className="mt-4 text-xl font-black text-[#002757]">No active listings yet</h3><p className="mt-2 text-sm text-slate-500">New DentalJobs listings will appear here automatically.</p></div> : <div className="grid gap-4 md:grid-cols-2">
-        {liveListings.map((listing) => {
-          const professional = listing.listing_type === "professional_available";
-          const theme = themeFor(listing.profession);
-          return <article key={listing.id} className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-            <div className="h-1.5" style={{ backgroundColor: professional ? theme.accent : "#002757" }} />
-            <div className="p-5 sm:p-6">
-              <div className="flex items-start gap-3">
-                <div className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-white" style={{ backgroundColor: professional ? theme.accent : "#002757" }}>{professional ? <UserRound size={21}/> : <BriefcaseBusiness size={21}/>}</div>
-                <div className="min-w-0"><p className="text-[11px] font-black uppercase tracking-[0.12em]" style={{ color: professional ? theme.text : "#002757" }}>{professional ? "Professional seeking an office" : "Dental office hiring"}</p><h3 className="mt-1 text-xl font-black leading-tight text-[#002757]">{professional ? `${listing.profession} Available` : `${listing.profession} Wanted`}</h3></div>
-              </div>
-              <div className="mt-4 flex flex-wrap gap-2"><Link href={`/jobs/${citySlug(listing.city)}`} className="inline-flex items-center gap-1 rounded-lg bg-slate-100 px-2.5 py-1.5 text-xs font-bold text-slate-600"><MapPin size={13}/>{listing.city}, {listing.province}</Link><span className="rounded-lg px-2.5 py-1.5 text-xs font-black" style={{ backgroundColor: professional ? theme.pale : "#edf3fa", color: professional ? theme.text : "#002757" }}>{listing.employment_type}</span><span className="rounded-lg bg-[#fff7df] px-2.5 py-1.5 text-xs font-black text-[#805F00]">{payLabel(listing)}</span></div>
-              <p className="mt-4 line-clamp-3 text-sm leading-6 text-slate-600">{listing.description}</p>
-              <div className="mt-5 flex items-center justify-between gap-3"><span className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-400"><ShieldCheck size={14}/> Privacy protected</span><Link href={`/jobs/${listing.id}`} className="rounded-xl bg-[#002757] px-4 py-2.5 text-sm font-black text-white">View Listing</Link></div>
-            </div>
-          </article>;
-        })}
-      </div>}
-    </section>
-  </main>;
+                        {city.office.length > 0 && (
+                          <div className="mt-5">
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#002757] text-white"><BriefcaseBusiness size={16} /></span>
+                                <h4 className="font-black text-[#002757]">Dental Office Hiring</h4>
+                              </div>
+                              <span className="text-xs font-bold text-slate-400">{city.office.length}</span>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                              {city.office.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+                            </div>
+                          </div>
+                        )}
+
+                        {city.professional.length > 0 && (
+                          <div className={city.office.length > 0 ? "mt-7 border-t border-slate-200 pt-6" : "mt-5"}>
+                            <div className="mb-3 flex items-center justify-between gap-3">
+                              <div className="flex items-center gap-2">
+                                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#01A32E] text-white"><UserRound size={16} /></span>
+                                <h4 className="font-black text-[#002757]">Professionals Looking for an Office</h4>
+                              </div>
+                              <span className="text-xs font-bold text-slate-400">{city.professional.length}</span>
+                            </div>
+                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                              {city.professional.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
+                            </div>
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
+                </div>
+              </section>
+            ))}
+          </div>
+        )}
+      </section>
+    </main>
+  );
 }
