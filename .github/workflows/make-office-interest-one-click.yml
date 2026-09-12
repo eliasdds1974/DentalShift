@@ -1,0 +1,33 @@
+name: One-click office interest
+
+on:
+  push:
+    paths:
+      - '.github/scripts/make-office-interest-one-click.py'
+      - '.github/workflows/make-office-interest-one-click.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply one-click office interest change
+        run: python .github/scripts/make-office-interest-one-click.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/DentalJobsNativeMarketplace.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Make office interest one click"
+            git push origin main
+          fi
