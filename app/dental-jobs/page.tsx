@@ -93,14 +93,10 @@ export default function DentalJobsPage() {
           padding-bottom: 1.25rem !important;
         }
 
-        /* DentalJobs listings are always a maximum of three cards across on desktop. */
-        @media (min-width: 1024px) {
-          .dentaljobs-native-shell .dentaljobs-listing-grid {
-            grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
-          }
-        }
+        /* The native marketplace controls its own responsive 1/2/3/4-column listing grid. */
 
-        /* Search is intentionally not part of DentalJobs. */
+        /* Search/filter controls are intentionally not part of DentalJobs. */
+        .dentaljobs-native-shell .dentaljobs-legacy-filterbar,
         .dentaljobs-native-shell input[type="search"],
         .dentaljobs-native-shell [role="search"],
         .dentaljobs-native-shell form[role="search"] {
