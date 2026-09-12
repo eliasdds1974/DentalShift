@@ -54,6 +54,11 @@ export function DentalJobsCancelPostingPolish() {
         applicationsSection?.parentElement === commonParent
       ) {
         commonParent.classList.add("dentaljobs-three-card-layout");
+
+        const applicationsList = applicationsSection.querySelector<HTMLElement>("div.mt-4");
+        const applicantCount = applicationsList?.querySelectorAll(":scope > article").length || 0;
+        commonParent.classList.toggle("dentaljobs-three-card-over-five", applicantCount > 5);
+        applicationsSection.dataset.applicantCount = String(applicantCount);
       }
 
       for (const button of buttons) {
@@ -201,8 +206,8 @@ export function DentalJobsCancelPostingPolish() {
           grid-row: auto !important;
           width: 100% !important;
           max-width: none !important;
-          height: 206px !important;
-          min-height: 206px !important;
+          height: 360px !important;
+          min-height: 360px !important;
           margin-top: 24px !important;
           box-sizing: border-box !important;
         }
@@ -212,17 +217,16 @@ export function DentalJobsCancelPostingPolish() {
         }
         .dentaljobs-top-card-slot > .dentaljobs-top-card-button {
           width: 100% !important;
-          height: 206px !important;
-          min-height: 206px !important;
+          height: 360px !important;
+          min-height: 360px !important;
           box-sizing: border-box !important;
         }
         .dentaljobs-top-card-myjobs,
         .dentaljobs-top-card-applications {
           overflow: visible !important;
         }
-        .dentaljobs-top-card-myjobs > div.mt-4,
-        .dentaljobs-top-card-applications > div.mt-4 {
-          max-height: 115px !important;
+        .dentaljobs-top-card-myjobs > div.mt-4 {
+          max-height: 268px !important;
           overflow-y: auto !important;
           overflow-x: visible !important;
           scrollbar-width: thin;
@@ -254,16 +258,47 @@ export function DentalJobsCancelPostingPolish() {
         }
         .dentaljobs-top-card-applications > div.mt-4 {
           margin-top: 8px !important;
-          gap: 6px !important;
+          gap: 5px !important;
+          max-height: none !important;
+          overflow: visible !important;
         }
         .dentaljobs-top-card-applications article {
-          padding: 7px 8px !important;
-          border-radius: 10px !important;
+          padding: 6px 7px !important;
+          border-radius: 9px !important;
+          min-height: 44px !important;
+        }
+        .dentaljobs-top-card-applications article > div {
+          gap: 5px !important;
+        }
+        .dentaljobs-top-card-applications article h3 {
+          margin-top: 2px !important;
+          font-size: 11px !important;
+          line-height: 1.05 !important;
+        }
+        .dentaljobs-top-card-applications article p {
+          margin-top: 1px !important;
+          font-size: 9px !important;
+          line-height: 1.1 !important;
+        }
+        .dentaljobs-top-card-applications article span.rounded-full {
+          padding: 2px 5px !important;
+          font-size: 8px !important;
+          line-height: 1 !important;
         }
         .dentaljobs-top-card-applications > div.mt-4 > div[class*="border-dashed"] {
           padding: 9px !important;
           font-size: 10.5px !important;
           line-height: 1.15 !important;
+        }
+
+        .dentaljobs-three-card-over-five > .dentaljobs-top-card-slot,
+        .dentaljobs-three-card-over-five > .dentaljobs-top-card {
+          height: auto !important;
+          min-height: 360px !important;
+        }
+        .dentaljobs-three-card-over-five > .dentaljobs-top-card-slot > .dentaljobs-top-card-button {
+          height: 100% !important;
+          min-height: 360px !important;
         }
 
         .dentaljobs-my-postings-compact article {
