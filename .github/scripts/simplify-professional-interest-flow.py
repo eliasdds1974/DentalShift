@@ -44,4 +44,17 @@ new_section = '{portalRole === "office" && <section className="h-full min-h-[250
 if old_section not in text:
     raise SystemExit('connections section anchor not found')
 text = text.replace(old_section, new_section, 1)
+
+# This section is now rendered only for office accounts. Preserve its existing shared
+# markup without triggering TypeScript's impossible-literal comparison error for
+# professional-only branches that are unreachable inside the office-only section.
+section_start = text.index(new_section)
+section_end = text.find('</section>}', section_start)
+if section_end == -1:
+    raise SystemExit('connections section end not found')
+section_end += len('</section>}')
+segment = text[section_start:section_end]
+segment = segment.replace('portalRole === "professional"', 'String(portalRole) === "professional"')
+text = text[:section_start] + segment + text[section_end:]
+
 page.write_text(text)
