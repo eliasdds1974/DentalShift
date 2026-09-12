@@ -328,7 +328,7 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
         ? "Awaiting Response"
         : applicationLabel(existing.status)
       : role === "professional"
-        ? "Apply"
+        ? "I'm Interested"
         : "I'm Interested";
 
     return (
