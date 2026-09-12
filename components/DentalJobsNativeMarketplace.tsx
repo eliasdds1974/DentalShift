@@ -273,6 +273,20 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
       const professionalId = listing.professional_id;
       if (!officeId || !professionalId) throw new Error("This listing is missing account information needed to continue.");
 
+      const { data: officePostings } = await supabase
+        .from("job_listings")
+        .select("id,profession,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,created_at")
+        .eq("office_id", officeId)
+        .eq("listing_type", "office_hiring")
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false });
+
+      const sourcePosting = (officePostings || []).find((job) => job.profession === listing.profession) || (officePostings || [])[0] || null;
+      const officeInterestSnapshot = sourcePosting
+        ? { label: "Dental Office", city: sourcePosting.city, province: sourcePosting.province, profession: sourcePosting.profession, employment_type: sourcePosting.employment_type, days_per_week: sourcePosting.days_per_week, pay_min: sourcePosting.pay_min, pay_max: sourcePosting.pay_max, schedule: sourcePosting.schedule }
+        : { label: "Dental Office", city: details.office?.city || details.profile.city || "", province: details.office?.province || details.profile.province || "", profession: listing.profession };
+
       const { data, error: insertError } = await supabase
         .from("job_applications")
         .insert({
@@ -283,6 +297,8 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
           status: "pending",
           message: "",
           resume_path_snapshot: null,
+          source_office_listing_id: sourcePosting?.id || null,
+          office_interest_snapshot: officeInterestSnapshot,
         })
         .select("id,listing_id,status")
         .single();
