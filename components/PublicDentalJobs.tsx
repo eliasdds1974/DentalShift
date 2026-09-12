@@ -200,8 +200,6 @@ export function PublicDentalJobs({
   }, []);
 
   const provinces = useMemo(() => groupListings(liveListings), [liveListings]);
-  const officeTotal = liveListings.filter((listing) => listing.listing_type === "office_hiring").length;
-  const professionalTotal = liveListings.filter((listing) => listing.listing_type === "professional_available").length;
 
   return (
     <main className="min-h-screen bg-[#f5f8fb] text-slate-900">
@@ -222,11 +220,6 @@ export function PublicDentalJobs({
           <p className="text-xs font-black uppercase tracking-[0.14em] text-[#01A32E]">Public Dental Marketplace</p>
           <h1 className="mt-2 text-3xl font-black tracking-tight text-[#002757] sm:text-5xl">{title}</h1>
           <p className="mt-3 max-w-3xl text-base leading-7 text-slate-600">{intro}</p>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <span className="rounded-full bg-[#edf3fa] px-3.5 py-2 text-xs font-black text-[#002757]">{liveListings.length} active ads</span>
-            <span className="rounded-full bg-[#edf3fa] px-3.5 py-2 text-xs font-black text-[#002757]">{officeTotal} office hiring</span>
-            <span className="rounded-full bg-[#eaf8ee] px-3.5 py-2 text-xs font-black text-[#017f27]">{professionalTotal} professionals looking</span>
-          </div>
         </div>
       </section>
 
@@ -248,10 +241,7 @@ export function PublicDentalJobs({
             {provinces.map((province) => (
               <section key={province.province}>
                 <div className="mb-5 flex items-end justify-between gap-4 border-b-2 border-[#002757] pb-3">
-                  <div>
-                    <p className="text-[11px] font-black uppercase tracking-[0.16em] text-[#01A32E]">{province.province}</p>
-                    <h2 className="text-2xl font-black text-[#002757] sm:text-3xl">{province.label}</h2>
-                  </div>
+                  <h2 className="text-2xl font-black text-[#002757] sm:text-3xl">{province.label}</h2>
                   <span className="rounded-full bg-[#002757] px-3 py-1.5 text-xs font-black text-white">{province.total} active</span>
                 </div>
 
@@ -272,32 +262,14 @@ export function PublicDentalJobs({
                         </div>
 
                         {city.office.length > 0 && (
-                          <div className="mt-5">
-                            <div className="mb-3 flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#002757] text-white"><BriefcaseBusiness size={16} /></span>
-                                <h4 className="font-black text-[#002757]">Dental Office Hiring</h4>
-                              </div>
-                              <span className="text-xs font-bold text-slate-400">{city.office.length}</span>
-                            </div>
-                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                              {city.office.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
-                            </div>
+                          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                            {city.office.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
                           </div>
                         )}
 
                         {city.professional.length > 0 && (
-                          <div className={city.office.length > 0 ? "mt-7 border-t border-slate-200 pt-6" : "mt-5"}>
-                            <div className="mb-3 flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2">
-                                <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#01A32E] text-white"><UserRound size={16} /></span>
-                                <h4 className="font-black text-[#002757]">Professionals Looking for an Office</h4>
-                              </div>
-                              <span className="text-xs font-bold text-slate-400">{city.professional.length}</span>
-                            </div>
-                            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                              {city.professional.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
-                            </div>
+                          <div className={`${city.office.length > 0 ? "mt-5" : "mt-5"} grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4`}>
+                            {city.professional.map((listing) => <ListingCard key={listing.id} listing={listing} />)}
                           </div>
                         )}
                       </section>
