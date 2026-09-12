@@ -1,0 +1,28 @@
+name: Restyle office professional interest
+
+on:
+  push:
+    paths:
+      - '.github/workflows/restyle-office-professional-interest.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply office professional interest restyle
+        run: python3 .github/scripts/restyle-office-professional-interest.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/classifieds/page.tsx
+          git diff --cached --quiet || git commit -m "Restyle Dental Professionals Interest"
+          git push origin main
