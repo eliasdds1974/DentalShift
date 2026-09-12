@@ -18,10 +18,19 @@ export type PublicJobListing = {
 };
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://pvugjtlmtlyfzyvvhcik.supabase.co";
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? "";
+const supabaseKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
+  "sb_publishable_cl7HUUywEucu1DsSbuaodA_oKo8qNFJ";
 
 function client() {
-  return createClient(supabaseUrl, supabaseKey, { auth: { persistSession: false } });
+  return createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  });
 }
 
 export function citySlug(city: string) {
@@ -39,7 +48,6 @@ export function professionSlug(profession: string) {
 }
 
 export async function getActivePublicJobs(): Promise<PublicJobListing[]> {
-  if (!supabaseKey) return [];
   const { data, error } = await client()
     .from("job_listings")
     .select("id,listing_type,profession,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,status,expires_at,created_at")
@@ -52,7 +60,6 @@ export async function getActivePublicJobs(): Promise<PublicJobListing[]> {
 }
 
 export async function getActivePublicJob(id: string): Promise<PublicJobListing | null> {
-  if (!supabaseKey) return null;
   const { data } = await client()
     .from("job_listings")
     .select("id,listing_type,profession,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,status,expires_at,created_at")
