@@ -1,0 +1,28 @@
+name: Professional DentalJobs 3-column grid
+
+on:
+  push:
+    paths:
+      - '.github/workflows/professional-dentaljobs-three-column-grid.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional DentalJobs grid fix
+        run: python3 .github/scripts/professional-dentaljobs-three-column-grid.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/classifieds/page.tsx
+          git diff --cached --quiet || git commit -m "Show professional DentalJobs cards in 3 columns"
+          git push origin main
