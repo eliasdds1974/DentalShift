@@ -1,0 +1,32 @@
+name: Add View Ad to office postings
+
+on:
+  push:
+    paths:
+      - '.github/scripts/add-view-ad-office-postings.py'
+      - '.github/workflows/add-view-ad-office-postings.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Add View Ad action
+        run: python .github/scripts/add-view-ad-office-postings.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Add View Ad to office posting cards"
+          git push origin main
