@@ -1,0 +1,29 @@
+name: Imported job ad public disclosure warning
+
+on:
+  push:
+    paths:
+      - '.github/scripts/add-imported-ad-public-disclosure-warning.py'
+      - '.github/workflows/add-imported-ad-public-disclosure-warning.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply imported ad disclosure changes
+        run: python .github/scripts/add-imported-ad-public-disclosure-warning.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          git diff --cached --quiet || git commit -m "Clarify public disclosure for imported DentalJobs ads"
+          git push
