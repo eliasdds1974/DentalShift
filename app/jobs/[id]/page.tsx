@@ -4,6 +4,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { BriefcaseBusiness, MapPin, ShieldCheck, UserRound } from "lucide-react";
 import { PublicDentalJobs } from "@/components/PublicDentalJobs";
+import { DentalJobsDetailInterestAction } from "@/components/DentalJobsDetailInterestAction";
 import { getActivePublicJob, getJobsForCity, payLabel } from "@/lib/public-dentaljobs";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.dentalshift.ca";
@@ -92,7 +93,10 @@ export default async function DentalJobsSlugPage({ params, searchParams }: { par
 
           <div className="mt-7 rounded-2xl border border-[#01A32E]/20 bg-[#f4fbf6] p-4"><div className="flex items-center gap-2 font-black text-[#017f27]"><ShieldCheck size={18}/> Privacy protected by DentalShift</div><p className="mt-1 text-sm leading-6 text-slate-600">Public visitors can browse this listing without an account. Signing in is required before applying, expressing interest, messaging, posting or unlocking private candidate details.</p></div>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-2"><Link href="/?signin=1" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#01A32E] px-5 py-3 text-center font-black text-white shadow-sm">{actionLabel}</Link><Link href={backHref} className="inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-[#002757] bg-white px-5 py-3 text-center font-black text-[#002757]">{backLabel}</Link></div>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2">
+            <DentalJobsDetailInterestAction listingId={listing.id} listingType={listing.listing_type} profession={listing.profession} signedOutLabel={actionLabel} />
+            <Link href={backHref} className="inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-[#002757] bg-white px-5 py-3 text-center font-black text-[#002757]">{backLabel}</Link>
+          </div>
         </div>
       </div>
       <p className="mx-auto mt-5 max-w-3xl text-center text-xs font-semibold text-slate-400">DentalJobs by DentalShift · Canadian dental staffing and employment</p>
