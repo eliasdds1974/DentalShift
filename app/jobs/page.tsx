@@ -3,7 +3,8 @@ import { DentalJobsDynamicFooter } from "@/components/DentalJobsDynamicFooter";
 import { PublicDentalJobs } from "@/components/PublicDentalJobs";
 import { getActivePublicJobs } from "@/lib/public-dentaljobs";
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export const metadata: Metadata = {
   title: "Dental Jobs in Canada | DentalJobs by DentalShift",
