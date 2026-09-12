@@ -22,6 +22,31 @@ const demoListingTitles = new Set([
   "Sterilization Technician",
 ]);
 
+const provinceNames: Record<string, string> = {
+  AB: "Alberta",
+  BC: "British Columbia",
+  MB: "Manitoba",
+  NB: "New Brunswick",
+  NL: "Newfoundland & Labrador",
+  NS: "Nova Scotia",
+  NT: "Northwest Territories",
+  NU: "Nunavut",
+  ON: "Ontario",
+  PE: "Prince Edward Island",
+  QC: "Quebec",
+  SK: "Saskatchewan",
+  YT: "Yukon",
+};
+
+// Keep these colours aligned with the DentalShift professional calendar and public DentalJobs Marketplace.
+const professionalThemes: Record<string, { accent: string; pale: string; text: string }> = {
+  "Registered Dental Hygienist": { accent: "#4285F4", pale: "#EEF4FF", text: "#245FB8" },
+  "Certified Dental Assistant": { accent: "#EA4335", pale: "#FFF0EE", text: "#B52C22" },
+  "Dental Administrator": { accent: "#FBBC05", pale: "#FFF8DF", text: "#805F00" },
+  "Sterilization Technician": { accent: "#34A853", pale: "#ECF8EF", text: "#247A3B" },
+  "Associate Dentist": { accent: "#7C3AED", pale: "#F4EEFF", text: "#5B21B6" },
+};
+
 function haversineKm(a: Point, b: Point) {
   const toRad = (value: number) => (value * Math.PI) / 180;
   const dLat = toRad(b.lat - a.lat);
@@ -117,7 +142,9 @@ export default function DentalJobsPage() {
 
     const organizeSignedInListings = () => {
       const sections = Array.from(document.querySelectorAll<HTMLElement>(".dental-jobs-compact-layout main > section"));
-      const resultsSection = sections.find((section) => section.textContent?.includes("Dental job opportunities"));
+      const resultsSection = sections.find((section) =>
+        section.textContent?.includes("Dental job opportunities") || section.textContent?.includes("DentalJobs Near You")
+      );
       if (!resultsSection) return false;
 
       const grid = Array.from(resultsSection.querySelectorAll<HTMLElement>("div.grid")).find((candidate) =>
@@ -131,6 +158,7 @@ export default function DentalJobsPage() {
       for (const card of allCards) {
         const title = card.querySelector("h3")?.textContent?.trim() || "";
         card.style.display = demoListingTitles.has(title) ? "none" : "";
+        card.classList.remove("dentaljobs-office-card", "dentaljobs-professional-card");
       }
 
       const cards = allCards.filter((card) => card.style.display !== "none");
@@ -147,6 +175,17 @@ export default function DentalJobsPage() {
         const province = parts[1] || "Canada";
         const key = `${province}|||${city}`;
         const kind = card.textContent?.includes("OFFICE HIRING") ? "office" : "professional";
+
+        card.classList.add(kind === "office" ? "dentaljobs-office-card" : "dentaljobs-professional-card");
+        if (kind === "professional") {
+          const cardText = card.textContent || "";
+          const profession = Object.keys(professionalThemes).find((name) => cardText.includes(name)) || "";
+          const theme = professionalThemes[profession] || { accent: "#01A32E", pale: "#EAF8EE", text: "#017F27" };
+          card.style.setProperty("--dentaljobs-prof-accent", theme.accent);
+          card.style.setProperty("--dentaljobs-prof-pale", theme.pale);
+          card.style.setProperty("--dentaljobs-prof-text", theme.text);
+        }
+
         if (!grouped.has(key)) grouped.set(key, { province, city, office: [], professional: [] });
         grouped.get(key)![kind].push(card);
       }
@@ -175,7 +214,15 @@ export default function DentalJobsPage() {
           provinceHeading.className = "dentaljobs-group-heading dentaljobs-province-heading";
           provinceHeading.style.order = String(order++);
           const provinceKm = distanceMaps.provinceKm.get(group.province);
-          provinceHeading.innerHTML = `<span>${group.province}</span><small>${provinceKm != null ? `${Math.round(provinceKm)} km nearest` : `${provinceTotals.get(group.province) || 0} ads`}</small>`;
+          const provinceLabel = provinceNames[group.province] || group.province;
+          const total = provinceTotals.get(group.province) || 0;
+          provinceHeading.innerHTML = `
+            <div class="dentaljobs-province-title-wrap">
+              <span class="dentaljobs-province-code">${group.province}</span>
+              <strong>${provinceLabel}</strong>
+              ${provinceKm != null ? `<em>${Math.round(provinceKm)} km nearest</em>` : ""}
+            </div>
+            <small>${total} active</small>`;
           grid.appendChild(provinceHeading);
           previousProvince = group.province;
         }
@@ -184,14 +231,19 @@ export default function DentalJobsPage() {
         cityHeading.className = "dentaljobs-group-heading dentaljobs-city-heading";
         cityHeading.style.order = String(order++);
         const cityKm = distanceMaps.cityKm.get(`${group.province}|||${group.city}`);
-        cityHeading.innerHTML = `<span>${group.city}</span><small>${cityKm != null ? `${Math.round(cityKm)} km · ` : ""}${group.office.length + group.professional.length} active</small>`;
+        cityHeading.innerHTML = `
+          <span class="dentaljobs-city-pin">●</span>
+          <div class="dentaljobs-city-title-wrap">
+            <strong>${group.city}</strong>
+            <small>${cityKm != null ? `${Math.round(cityKm)} km · ` : ""}${group.office.length + group.professional.length} active listing${group.office.length + group.professional.length === 1 ? "" : "s"}</small>
+          </div>`;
         grid.appendChild(cityHeading);
 
         if (group.office.length) {
           const officeHeading = document.createElement("div");
           officeHeading.className = "dentaljobs-group-heading dentaljobs-type-heading dentaljobs-office-heading";
           officeHeading.style.order = String(order++);
-          officeHeading.innerHTML = `<span>Office Hiring</span><small>${group.office.length}</small>`;
+          officeHeading.innerHTML = `<span class="dentaljobs-type-icon">▣</span><strong>Dental Office Hiring</strong><small>${group.office.length}</small>`;
           grid.appendChild(officeHeading);
           group.office.forEach((card) => { card.style.order = String(order++); });
         }
@@ -200,7 +252,7 @@ export default function DentalJobsPage() {
           const professionalHeading = document.createElement("div");
           professionalHeading.className = "dentaljobs-group-heading dentaljobs-type-heading dentaljobs-professional-heading";
           professionalHeading.style.order = String(order++);
-          professionalHeading.innerHTML = `<span>Professionals Seeking an Office</span><small>${group.professional.length}</small>`;
+          professionalHeading.innerHTML = `<span class="dentaljobs-type-icon">●</span><strong>Professionals Looking for an Office</strong><small>${group.professional.length}</small>`;
           grid.appendChild(professionalHeading);
           group.professional.forEach((card) => { card.style.order = String(order++); });
         }
@@ -252,31 +304,78 @@ export default function DentalJobsPage() {
           .dental-jobs-compact-layout main > section:first-of-type > div:has(> section.relative h2) > section.relative { grid-column:2; margin-top:1.25rem; height:100%; }
           .dental-jobs-compact-layout main > section:nth-of-type(2) { padding-top:1.25rem !important; padding-bottom:2rem !important; }
           .dental-jobs-compact-layout main > section:nth-of-type(2) > div.grid { display:grid !important; grid-template-columns:repeat(2,minmax(0,1fr)) !important; gap:.75rem !important; align-items:start; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article { border-radius:1rem !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article > div:nth-of-type(2) { padding:1rem !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article h3 { font-size:1rem !important; line-height:1.25rem !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article .mt-5 { margin-top:.75rem !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article p.line-clamp-3 { font-size:.78rem !important; line-height:1.2rem !important; -webkit-line-clamp:2 !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article > div:last-child { padding:.75rem 1rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) { border-radius:1rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) > div:nth-of-type(2) { padding:1rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) h3 { font-size:1rem !important; line-height:1.25rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) .mt-5 { margin-top:.75rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) p.line-clamp-3 { font-size:.78rem !important; line-height:1.2rem !important; -webkit-line-clamp:2 !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) > div:last-child { padding:.75rem 1rem !important; }
         }
 
         @media (min-width:1440px) {
-          .dental-jobs-compact-layout main > section:nth-of-type(2) > div.grid { grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:.7rem !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article > div:nth-of-type(2) { padding:.8rem !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article h3 { font-size:.9rem !important; line-height:1.12rem !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article p.line-clamp-3 { font-size:.72rem !important; line-height:1.05rem !important; }
-          .dental-jobs-compact-layout main > section:nth-of-type(2) article > div:last-child { padding:.65rem .8rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) > div.grid { grid-template-columns:repeat(4,minmax(0,1fr)) !important; gap:.75rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) > div:nth-of-type(2) { padding:.8rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) h3 { font-size:.9rem !important; line-height:1.12rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) p.line-clamp-3 { font-size:.72rem !important; line-height:1.05rem !important; }
+          .dental-jobs-compact-layout main > section:nth-of-type(2) article:not(.dentaljobs-professional-card) > div:last-child { padding:.65rem .8rem !important; }
         }
 
         .dentaljobs-group-heading { grid-column:1 / -1; scroll-margin-top:90px; }
-        .dentaljobs-province-heading { display:flex; align-items:center; justify-content:space-between; margin-top:.7rem; border-bottom:2px solid #002757; padding:.4rem 0; color:#002757; font-size:1.15rem; font-weight:900; }
-        .dentaljobs-province-heading small { font-size:.72rem; color:#64748b; }
-        .dentaljobs-city-heading { display:flex; align-items:center; justify-content:space-between; margin-top:.2rem; border-radius:.8rem; background:#eef3f8; padding:.5rem .75rem; color:#002757; font-size:.95rem; font-weight:900; }
-        .dentaljobs-city-heading small { color:#6b7d90; font-size:.68rem; font-weight:800; }
-        .dentaljobs-type-heading { display:flex; align-items:center; justify-content:space-between; margin-top:.1rem; border-radius:.65rem; padding:.38rem .65rem; font-size:.75rem; font-weight:900; text-transform:uppercase; letter-spacing:.08em; }
-        .dentaljobs-type-heading small { display:grid; min-width:1.4rem; height:1.4rem; place-items:center; border-radius:999px; background:white; font-size:.65rem; }
-        .dentaljobs-office-heading { background:#edf3fa; color:#002757; }
-        .dentaljobs-professional-heading { background:#eaf8ee; color:#017f27; }
+
+        .dentaljobs-province-heading {
+          display:flex; align-items:flex-end; justify-content:space-between; gap:1rem;
+          margin-top:1.35rem; border-bottom:2px solid #002757; padding:0 0 .75rem;
+        }
+        .dentaljobs-province-title-wrap { display:flex; flex-direction:column; align-items:flex-start; }
+        .dentaljobs-province-code { color:#01A32E; font-size:.69rem; font-weight:900; letter-spacing:.16em; text-transform:uppercase; }
+        .dentaljobs-province-heading strong { color:#002757; font-size:1.75rem; line-height:2rem; font-weight:900; }
+        .dentaljobs-province-heading em { margin-top:.12rem; color:#64748b; font-size:.68rem; font-style:normal; font-weight:700; }
+        .dentaljobs-province-heading > small {
+          border-radius:999px; background:#002757; padding:.38rem .75rem; color:white;
+          font-size:.72rem; font-weight:900;
+        }
+
+        .dentaljobs-city-heading {
+          display:grid; grid-template-columns:2.25rem minmax(0,1fr); align-items:center; gap:.65rem;
+          margin-top:.45rem; border:1px solid #e2e8f0; border-radius:1rem; background:white;
+          padding:.75rem .9rem; box-shadow:0 1px 2px rgba(15,23,42,.04);
+        }
+        .dentaljobs-city-pin {
+          display:grid; width:2.25rem; height:2.25rem; place-items:center; border-radius:.75rem;
+          background:#edf3fa; color:#002757; font-size:.72rem;
+        }
+        .dentaljobs-city-title-wrap { display:flex; flex-direction:column; }
+        .dentaljobs-city-heading strong { color:#002757; font-size:1.15rem; line-height:1.35rem; font-weight:900; }
+        .dentaljobs-city-heading small { color:#64748b; font-size:.72rem; font-weight:700; }
+
+        .dentaljobs-type-heading {
+          display:grid; grid-template-columns:2rem minmax(0,1fr) auto; align-items:center; gap:.55rem;
+          margin-top:.25rem; padding:.45rem 0; background:transparent; text-transform:none; letter-spacing:normal;
+        }
+        .dentaljobs-type-heading strong { color:#002757; font-size:.9rem; font-weight:900; }
+        .dentaljobs-type-heading > small { color:#94a3b8; font-size:.72rem; font-weight:800; }
+        .dentaljobs-type-icon {
+          display:grid; width:2rem; height:2rem; place-items:center; border-radius:.5rem; color:white; font-size:.65rem;
+        }
+        .dentaljobs-office-heading .dentaljobs-type-icon { background:#002757; }
+        .dentaljobs-professional-heading .dentaljobs-type-icon { background:#01A32E; }
+
+        .dentaljobs-professional-card {
+          min-height:315px !important; overflow:hidden !important; border:1px solid #e2e8f0 !important;
+          border-radius:1rem !important; background:white !important;
+          box-shadow:0 1px 2px rgba(15,23,42,.06) !important;
+          border-top:6px solid var(--dentaljobs-prof-accent, #01A32E) !important;
+          transition:transform .18s ease, box-shadow .18s ease !important;
+        }
+        .dentaljobs-professional-card:hover { transform:translateY(-2px); box-shadow:0 10px 22px rgba(15,23,42,.10) !important; }
+        .dentaljobs-professional-card > div:nth-of-type(2) { padding:1rem !important; }
+        .dentaljobs-professional-card h3 { color:#002757 !important; font-size:1rem !important; line-height:1.25rem !important; font-weight:900 !important; }
+        .dentaljobs-professional-card p.line-clamp-3 { font-size:.75rem !important; line-height:1.2rem !important; -webkit-line-clamp:4 !important; }
+        .dentaljobs-professional-card button { border-color:var(--dentaljobs-prof-accent, #01A32E) !important; }
+        .dentaljobs-professional-card button[class*="bg-[#002757]"],
+        .dentaljobs-professional-card button[class*="bg-[#01A32E]"] {
+          background:var(--dentaljobs-prof-accent, #01A32E) !important; color:white !important;
+        }
 
         .dental-jobs-compact-layout main > section:first-of-type section.relative:has(p:first-of-type:nth-child(1)) { border-color:rgba(1,163,46,.55) !important; }
         .dental-jobs-compact-layout header a[href] { background:#4285F4 !important; border-color:#4285F4 !important; color:#fff !important; }
