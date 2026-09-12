@@ -3,9 +3,21 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
+import { createClient } from "@supabase/supabase-js";
 import { BriefcaseBusiness, MapPin, Search, ShieldCheck, UserRound } from "lucide-react";
 import { citySlug, payLabel, type PublicJobListing } from "@/lib/public-dentaljobs";
-import { supabase } from "@/lib/supabase";
+
+const publicSupabase = createClient(
+  "https://pvugjtlmtlyfzyvvhcik.supabase.co",
+  "sb_publishable_cl7HUUywEucu1DsSbuaodA_oKo8qNFJ",
+  {
+    auth: {
+      persistSession: false,
+      autoRefreshToken: false,
+      detectSessionInUrl: false,
+    },
+  }
+);
 
 const themes: Record<string, { accent: string; pale: string; text: string }> = {
   "Registered Dental Hygienist": { accent: "#4285F4", pale: "#EEF4FF", text: "#245FB8" },
@@ -40,32 +52,40 @@ export function PublicDentalJobs({
   intro?: string;
 }) {
   const [liveListings, setLiveListings] = useState<PublicJobListing[]>(listings);
+  const [loadError, setLoadError] = useState("");
 
   useEffect(() => {
     let alive = true;
 
     const loadListings = async () => {
-      const { data, error } = await supabase
+      const { data, error } = await publicSupabase
         .from("job_listings")
         .select("id,listing_type,profession,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,status,expires_at,created_at")
         .eq("status", "active")
         .gt("expires_at", new Date().toISOString())
+        .in("listing_type", ["office_hiring", "professional_available"])
         .order("created_at", { ascending: false });
 
-      if (!alive || error || !data) return;
-      setLiveListings(data as PublicJobListing[]);
+      if (!alive) return;
+      if (error) {
+        setLoadError(error.message || "Unable to load DentalJobs listings.");
+        return;
+      }
+
+      setLoadError("");
+      setLiveListings((data || []) as PublicJobListing[]);
     };
 
     void loadListings();
 
-    const channel = supabase
+    const channel = publicSupabase
       .channel("public-dentaljobs-live")
       .on("postgres_changes", { event: "*", schema: "public", table: "job_listings" }, () => void loadListings())
       .subscribe();
 
     return () => {
       alive = false;
-      void supabase.removeChannel(channel);
+      void publicSupabase.removeChannel(channel);
     };
   }, []);
 
@@ -106,6 +126,8 @@ export function PublicDentalJobs({
         <div><h2 className="text-2xl font-black text-[#002757]">Current listings</h2><p className="mt-1 text-sm font-semibold text-slate-500">{liveListings.length} active {liveListings.length === 1 ? "listing" : "listings"}</p></div>
         <div className="hidden items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-bold text-slate-500 shadow-sm sm:flex"><Search size={16}/> Publicly browseable</div>
       </div>
+
+      {loadError && <div className="mb-5 rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">DentalJobs could not refresh the public listings: {loadError}</div>}
 
       {liveListings.length === 0 ? <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm"><BriefcaseBusiness className="mx-auto text-slate-300" size={38}/><h3 className="mt-4 text-xl font-black text-[#002757]">No active listings yet</h3><p className="mt-2 text-sm text-slate-500">New DentalJobs listings will appear here automatically.</p></div> : <div className="grid gap-4 md:grid-cols-2">
         {liveListings.map((listing) => {
