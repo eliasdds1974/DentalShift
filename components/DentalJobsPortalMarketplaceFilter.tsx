@@ -22,6 +22,8 @@ export function DentalJobsPortalMarketplaceFilter() {
       const portalRole = storedRole === "office" ? "office" : storedRole === "professional" ? "professional" : null;
       if (!portalRole) return;
 
+      document.documentElement.dataset.dentaljobsPortalRole = portalRole;
+
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
       const heading = headings.find((item) => (item.textContent || "").trim().startsWith("Dental job opportunities"));
       const section = heading?.closest("section") as HTMLElement | null;
@@ -31,33 +33,36 @@ export function DentalJobsPortalMarketplaceFilter() {
       for (const card of cards) {
         const title = card.querySelector("h3")?.textContent?.trim() || "";
         if (demoListingTitles.has(title)) {
-          card.dataset.dentaljobsPortalAllowed = "false";
           card.dataset.dentaljobsDemo = "true";
-          card.style.display = "none";
+          card.dataset.dentaljobsPortalAllowed = "false";
           continue;
         }
 
-        const text = card.textContent || "";
+        const text = (card.textContent || "").toUpperCase();
         const isOfficePosting = text.includes("OFFICE HIRING");
         const isProfessionalAd = text.includes("PROFESSIONAL SEEKING OFFICE");
         if (!isOfficePosting && !isProfessionalAd) continue;
 
-        const shouldShow = portalRole === "professional" ? isOfficePosting : isProfessionalAd;
+        const cardKind = isOfficePosting ? "office" : "professional";
+        card.dataset.dentaljobsCardKind = cardKind;
+
+        const shouldShow = portalRole === "professional"
+          ? cardKind === "office"
+          : cardKind === "professional";
         card.dataset.dentaljobsPortalAllowed = shouldShow ? "true" : "false";
-        card.style.display = shouldShow ? "" : "none";
       }
 
       const groupHeadings = Array.from(section.querySelectorAll<HTMLElement>(".dentaljobs-group-heading"));
       for (const groupHeading of groupHeadings) {
         const label = groupHeading.textContent || "";
-        if (portalRole === "professional" && label.includes("Professionals Seeking an Office")) {
-          groupHeading.style.display = "none";
-        } else if (portalRole === "office" && label.includes("Office Hiring")) {
-          groupHeading.style.display = "none";
-        }
+        if (label.includes("Office Hiring")) groupHeading.dataset.dentaljobsGroupKind = "office";
+        if (label.includes("Professionals Seeking an Office")) groupHeading.dataset.dentaljobsGroupKind = "professional";
       }
 
-      const visibleCards = cards.filter((card) => card.dataset.dentaljobsPortalAllowed === "true" && card.style.display !== "none");
+      const visibleCards = cards.filter((card) => {
+        if (card.dataset.dentaljobsDemo === "true") return false;
+        return card.dataset.dentaljobsPortalAllowed === "true";
+      });
       const countText = heading?.parentElement?.querySelector("p");
       if (countText) countText.textContent = `${visibleCards.length} active listing${visibleCards.length === 1 ? "" : "s"} shown`;
     };
@@ -77,8 +82,25 @@ export function DentalJobsPortalMarketplaceFilter() {
       timers.forEach((timer) => window.clearTimeout(timer));
       document.removeEventListener("click", handleInteraction);
       window.removeEventListener("focus", apply);
+      delete document.documentElement.dataset.dentaljobsPortalRole;
     };
   }, []);
 
-  return null;
+  return (
+    <style jsx global>{`
+      article[data-dentaljobs-demo="true"] {
+        display: none !important;
+      }
+
+      html[data-dentaljobs-portal-role="professional"] article[data-dentaljobs-card-kind="professional"],
+      html[data-dentaljobs-portal-role="professional"] .dentaljobs-group-heading[data-dentaljobs-group-kind="professional"] {
+        display: none !important;
+      }
+
+      html[data-dentaljobs-portal-role="office"] article[data-dentaljobs-card-kind="office"],
+      html[data-dentaljobs-portal-role="office"] .dentaljobs-group-heading[data-dentaljobs-group-kind="office"] {
+        display: none !important;
+      }
+    `}</style>
+  );
 }
