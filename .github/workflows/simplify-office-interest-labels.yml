@@ -1,0 +1,34 @@
+name: Simplify office interest labels
+
+on:
+  push:
+    paths:
+      - '.github/workflows/simplify-office-interest-labels.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply office interest label cleanup
+        run: python .github/scripts/simplify-office-interest-labels.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Simplify office interest labels"
+          git push origin main
