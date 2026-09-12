@@ -67,7 +67,7 @@ export default async function DentalJobsSlugPage({ params, searchParams }: { par
     <header className="border-b border-slate-200 bg-white">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-5 py-5 sm:px-7">
         <Link href="/jobs" aria-label="DentalJobs by DentalShift"><Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-14 w-auto sm:h-16" priority /></Link>
-        <div className="flex gap-2"><Link href="/jobs" className="rounded-xl border-2 border-[#002757] bg-white px-4 py-2.5 text-sm font-black text-[#002757]">Browse Jobs</Link><Link href="/?signin=1" className="rounded-xl bg-[#002757] px-4 py-2.5 text-sm font-black text-white">Sign in</Link></div>
+        <div className="flex gap-2"><Link href={backHref} className="rounded-xl border-2 border-[#002757] bg-white px-4 py-2.5 text-sm font-black text-[#002757]">{backLabel}</Link><Link href="/?signin=1" className="rounded-xl bg-[#002757] px-4 py-2.5 text-sm font-black text-white">Sign in</Link></div>
       </div>
     </header>
 

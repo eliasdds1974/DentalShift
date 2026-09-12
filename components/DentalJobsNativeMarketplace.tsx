@@ -324,8 +324,6 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
           <div className="mt-auto pt-4">
             <a
               href={`/jobs/${listing.id}?returnTo=${encodeURIComponent("/dental-jobs")}`}
-              target="_blank"
-              rel="noreferrer"
               className="mb-3 inline-flex items-center gap-1.5 text-[11px] font-black text-[#002757] underline decoration-[#002757]/30 underline-offset-4 transition hover:text-[#01A32E]"
             >
               <Eye size={13} />View listing
