@@ -1,0 +1,29 @@
+name: Live homepage DentalJobs marketplace
+
+on:
+  push:
+    paths:
+      - '.github/scripts/live-homepage-dentaljobs-marketplace.py'
+      - '.github/workflows/live-homepage-dentaljobs-marketplace.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply homepage DentalJobs marketplace change
+        run: python .github/scripts/live-homepage-dentaljobs-marketplace.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/MarketingHome.tsx
+          git diff --cached --quiet || git commit -m "Show live DentalJobs listings on homepage marketplace"
+          git push
