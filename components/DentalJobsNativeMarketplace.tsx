@@ -7,7 +7,6 @@ import { loadAccountDetails } from "@/lib/dentalshift";
 import { supabase } from "@/lib/supabase";
 
 type Role = "office" | "professional";
-type Coordinate = { latitude: number; longitude: number };
 
 type Listing = {
   id: string;
@@ -31,6 +30,11 @@ type ApplicationState = {
   id: string;
   listing_id: string;
   status: string;
+};
+
+type DistanceRow = {
+  listing_id: string;
+  distance_km: number | null;
 };
 
 const provinceNames: Record<string, string> = {
@@ -59,25 +63,6 @@ const professionalThemes: Record<string, { accent: string; pale: string; text: s
 
 function themeFor(profession: string) {
   return professionalThemes[profession] || { accent: "#01A32E", pale: "#EAF8EE", text: "#017F27", border: "#01A32E55" };
-}
-
-function validCoordinate(latitude: unknown, longitude: unknown): Coordinate | null {
-  const lat = Number(latitude);
-  const lng = Number(longitude);
-  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
-  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) return null;
-  return { latitude: lat, longitude: lng };
-}
-
-function distanceKm(a: Coordinate, b: Coordinate) {
-  const toRadians = (value: number) => (value * Math.PI) / 180;
-  const radius = 6371.0088;
-  const dLat = toRadians(b.latitude - a.latitude);
-  const dLng = toRadians(b.longitude - a.longitude);
-  const lat1 = toRadians(a.latitude);
-  const lat2 = toRadians(b.latitude);
-  const haversine = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return radius * 2 * Math.atan2(Math.sqrt(haversine), Math.sqrt(1 - haversine));
 }
 
 function payLabel(listing: Listing) {
@@ -126,19 +111,21 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
 
       const details = await loadAccountDetails(user.id);
       const officeId = details.office?.id || null;
-      const viewer = role === "professional"
-        ? validCoordinate(details.profile.latitude, details.profile.longitude)
-        : validCoordinate(details.office?.latitude, details.office?.longitude) || validCoordinate(details.profile.latitude, details.profile.longitude);
-
       const listingType = role === "professional" ? "office_hiring" : "professional_available";
-      const { data: rawListings, error: listingError } = await supabase
-        .from("job_listings")
-        .select("id,listing_type,profession,office_id,professional_id,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,created_at")
-        .eq("status", "active")
-        .eq("listing_type", listingType)
-        .gt("expires_at", new Date().toISOString())
-        .order("created_at", { ascending: false });
+
+      const [{ data: rawListings, error: listingError }, { data: distanceData, error: distanceError }] = await Promise.all([
+        supabase
+          .from("job_listings")
+          .select("id,listing_type,profession,office_id,professional_id,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,created_at")
+          .eq("status", "active")
+          .eq("listing_type", listingType)
+          .gt("expires_at", new Date().toISOString())
+          .order("created_at", { ascending: false }),
+        supabase.rpc("get_dentaljobs_listing_distances"),
+      ]);
+
       if (listingError) throw listingError;
+      if (distanceError) throw distanceError;
 
       let rows = (rawListings || []) as Omit<Listing, "distance">[];
 
@@ -158,26 +145,14 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
         rows = rows.filter((row) => !row.professional_id || !excluded.has(row.professional_id));
       }
 
-      const targetIds = role === "professional"
-        ? Array.from(new Set(rows.map((row) => row.office_id).filter(Boolean))) as string[]
-        : Array.from(new Set(rows.map((row) => row.professional_id).filter(Boolean))) as string[];
+      const distanceByListing = new Map(
+        ((distanceData || []) as DistanceRow[]).map((row) => [String(row.listing_id), row.distance_km == null ? null : Number(row.distance_km)])
+      );
 
-      const targetCoordinates = new Map<string, Coordinate>();
-      if (targetIds.length) {
-        const coordinateResult = role === "professional"
-          ? await supabase.from("offices").select("id,latitude,longitude").in("id", targetIds)
-          : await supabase.from("profiles").select("id,latitude,longitude").in("id", targetIds);
-        for (const row of coordinateResult.data || []) {
-          const coordinate = validCoordinate(row.latitude, row.longitude);
-          if (coordinate) targetCoordinates.set(String(row.id), coordinate);
-        }
-      }
-
-      const withDistance: Listing[] = rows.map((row) => {
-        const targetId = role === "professional" ? row.office_id : row.professional_id;
-        const target = targetId ? targetCoordinates.get(targetId) || null : null;
-        return { ...row, distance: viewer && target ? distanceKm(viewer, target) : null };
-      });
+      const withDistance: Listing[] = rows.map((row) => ({
+        ...row,
+        distance: distanceByListing.get(String(row.id)) ?? null,
+      }));
 
       if (role === "professional") {
         withDistance.sort((a, b) => {
@@ -236,15 +211,20 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [listings, role]);
 
-  const applicationByListing = useMemo(() => new Map(applications.map((item) => [item.listing_id, item])), [applications]);
+  const applicationByListing = useMemo(
+    () => new Map(applications.map((item) => [item.listing_id, item])),
+    [applications]
+  );
 
   const submitInterest = async () => {
     if (!selected || sending) return;
     setSending(true);
     setActionError("");
+
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error("Please sign in again.");
+
       const details = await loadAccountDetails(user.id);
       const officeId = role === "office" ? details.office?.id || null : selected.office_id;
       const professionalId = role === "professional" ? user.id : selected.professional_id;
@@ -263,9 +243,13 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
         })
         .select("id,listing_id,status")
         .single();
+
       if (insertError) throw insertError;
 
-      setApplications((current) => [...current.filter((item) => item.listing_id !== selected.id), data as ApplicationState]);
+      setApplications((current) => [
+        ...current.filter((item) => item.listing_id !== selected.id),
+        data as ApplicationState,
+      ]);
       setSelected(null);
       setMessage("");
     } catch (caught) {
@@ -282,10 +266,18 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
     const pale = professionalCard ? theme.pale : "#EDF3FA";
     const text = professionalCard ? theme.text : "#002757";
     const existing = applicationByListing.get(listing.id);
-    const actionLabel = existing ? applicationLabel(existing.status) : role === "professional" ? "Apply" : "I'm Interested";
+    const actionLabel = existing
+      ? applicationLabel(existing.status)
+      : role === "professional"
+        ? "Apply"
+        : "I'm Interested";
 
     return (
-      <article key={listing.id} className="flex min-h-[320px] flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg" style={{ borderColor: professionalCard ? theme.border : "#0027572e" }}>
+      <article
+        key={listing.id}
+        className="flex min-h-[320px] flex-col overflow-hidden rounded-2xl border bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg"
+        style={{ borderColor: professionalCard ? theme.border : "#0027572e" }}
+      >
         <div className="h-1.5" style={{ backgroundColor: accent }} />
         <div className="flex flex-1 flex-col p-4">
           <div className="flex items-start gap-3">
@@ -305,24 +297,34 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
           <div className="mt-4 grid grid-cols-2 gap-2">
             <div className="rounded-xl bg-slate-50 px-3 py-2.5">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Location</p>
-              <p className="mt-1 flex items-center gap-1 text-xs font-bold text-slate-700"><MapPin size={12} />{listing.city}, {listing.province}</p>
+              <p className="mt-1 flex items-center gap-1 text-xs font-bold text-slate-700">
+                <MapPin size={12} />{listing.city}, {listing.province}
+              </p>
             </div>
             <div className="rounded-xl bg-slate-50 px-3 py-2.5">
               <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Distance</p>
-              <p className="mt-1 text-xs font-bold text-slate-700">{listing.distance == null ? "Unavailable" : `${listing.distance.toFixed(1)} km away`}</p>
+              <p className="mt-1 text-xs font-bold text-slate-700">
+                {listing.distance == null ? "Unavailable" : `${listing.distance.toFixed(1)} km away`}
+              </p>
             </div>
           </div>
 
           <div className="mt-3 flex flex-wrap gap-1.5">
-            <span className="rounded-lg px-2.5 py-1.5 text-[11px] font-black" style={{ backgroundColor: pale, color: text }}>{listing.employment_type}</span>
+            <span className="rounded-lg px-2.5 py-1.5 text-[11px] font-black" style={{ backgroundColor: pale, color: text }}>
+              {listing.employment_type}
+            </span>
             <span className="rounded-lg bg-[#fff7df] px-2.5 py-1.5 text-[11px] font-black text-[#805F00]">{payLabel(listing)}</span>
-            <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-500"><Clock3 size={11} className="mr-1 inline" />{postedLabel(listing.created_at)}</span>
+            <span className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[11px] font-bold text-slate-500">
+              <Clock3 size={11} className="mr-1 inline" />{postedLabel(listing.created_at)}
+            </span>
           </div>
 
           <p className="mt-3 line-clamp-4 text-xs leading-5 text-slate-600">{listing.description}</p>
 
           <div className="mt-auto pt-4">
-            <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-400"><ShieldCheck size={13} />Privacy protected</div>
+            <div className="mb-3 flex items-center gap-1.5 text-[11px] font-bold text-slate-400">
+              <ShieldCheck size={13} />Privacy protected
+            </div>
             <div className="flex items-center gap-2">
               <ShareListingButton listingId={listing.id} compact />
               <button
@@ -353,14 +355,22 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
                 : "Dental professionals currently looking for an office."}
             </p>
           </div>
-          {!loading && <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-500 shadow-sm">{listings.length} active</span>}
+          {!loading && (
+            <span className="rounded-full bg-white px-3 py-1.5 text-xs font-black text-slate-500 shadow-sm">
+              {listings.length} active
+            </span>
+          )}
         </div>
 
-        {error && <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</div>}
+        {error && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-bold text-rose-700">{error}</div>
+        )}
 
         {loading ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[0, 1, 2, 3].map((item) => <div key={item} className="h-[320px] animate-pulse rounded-2xl border border-slate-200 bg-white" />)}
+            {[0, 1, 2, 3].map((item) => (
+              <div key={item} className="h-[320px] animate-pulse rounded-2xl border border-slate-200 bg-white" />
+            ))}
           </div>
         ) : listings.length === 0 ? (
           <div className="rounded-3xl border border-slate-200 bg-white p-10 text-center shadow-sm">
@@ -376,7 +386,9 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
               <section key={province.province}>
                 <div className="mb-4 flex items-end justify-between gap-3 border-b-2 border-[#002757] pb-2.5">
                   <h3 className="text-2xl font-black text-[#002757]">{province.label}</h3>
-                  <span className="rounded-full bg-[#002757] px-3 py-1 text-xs font-black text-white">{province.cities.reduce((sum, city) => sum + city.listings.length, 0)} active</span>
+                  <span className="rounded-full bg-[#002757] px-3 py-1 text-xs font-black text-white">
+                    {province.cities.reduce((sum, city) => sum + city.listings.length, 0)} active
+                  </span>
                 </div>
                 <div className="space-y-6">
                   {province.cities.map((city) => (
@@ -384,7 +396,12 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
                       <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
                         <div className="flex items-center gap-2">
                           <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#edf3fa] text-[#002757]"><MapPin size={17} /></span>
-                          <div><h4 className="text-xl font-black text-[#002757]">{city.city}</h4><p className="text-xs font-semibold text-slate-500">{city.listings.length} active listing{city.listings.length === 1 ? "" : "s"}</p></div>
+                          <div>
+                            <h4 className="text-xl font-black text-[#002757]">{city.city}</h4>
+                            <p className="text-xs font-semibold text-slate-500">
+                              {city.listings.length} active listing{city.listings.length === 1 ? "" : "s"}
+                            </p>
+                          </div>
                         </div>
                       </div>
                       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{city.listings.map(renderCard)}</div>
@@ -402,14 +419,37 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
           <button type="button" aria-label="Close" className="fixed inset-0" onClick={() => setSelected(null)} />
           <section role="dialog" aria-modal="true" className="relative mx-auto my-10 w-full max-w-lg overflow-hidden rounded-3xl bg-white shadow-2xl">
             <div className="flex items-start justify-between gap-4 bg-[#002757] p-5 text-white">
-              <div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#9be3ad]">{role === "professional" ? "Apply" : "Express Interest"}</p><h3 className="mt-1 text-xl font-black">{selected.profession}</h3><p className="mt-1 text-sm text-slate-300">{selected.city}, {selected.province}</p></div>
-              <button type="button" className="rounded-xl bg-white/10 p-2" onClick={() => setSelected(null)}><X size={20} /></button>
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.12em] text-[#9be3ad]">
+                  {role === "professional" ? "Apply" : "Express Interest"}
+                </p>
+                <h3 className="mt-1 text-xl font-black">{selected.profession}</h3>
+                <p className="mt-1 text-sm text-slate-300">{selected.city}, {selected.province}</p>
+              </div>
+              <button type="button" className="rounded-xl bg-white/10 p-2" onClick={() => setSelected(null)}>
+                <X size={20} />
+              </button>
             </div>
             <div className="p-5">
               <label className="text-sm font-black text-[#002757]" htmlFor="dentaljobs-native-message">Optional message</label>
-              <textarea id="dentaljobs-native-message" value={message} onChange={(event) => setMessage(event.target.value)} rows={5} maxLength={1000} className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#4285F4]" placeholder={role === "professional" ? "Add a short note to the dental office…" : "Add a short note to the professional…"} />
+              <textarea
+                id="dentaljobs-native-message"
+                value={message}
+                onChange={(event) => setMessage(event.target.value)}
+                rows={5}
+                maxLength={1000}
+                className="mt-2 w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm outline-none focus:border-[#4285F4]"
+                placeholder={role === "professional" ? "Add a short note to the dental office…" : "Add a short note to the professional…"}
+              />
               {actionError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{actionError}</p>}
-              <button type="button" disabled={sending} onClick={() => void submitInterest()} className="mt-4 w-full rounded-2xl bg-[#01A32E] px-5 py-3.5 text-sm font-black text-white shadow-md disabled:opacity-60">{sending ? "Sending…" : role === "professional" ? "Submit Application" : "Send Interest"}</button>
+              <button
+                type="button"
+                disabled={sending}
+                onClick={() => void submitInterest()}
+                className="mt-4 w-full rounded-2xl bg-[#01A32E] px-5 py-3.5 text-sm font-black text-white shadow-md disabled:opacity-60"
+              >
+                {sending ? "Sending…" : role === "professional" ? "Submit Application" : "Send Interest"}
+              </button>
             </div>
           </section>
         </div>
