@@ -1,0 +1,32 @@
+name: Save professional interest snapshot
+
+on:
+  push:
+    paths:
+      - '.github/scripts/save-professional-interest-snapshot.py'
+      - '.github/workflows/save-professional-interest-snapshot.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply professional interest snapshot patch
+        run: python .github/scripts/save-professional-interest-snapshot.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add components/DentalJobsNativeMarketplace.tsx app/classifieds/page.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Save professional details with DentalJobs interest"
+          git push origin main
