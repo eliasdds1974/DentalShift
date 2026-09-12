@@ -1,4 +1,5 @@
 from pathlib import Path
+import re
 
 classifieds = Path('app/classifieds/page.tsx')
 text = classifieds.read_text()
@@ -17,7 +18,7 @@ if start == -1 or end == -1:
     raise SystemExit('old delete handler not found')
 handler = '''  const softDeleteConnection = async (connection: JobConnection) => {
     if (!portalRole || connectionDeletingId) return;
-    if (!window.confirm("Delete this connection? It will be removed from both your office/professional DentalJobs connection lists and the interaction can be started again later.")) return;
+    if (!window.confirm("Delete this connection? It will be removed from both the office and professional DentalJobs connection lists. Either side can start the interaction again later.")) return;
     setConnectionDeletingId(connection.id);
     setConnectionError("");
     try {
@@ -36,12 +37,13 @@ handler = '''  const softDeleteConnection = async (connection: JobConnection) =>
   };'''
 text = text[:start] + handler + text[end:]
 
-# Make connection cards positionable and insert a small soft-delete control in the upper-right.
-old_article = 'return <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">'
-new_article = '''return <article key={item.id} className="relative rounded-2xl border border-slate-200 bg-white p-4 pt-11 shadow-sm"><button type="button" disabled={connectionDeletingId === item.id} onClick={() => void softDeleteConnection(item)} className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-500 shadow-sm transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-50" title="Delete connection"><Trash2 size={12}/>{connectionDeletingId === item.id ? "Deleting…" : "Delete"}</button><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">'''
-if old_article not in text:
-    raise SystemExit('connection card anchor not found')
-text = text.replace(old_article, new_article, 1)
+# The current card already has a professional-only delete button. Make it shared by both portals.
+pattern = re.compile(r'\{portalRole === "professional" && (<button type="button" disabled=\{connectionDeletingId === item\.id\} onClick=\{\(\) => void deleteConnectionFromProfessionalView\(item\)\}.*?</button>)\}', re.S)
+match = pattern.search(text)
+if not match:
+    raise SystemExit('professional delete button anchor not found')
+shared_button = match.group(1).replace('deleteConnectionFromProfessionalView(item)', 'softDeleteConnection(item)')
+text = text[:match.start()] + shared_button + text[match.end():]
 
 # Office-initiated pending interest is waiting on the professional; don't offer the office a decline button.
 old_office_pending = ''' : <><button type="button" disabled={connectionBusy || unlockBusyId === item.id} onClick={() => void updateConnection(item,"declined")} className="rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-black text-rose-600 hover:bg-rose-50 disabled:opacity-50">Not Interested</button><button type="button" disabled={unlockBusyId === item.id} onClick={() => void startCandidateUnlock(item)} className="inline-flex items-center gap-2 rounded-xl bg-[#01A32E] px-4 py-2.5 text-xs font-black text-white shadow-md hover:bg-[#018a28] disabled:opacity-50"><CreditCard size={15}/>{unlockBusyId === item.id ? "Unlocking…" : "Unlock Candidate — $29 CAD · billed monthly"}</button></>}'''
