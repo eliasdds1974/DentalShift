@@ -1,0 +1,28 @@
+name: Match professional availability card to office postings
+
+on:
+  push:
+    paths:
+      - '.github/workflows/match-professional-availability-card-to-office-postings.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply professional availability card color fix
+        run: python3 .github/scripts/match-professional-availability-card-to-office-postings.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/classifieds/page.tsx
+          git diff --cached --quiet || git commit -m "Match professional availability card colors to office postings"
+          git push origin main
