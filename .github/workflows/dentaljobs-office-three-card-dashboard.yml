@@ -1,0 +1,29 @@
+name: DentalJobs Office three-card dashboard
+
+on:
+  push:
+    paths:
+      - '.github/scripts/dentaljobs-office-three-card-dashboard.py'
+      - '.github/workflows/dentaljobs-office-three-card-dashboard.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply exact DentalJobs layout
+        run: python .github/scripts/dentaljobs-office-three-card-dashboard.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/classifieds/page.tsx app/dental-jobs/page.tsx components/DentalJobsNativeMarketplace.tsx
+          git diff --cached --quiet || git commit -m "Set DentalJobs office dashboard to three equal cards"
+          git push
