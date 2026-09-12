@@ -367,7 +367,7 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
         )}
 
         {loading ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[0, 1, 2, 3].map((item) => (
               <div key={item} className="h-[320px] animate-pulse rounded-2xl border border-slate-200 bg-white" />
             ))}
@@ -379,7 +379,7 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
             <p className="mt-1 text-sm text-slate-500">New active listings will appear here automatically.</p>
           </div>
         ) : role === "professional" ? (
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{listings.map(renderCard)}</div>
+          <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">{listings.map(renderCard)}</div>
         ) : (
           <div className="space-y-9">
             {grouped.map((province) => (
@@ -404,7 +404,7 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
                           </div>
                         </div>
                       </div>
-                      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">{city.listings.map(renderCard)}</div>
+                      <div className="grid items-stretch gap-3 sm:grid-cols-2 lg:grid-cols-3">{city.listings.map(renderCard)}</div>
                     </section>
                   ))}
                 </div>
