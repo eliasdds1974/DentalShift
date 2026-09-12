@@ -42,8 +42,11 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   };
 }
 
-export default async function DentalJobsSlugPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function DentalJobsSlugPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ returnTo?: string }> }) {
   const { id } = await params;
+  const { returnTo } = await searchParams;
+  const backHref = returnTo === "/dental-jobs" ? "/dental-jobs" : "/jobs";
+  const backLabel = returnTo === "/dental-jobs" ? "Back to DentalJobs" : "Browse DentalJobs";
   const listing = await getActivePublicJob(id);
 
   if (!listing) {
@@ -89,7 +92,7 @@ export default async function DentalJobsSlugPage({ params }: { params: Promise<{
 
           <div className="mt-7 rounded-2xl border border-[#01A32E]/20 bg-[#f4fbf6] p-4"><div className="flex items-center gap-2 font-black text-[#017f27]"><ShieldCheck size={18}/> Privacy protected by DentalShift</div><p className="mt-1 text-sm leading-6 text-slate-600">Public visitors can browse this listing without an account. Signing in is required before applying, expressing interest, messaging, posting or unlocking private candidate details.</p></div>
 
-          <div className="mt-7 grid gap-3 sm:grid-cols-2"><Link href="/?signin=1" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#01A32E] px-5 py-3 text-center font-black text-white shadow-sm">{actionLabel}</Link><Link href="/jobs" className="inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-[#002757] bg-white px-5 py-3 text-center font-black text-[#002757]">Browse DentalJobs</Link></div>
+          <div className="mt-7 grid gap-3 sm:grid-cols-2"><Link href="/?signin=1" className="inline-flex min-h-12 items-center justify-center rounded-xl bg-[#01A32E] px-5 py-3 text-center font-black text-white shadow-sm">{actionLabel}</Link><Link href={backHref} className="inline-flex min-h-12 items-center justify-center rounded-xl border-2 border-[#002757] bg-white px-5 py-3 text-center font-black text-[#002757]">{backLabel}</Link></div>
         </div>
       </div>
       <p className="mx-auto mt-5 max-w-3xl text-center text-xs font-semibold text-slate-400">DentalJobs by DentalShift · Canadian dental staffing and employment</p>
