@@ -115,7 +115,10 @@ export function DentalJobsDistanceSync() {
     const applyDistances = () => {
       if (disposed || listings.length === 0) return;
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
-      const heading = headings.find((item) => item.textContent?.includes("Dental job opportunities within"));
+      const heading = headings.find((item) => {
+        const text = item.textContent?.trim() || "";
+        return text.startsWith("Dental job opportunities");
+      });
       if (!heading) return;
 
       const section = heading.closest("section") as HTMLElement | null;
