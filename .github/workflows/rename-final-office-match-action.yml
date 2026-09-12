@@ -1,0 +1,34 @@
+name: Rename final office match action
+
+on:
+  push:
+    paths:
+      - '.github/workflows/rename-final-office-match-action.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply final office LETS MATCH action
+        run: python .github/scripts/rename-final-office-match-action.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Use LETS MATCH for final paid office connection"
+          git push origin main
