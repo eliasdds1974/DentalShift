@@ -163,7 +163,7 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
         });
       }
 
-      let applicationQuery = supabase.from("job_applications").select("id,listing_id,status");
+      let applicationQuery = supabase.from("job_applications").select("id,listing_id,status").is("deleted_at", null);
       applicationQuery = role === "professional"
         ? applicationQuery.eq("professional_id", user.id)
         : officeId
