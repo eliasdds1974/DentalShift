@@ -1,0 +1,34 @@
+name: Fix professional availability card actions
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-professional-availability-card-actions.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Update professional availability ad card actions
+        run: python .github/scripts/fix-professional-availability-card-actions.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Make professional availability ad actions visible"
+          git push origin main
