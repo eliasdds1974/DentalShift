@@ -33,6 +33,8 @@ export function DentalJobsCancelPostingPolish() {
 
       if (applicationsSection) {
         applicationsSection.classList.add("dentaljobs-top-card", "dentaljobs-top-card-applications");
+        const eyebrow = applicationsSection.querySelector<HTMLElement>(":scope > div:first-of-type p:first-child");
+        if (eyebrow?.textContent?.trim() === "DentalJobs connections") eyebrow.style.display = "none";
       }
 
       const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
@@ -132,6 +134,8 @@ export function DentalJobsCancelPostingPolish() {
         padding: 3px 7px !important;
         font-size: 8.5px !important;
         line-height: 1 !important;
+        white-space: nowrap !important;
+        flex-shrink: 0 !important;
       }
       .dentaljobs-my-postings-compact > div.mt-4 {
         margin-top: 5px !important;
@@ -189,6 +193,10 @@ export function DentalJobsCancelPostingPolish() {
         line-height: 1.15 !important;
       }
 
+      .dentaljobs-top-card-applications > div:first-of-type p:first-child {
+        display: none !important;
+      }
+
       @media (min-width: 900px) {
         .dentaljobs-three-card-layout {
           display: grid !important;
@@ -238,12 +246,8 @@ export function DentalJobsCancelPostingPolish() {
           align-items: center !important;
           gap: 8px !important;
         }
-        .dentaljobs-top-card-applications > div:first-of-type p:first-child {
-          font-size: 9px !important;
-          line-height: 1 !important;
-        }
         .dentaljobs-top-card-applications > div:first-of-type h2 {
-          margin-top: 2px !important;
+          margin-top: 0 !important;
           font-size: 16px !important;
           line-height: 1.05 !important;
         }
