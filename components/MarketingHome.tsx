@@ -1,11 +1,33 @@
 "use client";
 
 import { ArrowRight, BadgeCheck, BriefcaseBusiness, CalendarCheck2, Check, Clock3, DollarSign, MapPin, Menu, Search, ShieldCheck, UserCheck, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { MarketingCalendarPreview } from "./MarketingCalendarPreview";
+import { supabase } from "@/lib/supabase";
 
 type Audience = "office" | "professional";
+
+type MarketplaceListing = {
+  id: string;
+  listing_type: "office_hiring" | "professional_available";
+  profession: string;
+  employment_type: string;
+  city: string;
+  province: string;
+  pay_min: number | null;
+  pay_max: number | null;
+  created_at: string;
+};
+
+function marketplacePay(listing: MarketplaceListing) {
+  const min = listing.pay_min == null ? null : Number(listing.pay_min);
+  const max = listing.pay_max == null ? null : Number(listing.pay_max);
+  if (min == null && max == null) return "Compensation discussed privately";
+  if (min != null && max != null) return `$${min}–$${max}/hr`;
+  if (min != null) return `$${min}+/hr`;
+  return `Up to $${max}/hr`;
+}
 
 function MarketingBrand() {
   return <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-14 w-auto sm:h-16 lg:h-20" priority />;
@@ -18,6 +40,39 @@ function CheckLine({ children }: { children: React.ReactNode }) {
 export function MarketingHome({ onSignIn, onGetStarted, onWorkspace = onSignIn, signedIn = false }: { onSignIn: () => void; onGetStarted: (audience: Audience) => void; onWorkspace?: () => void; signedIn?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [audience, setAudience] = useState<Audience>("office");
+  const [marketplaceListings, setMarketplaceListings] = useState<MarketplaceListing[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadMarketplaceListings = async () => {
+      const { data, error } = await supabase
+        .from("job_listings")
+        .select("id,listing_type,profession,employment_type,city,province,pay_min,pay_max,created_at")
+        .eq("status", "active")
+        .gt("expires_at", new Date().toISOString())
+        .order("created_at", { ascending: false })
+        .limit(4);
+
+      if (!cancelled && !error) {
+        setMarketplaceListings((data || []) as MarketplaceListing[]);
+      }
+    };
+
+    void loadMarketplaceListings();
+
+    const channel = supabase
+      .channel("marketing-home-dentaljobs")
+      .on("postgres_changes", { event: "*", schema: "public", table: "job_listings" }, () => {
+        void loadMarketplaceListings();
+      })
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      void supabase.removeChannel(channel);
+    };
+  }, []);
 
   const start = (nextAudience: Audience) => {
     setAudience(nextAudience);
@@ -94,7 +149,21 @@ export function MarketingHome({ onSignIn, onGetStarted, onWorkspace = onSignIn, 
 
       <section className="mx-auto max-w-6xl px-5 py-14 sm:px-8 sm:py-16">
         <div className="grid gap-8 lg:grid-cols-[.82fr_1.18fr] lg:items-center"><div><p className="text-sm font-black uppercase tracking-[.14em] text-[#4285F4]">Permanent opportunities</p><h2 className="mt-2 text-3xl font-black tracking-[-.035em] text-[#002757] sm:text-4xl">Looking for something permanent?</h2><p className="mt-3 text-lg leading-8 text-slate-600">DentalJobs by DentalShift gives offices and professionals a public marketplace for permanent dental employment.</p><a href="/jobs" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-[#01A32E] px-5 py-3.5 font-black text-white">Browse DentalJobs <ArrowRight size={17}/></a></div>
-          <div className="grid gap-4 sm:grid-cols-2"><article className="rounded-2xl border-2 border-[#4285F4]/15 bg-[#f7faff] p-5"><p className="text-xs font-black uppercase tracking-[.12em] text-[#245FB8]">Dental office hiring</p><h3 className="mt-2 text-xl font-black text-[#002757]">Registered Dental Hygienist Wanted</h3><p className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><MapPin size={15}/> Calgary, AB</p><p className="mt-2 text-sm text-slate-500">Full-Time · $55–$62/hr</p></article><article className="rounded-2xl border-2 border-[#01A32E]/15 bg-[#f7fcf8] p-5"><p className="text-xs font-black uppercase tracking-[.12em] text-[#017f27]">Professional available</p><h3 className="mt-2 text-xl font-black text-[#002757]">Dental Administrator Available</h3><p className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><MapPin size={15}/> Edmonton, AB</p><p className="mt-2 text-sm text-slate-500">Full-Time · Experienced</p></article></div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            {marketplaceListings.length === 0 ? (
+              <div className="sm:col-span-2 rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-6 text-center text-sm font-bold text-slate-500">Active DentalJobs listings will appear here automatically.</div>
+            ) : marketplaceListings.map((listing) => {
+              const professional = listing.listing_type === "professional_available";
+              return (
+                <a key={listing.id} href={`/jobs/${listing.id}`} className={`rounded-2xl border-2 p-5 transition hover:-translate-y-0.5 hover:shadow-lg ${professional ? "border-[#01A32E]/15 bg-[#f7fcf8]" : "border-[#4285F4]/15 bg-[#f7faff]"}`}>
+                  <p className={`text-xs font-black uppercase tracking-[.12em] ${professional ? "text-[#017f27]" : "text-[#245FB8]"}`}>{professional ? "Professional available" : "Dental office hiring"}</p>
+                  <h3 className="mt-2 text-xl font-black text-[#002757]">{professional ? `${listing.profession} Available` : `${listing.profession} Wanted`}</h3>
+                  <p className="mt-3 flex items-center gap-2 text-sm font-bold text-slate-600"><MapPin size={15}/>{listing.city}, {listing.province}</p>
+                  <p className="mt-2 text-sm text-slate-500">{listing.employment_type} · {marketplacePay(listing)}</p>
+                </a>
+              );
+            })}
+          </div>
         </div>
       </section>
 
