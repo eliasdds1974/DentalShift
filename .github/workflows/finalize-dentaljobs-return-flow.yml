@@ -1,0 +1,29 @@
+name: Finalize DentalJobs return flow
+
+on:
+  push:
+    paths:
+      - '.github/scripts/finalize-dentaljobs-return-flow.py'
+      - '.github/workflows/finalize-dentaljobs-return-flow.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply DentalJobs return flow
+        run: python .github/scripts/finalize-dentaljobs-return-flow.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/DentalJobsNativeMarketplace.tsx app/jobs/[id]/page.tsx
+          git diff --cached --quiet || git commit -m "Finalize DentalJobs portal return flow"
+          git push
