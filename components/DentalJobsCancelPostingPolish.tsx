@@ -17,7 +17,10 @@ export function DentalJobsCancelPostingPolish() {
       }
 
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
-      const myDentalJobsHeading = headings.find((heading) => heading.textContent?.trim() === "My DentalJobs") || null;
+      const myDentalJobsHeading = headings.find((heading) => {
+        const label = heading.textContent?.trim() || "";
+        return label === "My DentalJobs" || label === "My AVAILABILITY ADS" || label === "My OFFICE POSTINGS";
+      }) || null;
       const applicationsHeading = headings.find((heading) => {
         const label = heading.textContent?.trim() || "";
         return label === "Applications & Interest" || label === "My Applications & Office Interest";
@@ -27,6 +30,12 @@ export function DentalJobsCancelPostingPolish() {
       const applicationsSection = applicationsHeading?.closest("section") as HTMLElement | null;
 
       if (myDentalJobsSection) {
+        const eyebrow = myDentalJobsSection.querySelector<HTMLElement>(":scope > div:first-of-type p:first-child");
+        const eyebrowLabel = eyebrow?.textContent?.trim().toLowerCase() || "";
+        if (myDentalJobsHeading) {
+          if (eyebrowLabel.includes("availability")) myDentalJobsHeading.textContent = "My AVAILABILITY ADS";
+          else if (eyebrowLabel.includes("office postings")) myDentalJobsHeading.textContent = "My OFFICE POSTINGS";
+        }
         myDentalJobsSection.classList.add("dentaljobs-my-postings-compact", "dentaljobs-top-card", "dentaljobs-top-card-myjobs");
         myDentalJobsSection.style.overflow = "visible";
       }
