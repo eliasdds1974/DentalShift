@@ -283,6 +283,16 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
           status: "pending",
           message: "",
           resume_path_snapshot: details.professional?.resume_path || null,
+          professional_interest_snapshot: {
+            label: "Dental Professional",
+            city: details.profile.city || null,
+            province: details.profile.province || null,
+            profession: details.professional?.profession || listing.profession || null,
+            years_experience: details.professional?.years_experience ?? null,
+            bio: details.professional?.bio || null,
+            skills: details.professional?.skills || [],
+            languages: details.professional?.languages || [],
+          },
         })
         .select("id,listing_id,status")
         .single();

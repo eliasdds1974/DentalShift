@@ -522,7 +522,7 @@ export default function DentalJobsPage() {
   const loadConnections = async (roleOverride?: "office" | "professional" | null) => {
     const { data, error } = await supabase
       .from("job_applications")
-      .select("id,listing_id,professional_id,office_id,initiator_role,status,message,resume_path_snapshot,created_at,professional_hidden_at,deleted_at,source_office_listing_id,office_interest_snapshot,job_listings(profession,employment_type,city,province,listing_type)")
+      .select("id,listing_id,professional_id,office_id,initiator_role,status,message,resume_path_snapshot,created_at,professional_hidden_at,deleted_at,source_office_listing_id,office_interest_snapshot,professional_interest_snapshot,job_listings(profession,employment_type,city,province,listing_type)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (error || !data) return;
@@ -558,7 +558,19 @@ export default function DentalJobsPage() {
         initiatorRole: row.initiator_role, status: row.status, message: row.message || "", resumePath: row.resume_path_snapshot || null,
         createdAt: row.created_at, profession: listing?.profession || "Dental position", employment: listing?.employment_type || "",
         city: listing?.city || "", province: listing?.province || "", listingType: listing?.listing_type || "office_hiring",
-        candidatePreview: previewMap.get(String(row.professional_id)) || null,
+        candidatePreview: previewMap.get(String(row.professional_id)) || (row.professional_interest_snapshot ? {
+          profession: row.professional_interest_snapshot.profession || listing?.profession || null,
+          safeCity: row.professional_interest_snapshot.city || null,
+          safeProvince: row.professional_interest_snapshot.province || null,
+          yearsExperience: row.professional_interest_snapshot.years_experience == null ? null : Number(row.professional_interest_snapshot.years_experience),
+          summary: row.professional_interest_snapshot.bio || "",
+          experienceSummary: null,
+          educationSummary: null,
+          workHistorySummary: null,
+          skills: Array.isArray(row.professional_interest_snapshot.skills) ? row.professional_interest_snapshot.skills : [],
+          software: [],
+          certifications: [],
+        } : null),
         officeInterestSnapshot: row.office_interest_snapshot || null,
       } as JobConnection;
     }));
