@@ -1,0 +1,29 @@
+name: Replace privacy text with View listing
+
+on:
+  push:
+    paths:
+      - '.github/scripts/replace-privacy-with-view-listing.py'
+      - '.github/workflows/replace-privacy-with-view-listing.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply View listing card change
+        run: python .github/scripts/replace-privacy-with-view-listing.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/DentalJobsNativeMarketplace.tsx
+          git diff --cached --quiet || git commit -m "Replace privacy text with View listing on DentalJobs cards"
+          git push
