@@ -1,0 +1,28 @@
+name: Shrink DentalJobs Manage buttons
+
+on:
+  push:
+    paths:
+      - '.github/workflows/shrink-dentaljobs-manage-buttons.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply smaller Manage buttons
+        run: python3 .github/scripts/shrink-dentaljobs-manage-buttons.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/classifieds/page.tsx
+          git diff --cached --quiet || git commit -m "Shrink DentalJobs Manage buttons"
+          git push origin main
