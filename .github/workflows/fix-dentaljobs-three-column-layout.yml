@@ -1,0 +1,33 @@
+name: Fix DentalJobs three-column layout
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-dentaljobs-three-column-layout.yml'
+      - '.github/scripts/fix-dentaljobs-three-column-layout.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Fix live DentalJobs three-column layout
+        run: python .github/scripts/fix-dentaljobs-three-column-layout.py
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "dentalshift-bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add app/dental-jobs/page.tsx components/DentalJobsNativeMarketplace.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "Fix DentalJobs cards to three-column layout"
+            git push
+          fi
