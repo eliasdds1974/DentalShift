@@ -1,0 +1,35 @@
+name: Clean office posting interest message
+
+on:
+  push:
+    paths:
+      - '.github/workflows/clean-office-posting-interest-message.yml'
+      - '.github/scripts/clean-office-posting-interest-message.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply office posting cleanup
+        run: python .github/scripts/clean-office-posting-interest-message.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Clean up office posting interest message"
+          git push origin main
