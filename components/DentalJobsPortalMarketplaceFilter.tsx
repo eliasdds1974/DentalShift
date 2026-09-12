@@ -15,6 +15,16 @@ export function DentalJobsPortalMarketplaceFilter() {
   useEffect(() => {
     let disposed = false;
 
+    const enforceNativeKindFilter = (portalRole: "office" | "professional") => {
+      const expectedLabel = portalRole === "professional" ? "Hiring" : "Seeking";
+      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
+      const target = buttons.find((button) => (button.textContent || "").trim() === expectedLabel);
+      if (!target) return;
+
+      const alreadySelected = target.className.includes("bg-[#002757]") && target.className.includes("text-white");
+      if (!alreadySelected) target.click();
+    };
+
     const apply = () => {
       if (disposed) return;
 
@@ -23,6 +33,7 @@ export function DentalJobsPortalMarketplaceFilter() {
       if (!portalRole) return;
 
       document.documentElement.dataset.dentaljobsPortalRole = portalRole;
+      enforceNativeKindFilter(portalRole);
 
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
       const heading = headings.find((item) => (item.textContent || "").trim().startsWith("Dental job opportunities"));
@@ -67,7 +78,9 @@ export function DentalJobsPortalMarketplaceFilter() {
       if (countText) countText.textContent = `${visibleCards.length} active listing${visibleCards.length === 1 ? "" : "s"} shown`;
     };
 
-    const timers = [0, 120, 300, 650, 1200, 2200, 3500].map((delay) => window.setTimeout(apply, delay));
+    const timers = [0, 100, 250, 500, 900, 1500, 2500, 4000, 6000].map((delay) => window.setTimeout(apply, delay));
+    const interval = window.setInterval(apply, 1500);
+
     const handleInteraction = () => {
       window.setTimeout(apply, 0);
       window.setTimeout(apply, 150);
@@ -80,6 +93,7 @@ export function DentalJobsPortalMarketplaceFilter() {
     return () => {
       disposed = true;
       timers.forEach((timer) => window.clearTimeout(timer));
+      window.clearInterval(interval);
       document.removeEventListener("click", handleInteraction);
       window.removeEventListener("focus", apply);
       delete document.documentElement.dataset.dentaljobsPortalRole;
