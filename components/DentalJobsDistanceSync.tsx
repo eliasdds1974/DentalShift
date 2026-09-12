@@ -43,6 +43,7 @@ export function DentalJobsDistanceSync() {
   useEffect(() => {
     let disposed = false;
     let listings: ListingDistance[] = [];
+    let activeRole: "office" | "professional" | null = null;
 
     const loadDistances = async () => {
       const { data: { user } } = await supabase.auth.getUser();
@@ -51,6 +52,7 @@ export function DentalJobsDistanceSync() {
       const storedRole = window.localStorage.getItem("dentalshift_portal_role");
       const role = storedRole === "office" ? "office" : storedRole === "professional" ? "professional" : null;
       if (!role) return;
+      activeRole = role;
 
       let viewer: Coordinate | null = null;
       try {
@@ -117,7 +119,7 @@ export function DentalJobsDistanceSync() {
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
       const heading = headings.find((item) => {
         const text = item.textContent?.trim() || "";
-        return text.startsWith("Dental job opportunities");
+        return text.startsWith("Dental job opportunities") || text.startsWith("DentalJobs Near You");
       });
       if (!heading) return;
 
@@ -130,45 +132,73 @@ export function DentalJobsDistanceSync() {
       });
       if (!grid) return;
 
-      const cards = Array.from(grid.children).filter((child): child is HTMLElement => child instanceof HTMLElement && child.tagName === "ARTICLE");
+      const allCards = Array.from(grid.children).filter(
+        (child): child is HTMLElement => child instanceof HTMLElement && child.tagName === "ARTICLE"
+      );
       const byKey = new Map(listings.map((item) => [item.key, item.distance]));
 
-      for (const card of cards) {
+      for (const card of allCards) {
         const title = card.querySelector("h3")?.textContent?.trim() || "";
         const kind = card.textContent?.includes("OFFICE HIRING") ? "office" as const : "professional" as const;
-        const city = Array.from(card.querySelectorAll("p")).map((item) => item.textContent?.trim() || "").find((text) => /,\s*[A-Z]{2}$/.test(text)) || "";
+        const city = Array.from(card.querySelectorAll("p"))
+          .map((item) => item.textContent?.trim() || "")
+          .find((text) => /,\s*[A-Z]{2}$/.test(text)) || "";
         const key = listingKey(kind, title, city);
         if (!byKey.has(key)) continue;
 
         const distance = byKey.get(key) ?? null;
-        const distanceText = Array.from(card.querySelectorAll<HTMLParagraphElement>("p")).find((item) => /km away|distance unavailable/i.test(item.textContent || ""));
+        const distanceText = Array.from(card.querySelectorAll<HTMLParagraphElement>("p")).find((item) =>
+          /km away|distance unavailable/i.test(item.textContent || "")
+        );
         if (distanceText) {
           distanceText.textContent = distance == null ? "Distance unavailable" : `${distance.toFixed(1)} km away`;
         }
 
-        if (distance == null) {
-          card.dataset.dentaljobsDistance = "999999";
+        card.dataset.dentaljobsDistance = distance == null ? "999999" : String(distance);
+
+        if (activeRole === "professional") {
+          // Professionals should see every Office Hiring ad, ranked nearest first.
+          // Role filtering hides professional availability cards separately.
+          if (kind === "office") card.style.display = "";
+        } else if (distance == null) {
           card.style.display = "";
         } else {
-          card.dataset.dentaljobsDistance = String(distance);
           card.style.display = distance <= 100 ? "" : "none";
         }
       }
 
-      const orderedCards = [...cards].sort((a, b) => {
-        const aDistance = Number(a.dataset.dentaljobsDistance ?? a.querySelector("p")?.textContent?.match(/([\d.]+)\s*km away/i)?.[1] ?? 999999);
-        const bDistance = Number(b.dataset.dentaljobsDistance ?? b.querySelector("p")?.textContent?.match(/([\d.]+)\s*km away/i)?.[1] ?? 999999);
+      const relevantCards = activeRole === "professional"
+        ? allCards.filter((card) => card.textContent?.includes("OFFICE HIRING"))
+        : allCards;
+
+      const orderedCards = [...relevantCards].sort((a, b) => {
+        const aDistance = Number(a.dataset.dentaljobsDistance ?? 999999);
+        const bDistance = Number(b.dataset.dentaljobsDistance ?? 999999);
         return aDistance - bDistance;
       });
-      orderedCards.forEach((card) => grid.appendChild(card));
+
+      if (activeRole === "professional") {
+        orderedCards.forEach((card, index) => {
+          // The signed-in organizer uses CSS order for province/city grouping.
+          // Override it here so distance is the visual source of truth.
+          card.style.order = String(index);
+          grid.appendChild(card);
+        });
+      } else {
+        orderedCards.forEach((card) => grid.appendChild(card));
+      }
 
       const visibleCount = orderedCards.filter((card) => card.style.display !== "none").length;
       const countText = heading.parentElement?.querySelector("p");
-      if (countText) countText.textContent = `${visibleCount} active listing${visibleCount === 1 ? "" : "s"} shown`;
+      if (countText) {
+        countText.textContent = activeRole === "professional"
+          ? `${visibleCount} office opportunit${visibleCount === 1 ? "y" : "ies"} · nearest first`
+          : `${visibleCount} active listing${visibleCount === 1 ? "" : "s"} shown`;
+      }
     };
 
     void loadDistances();
-    const timers = [300, 700, 1400, 2500].map((delay) => window.setTimeout(applyDistances, delay));
+    const timers = [300, 700, 1400, 2500, 4000].map((delay) => window.setTimeout(applyDistances, delay));
     const handleClick = () => window.setTimeout(applyDistances, 120);
     document.addEventListener("click", handleClick);
 
