@@ -17,16 +17,44 @@ export function DentalJobsCancelPostingPolish() {
       }
 
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h2"));
-      for (const heading of headings) {
-        if (heading.textContent?.trim() !== "My DentalJobs") continue;
-        const section = heading.closest("section") as HTMLElement | null;
-        if (section) {
-          section.classList.add("dentaljobs-my-postings-compact");
-          section.style.overflow = "visible";
-        }
+      const myDentalJobsHeading = headings.find((heading) => heading.textContent?.trim() === "My DentalJobs") || null;
+      const applicationsHeading = headings.find((heading) => {
+        const label = heading.textContent?.trim() || "";
+        return label === "Applications & Interest" || label === "My Applications & Office Interest";
+      }) || null;
+
+      const myDentalJobsSection = myDentalJobsHeading?.closest("section") as HTMLElement | null;
+      const applicationsSection = applicationsHeading?.closest("section") as HTMLElement | null;
+
+      if (myDentalJobsSection) {
+        myDentalJobsSection.classList.add("dentaljobs-my-postings-compact", "dentaljobs-top-card", "dentaljobs-top-card-myjobs");
+        myDentalJobsSection.style.overflow = "visible";
+      }
+
+      if (applicationsSection) {
+        applicationsSection.classList.add("dentaljobs-top-card", "dentaljobs-top-card-applications");
       }
 
       const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>("button"));
+      const postingButton = buttons.find((button) => {
+        const label = button.textContent || "";
+        return label.includes("Post a Position") || label.includes("Looking for an Office");
+      }) || null;
+      const postingWrapper = postingButton?.parentElement as HTMLElement | null;
+
+      if (postingWrapper) {
+        postingWrapper.classList.add("dentaljobs-top-card-slot", "dentaljobs-top-card-post");
+        postingButton?.classList.add("dentaljobs-top-card-button");
+      }
+
+      const commonParent = myDentalJobsSection?.parentElement as HTMLElement | null;
+      if (
+        commonParent &&
+        postingWrapper?.parentElement === commonParent &&
+        applicationsSection?.parentElement === commonParent
+      ) {
+        commonParent.classList.add("dentaljobs-three-card-layout");
+      }
 
       for (const button of buttons) {
         const label = button.textContent?.trim() || "";
@@ -156,12 +184,88 @@ export function DentalJobsCancelPostingPolish() {
         line-height: 1.15 !important;
       }
 
-      @media (min-width: 641px) {
-        .dentaljobs-my-postings-compact:has(> div.mt-4 > article:only-child),
-        .dentaljobs-my-postings-compact:has(> div.mt-4 > div[class*="border-dashed"]) {
+      @media (min-width: 900px) {
+        .dentaljobs-three-card-layout {
+          display: grid !important;
+          grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+          column-gap: 14px !important;
+          row-gap: 0 !important;
+          align-items: stretch !important;
+        }
+        .dentaljobs-three-card-layout > * {
+          grid-column: 1 / -1;
+        }
+        .dentaljobs-three-card-layout > .dentaljobs-top-card-slot,
+        .dentaljobs-three-card-layout > .dentaljobs-top-card {
+          grid-column: auto !important;
+          grid-row: auto !important;
+          width: 100% !important;
+          max-width: none !important;
           height: 206px !important;
           min-height: 206px !important;
+          margin-top: 24px !important;
+          box-sizing: border-box !important;
         }
+        .dentaljobs-top-card-slot {
+          display: grid !important;
+          grid-template-columns: 1fr !important;
+        }
+        .dentaljobs-top-card-slot > .dentaljobs-top-card-button {
+          width: 100% !important;
+          height: 206px !important;
+          min-height: 206px !important;
+          box-sizing: border-box !important;
+        }
+        .dentaljobs-top-card-myjobs,
+        .dentaljobs-top-card-applications {
+          overflow: visible !important;
+        }
+        .dentaljobs-top-card-myjobs > div.mt-4,
+        .dentaljobs-top-card-applications > div.mt-4 {
+          max-height: 115px !important;
+          overflow-y: auto !important;
+          overflow-x: visible !important;
+          scrollbar-width: thin;
+        }
+        .dentaljobs-top-card-applications {
+          padding: 12px 14px !important;
+        }
+        .dentaljobs-top-card-applications > div:first-of-type {
+          align-items: center !important;
+          gap: 8px !important;
+        }
+        .dentaljobs-top-card-applications > div:first-of-type p:first-child {
+          font-size: 9px !important;
+          line-height: 1 !important;
+        }
+        .dentaljobs-top-card-applications > div:first-of-type h2 {
+          margin-top: 2px !important;
+          font-size: 16px !important;
+          line-height: 1.05 !important;
+        }
+        .dentaljobs-top-card-applications > div:first-of-type h2 + p {
+          margin-top: 2px !important;
+          font-size: 10px !important;
+          line-height: 1.15 !important;
+        }
+        .dentaljobs-top-card-applications > div:first-of-type > span {
+          padding: 3px 7px !important;
+          font-size: 8.5px !important;
+        }
+        .dentaljobs-top-card-applications > div.mt-4 {
+          margin-top: 8px !important;
+          gap: 6px !important;
+        }
+        .dentaljobs-top-card-applications article {
+          padding: 7px 8px !important;
+          border-radius: 10px !important;
+        }
+        .dentaljobs-top-card-applications > div.mt-4 > div[class*="border-dashed"] {
+          padding: 9px !important;
+          font-size: 10.5px !important;
+          line-height: 1.15 !important;
+        }
+
         .dentaljobs-my-postings-compact article {
           min-height: 52px !important;
           padding-right: 205px !important;
@@ -184,7 +288,7 @@ export function DentalJobsCancelPostingPolish() {
         }
       }
 
-      @media (max-width: 640px) {
+      @media (max-width: 899px) {
         .dentaljobs-my-postings-compact {
           padding: 7px 8px !important;
         }
