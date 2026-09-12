@@ -1,0 +1,29 @@
+name: Personalize DentalJobs header
+
+on:
+  push:
+    paths:
+      - '.github/workflows/personalize-dentaljobs-header.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply DentalJobs header personalization
+        run: python3 .github/scripts/personalize-dentaljobs-header.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "eliasdds1974"
+          git config user.email "eliasdds@gmail.com"
+          git add app/classifieds/page.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "Personalize DentalJobs header with account name"
+          git push origin main
