@@ -80,7 +80,7 @@ export default function DentalJobsPage() {
   }
 
   return (
-    <div className="dentaljobs-native-shell">
+    <div className={`dentaljobs-native-shell dentaljobs-role-${role}`}>
       <style>{`
         /* The legacy classifieds marketplace remains mounted only so its posting,
            application, messaging and management tools are preserved. Its old
@@ -91,6 +91,70 @@ export default function DentalJobsPage() {
 
         .dentaljobs-native-shell .dentaljobs-legacy-tools main > section:first-of-type {
           padding-bottom: 1.25rem !important;
+        }
+
+        /* Professional portal top cards intentionally mirror the Office portal
+           navy + DentalShift green treatment from the very first render. */
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.gap-4 > button {
+          position: relative !important;
+          overflow: hidden !important;
+          border: 2px solid #002757 !important;
+          background: #002757 !important;
+          box-shadow: 0 18px 28px rgba(0, 39, 87, .16) !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.gap-4 > button::before {
+          content: "";
+          position: absolute;
+          inset: 0 0 auto 0;
+          height: 6px;
+          background: #01A32E;
+          z-index: 1;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.gap-4 > button > div > span {
+          background: #01A32E !important;
+          color: #fff !important;
+          box-shadow: 0 4px 12px rgba(1, 163, 46, .22) !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.gap-4 > button p:first-of-type {
+          color: #9be3ad !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.gap-4 > button h2 {
+          color: #fff !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.gap-4 > button h2 + p {
+          color: #e2e8f0 !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.gap-4 > button p + span,
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.gap-4 > button div > div > span:last-child {
+          border-radius: .75rem !important;
+          background: #01A32E !important;
+          color: #fff !important;
+          padding: .625rem 1rem !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type section.relative.mt-6 {
+          border-color: rgba(1, 163, 46, .55) !important;
+          background: #effaf2 !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type section.relative.mt-6 > div.absolute:first-child {
+          background: #01A32E !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type section.relative.mt-6 > div:nth-of-type(2) p:first-child {
+          color: #017f27 !important;
+        }
+
+        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type section.relative.mt-6 > div:nth-of-type(2) > span {
+          border-color: rgba(1, 163, 46, .30) !important;
+          color: #017f27 !important;
+          background: #fff !important;
         }
       `}</style>
 
