@@ -302,7 +302,7 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 px-3 py-2.5">
-              <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">Distance</p>
+              <p className="text-[9px] font-black uppercase tracking-wide text-slate-400">{role === "office" ? "Distance from your office" : "Distance from your clinic"}</p>
               <p className="mt-1 text-xs font-bold text-slate-700">
                 {listing.distance == null ? "Unavailable" : `${listing.distance.toFixed(1)} km away`}
               </p>
