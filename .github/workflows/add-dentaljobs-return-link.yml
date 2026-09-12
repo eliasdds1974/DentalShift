@@ -1,0 +1,29 @@
+name: Add DentalJobs portal return link
+
+on:
+  push:
+    paths:
+      - '.github/scripts/add-dentaljobs-return-link.py'
+      - '.github/workflows/add-dentaljobs-return-link.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply DentalJobs return-link change
+        run: python .github/scripts/add-dentaljobs-return-link.py
+      - name: Install dependencies
+        run: npm install
+      - name: Build
+        run: npm run build
+      - name: Commit changes
+        run: |
+          git config user.name "bot"
+          git config user.email "bot@users.noreply.github.com"
+          git add components/DentalJobsNativeMarketplace.tsx app/jobs/'[id]'/page.tsx
+          git diff --cached --quiet || git commit -m "Return portal users back to DentalJobs"
+          git push
