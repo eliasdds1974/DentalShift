@@ -906,7 +906,7 @@ export default function DentalJobsPage() {
       <div className="mx-auto max-w-7xl px-4 py-7 sm:px-6 lg:px-8">
         <div><h1 className="mt-3 text-3xl font-black tracking-tight text-[#002757] sm:text-4xl">DentalJobs</h1><p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600 sm:text-base">Dental offices and dental professionals can find each other while remaining anonymous until there is a genuine application or expression of interest.</p></div>
 
-        {portalRole === "office" ? <div className="mt-6 max-w-2xl">
+        {portalRole === "office" ? <div className="mt-6 grid items-stretch gap-4 md:grid-cols-3">
           <div className="group relative flex min-h-[250px] flex-col overflow-hidden rounded-2xl border-2 border-[#002757] bg-[#002757] p-5 text-left shadow-xl transition hover:border-[#01A32E] hover:shadow-2xl sm:p-6">
             <div className="absolute inset-x-0 top-0 h-1.5 bg-[#01A32E]" />
             <span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#01A32E] text-white shadow-md ring-4 ring-white/10"><Building2 size={24} /></span>
