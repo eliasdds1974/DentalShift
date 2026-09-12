@@ -259,6 +259,47 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
     }
   };
 
+  const submitProfessionalInterest = async (listing: Listing) => {
+    if (sending) return;
+    setSending(true);
+    setError("");
+
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Please sign in again.");
+
+      const details = await loadAccountDetails(user.id);
+      const officeId = listing.office_id;
+      const professionalId = user.id;
+      if (!officeId || !professionalId) throw new Error("This listing is missing account information needed to continue.");
+
+      const { data, error: insertError } = await supabase
+        .from("job_applications")
+        .insert({
+          listing_id: listing.id,
+          professional_id: professionalId,
+          office_id: officeId,
+          initiator_role: "professional",
+          status: "pending",
+          message: "",
+          resume_path_snapshot: details.professional?.resume_path || null,
+        })
+        .select("id,listing_id,status")
+        .single();
+
+      if (insertError) throw insertError;
+
+      setApplications((current) => [
+        ...current.filter((item) => item.listing_id !== listing.id),
+        data as ApplicationState,
+      ]);
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : "Unable to send your interest right now.");
+    } finally {
+      setSending(false);
+    }
+  };
+
   const submitOfficeInterest = async (listing: Listing) => {
     if (sending) return;
     setSending(true);
@@ -324,12 +365,10 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
     const text = professionalCard ? theme.text : "#002757";
     const existing = applicationByListing.get(listing.id);
     const actionLabel = existing
-      ? existing.status === "pending" && role === "office"
+      ? existing.status === "pending"
         ? "Awaiting Response"
         : applicationLabel(existing.status)
-      : role === "professional"
-        ? "I'm Interested"
-        : "I'm Interested";
+      : "I'm Interested";
 
     return (
       <article
@@ -397,12 +436,10 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
                     void submitOfficeInterest(listing);
                     return;
                   }
-                  setSelected(listing);
-                  setMessage("");
-                  setActionError("");
+                  void submitProfessionalInterest(listing);
                 }}
                 className="flex-1 rounded-xl px-3 py-2.5 text-xs font-black text-white shadow-sm transition hover:brightness-95 disabled:cursor-default disabled:opacity-65"
-                style={{ backgroundColor: accent }}
+                style={{ backgroundColor: existing?.status === "pending" && role === "professional" ? "#EA4335" : accent }}
               >
                 {actionLabel}
               </button>
