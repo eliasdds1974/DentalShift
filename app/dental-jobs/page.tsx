@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import ClassifiedsPage from "../classifieds/page";
 import { DentalJobsNativeMarketplace } from "@/components/DentalJobsNativeMarketplace";
-import { ProfessionalPostingsCardParity } from "@/components/ProfessionalPostingsCardParity";
 import { loadAccountDetails } from "@/lib/dentalshift";
 import { supabase } from "@/lib/supabase";
 
@@ -191,8 +190,6 @@ export default function DentalJobsPage() {
           background: #fff !important;
         }
       `}</style>
-
-      {role === "professional" && <ProfessionalPostingsCardParity />}
 
       <div className="dentaljobs-legacy-tools">
         <ClassifiedsPage />
