@@ -1,0 +1,35 @@
+name: Fix Office Postings card flow
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-office-posting-card-flow.yml'
+      - '.github/scripts/fix-office-posting-card-flow.py'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Apply full-width stacked Office Postings card
+        run: python .github/scripts/fix-office-posting-card-flow.py
+      - name: Install dependencies
+        run: npm install
+      - name: Production build
+        run: npm run build
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/classifieds/page.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Fix Office Postings card stacking"
+          git push origin main
