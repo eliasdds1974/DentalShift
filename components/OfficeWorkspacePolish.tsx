@@ -134,6 +134,25 @@ export function OfficeWorkspacePolish() {
             if (row) row.style.display = "none";
           });
 
+        // The scheduled card already displays the shift date, time and role.
+        // Remove the duplicate internal Shift Details card and its View Shift toggle.
+        const shiftDetailsLabel = detailLabels.find((node) => node.textContent?.trim() === "Shift Details");
+        const shiftDetailsCard = shiftDetailsLabel?.parentElement as HTMLElement | null;
+        if (shiftDetailsCard) shiftDetailsCard.style.display = "none";
+
+        const shiftToggle = Array.from(article.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
+          const label = textOf(button);
+          return label === "View Shift" || label === "Hide Shift";
+        });
+        if (shiftToggle) {
+          shiftToggle.style.display = "none";
+          const actions = shiftToggle.parentElement as HTMLElement | null;
+          if (actions) {
+            actions.classList.remove("grid-cols-2");
+            actions.classList.add("grid-cols-1");
+          }
+        }
+
         const professionalName = article.querySelector<HTMLElement>("strong")?.textContent?.trim().toLowerCase() || "";
         const resume = resumeDetails.get(professionalName);
         if (!resume) return;
