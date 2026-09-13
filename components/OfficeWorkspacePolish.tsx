@@ -88,6 +88,26 @@ export function OfficeWorkspacePolish() {
         });
       }
 
+      // In the Scheduled sidebar card, the professional name and position are
+      // already visible above the Details button, so remove those duplicate rows.
+      Array.from(page.querySelectorAll<HTMLElement>("article")).forEach((article) => {
+        const detailButton = Array.from(article.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
+          const label = textOf(button);
+          return label === "Details" || label === "Hide Details";
+        });
+        if (!detailButton) return;
+
+        const detailLabels = Array.from(article.querySelectorAll<HTMLElement>("p")).filter((node) => {
+          const label = node.textContent?.trim();
+          return label === "Professional" || label === "Position";
+        });
+
+        detailLabels.forEach((label) => {
+          const row = label.parentElement;
+          if (row) row.style.display = "none";
+        });
+      });
+
       // Mirror the professional portal terminology everywhere in the office view.
       Array.from(page.querySelectorAll<HTMLElement>("h1, h2, p")).forEach((node) => {
         if (node.textContent?.trim() === "Bookings") node.textContent = "Confirmed bookings";
