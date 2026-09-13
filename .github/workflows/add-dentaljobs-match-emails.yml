@@ -1,0 +1,24 @@
+name: Add DentalJobs match emails
+on:
+  push:
+    paths:
+      - '.github/workflows/add-dentaljobs-match-emails.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python .github/scripts/add_match_completed_notification.py
+      - run: python .github/scripts/trigger_match_completed_email.py
+      - run: npm install
+      - run: npm run build
+      - run: |
+          git config user.name automation
+          git config user.email automation@localhost
+          git add app/api/dentaljobs/notify/route.ts app/classifieds/page.tsx
+          git diff --cached --quiet || git commit -m "Email both parties after DentalJobs match"
+          git push origin main
