@@ -9,6 +9,7 @@ import { ProfessionalDigitalResumeLink } from "@/components/ProfessionalDigitalR
 import { ProfessionalDigitalResumeCleanup } from "@/components/ProfessionalDigitalResumeCleanup";
 import { ProfessionalAccountProfileConsolidation } from "@/components/ProfessionalAccountProfileConsolidation";
 import { DentalJobsDigitalResumeApply } from "@/components/DentalJobsDigitalResumeApply";
+import { ProfessionalOfficeInterestSync } from "@/components/ProfessionalOfficeInterestSync";
 
 export const metadata: Metadata = {
   title: "DentalShift | Dental staffing made simple",
@@ -29,7 +30,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}<ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /><ProfessionalWorkspacePolish /><OfficeWorkspacePolish /><ProfessionalDigitalResumeLink /><ProfessionalDigitalResumeCleanup /><ProfessionalAccountProfileConsolidation /><DentalJobsDigitalResumeApply /></body>
+      <body className="antialiased">{children}<ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /><ProfessionalWorkspacePolish /><OfficeWorkspacePolish /><ProfessionalDigitalResumeLink /><ProfessionalDigitalResumeCleanup /><ProfessionalAccountProfileConsolidation /><DentalJobsDigitalResumeApply /><ProfessionalOfficeInterestSync /></body>
     </html>
   );
 }
