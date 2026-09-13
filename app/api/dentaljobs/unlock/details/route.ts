@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   const body = await request.json().catch(() => null) as { applicationId?: string } | null;
   const applicationId = body?.applicationId?.trim();
   if (!applicationId) return NextResponse.json({ error: "Application is required." }, { status: 400 });
-  const { data: application } = await admin.from("job_applications").select("id,office_id,professional_id").eq("id", applicationId).maybeSingle();
+  const { data: application } = await admin.from("job_applications").select("id,office_id,professional_id,resume_path_snapshot").eq("id", applicationId).maybeSingle();
   if (!application) return NextResponse.json({ error: "Application not found." }, { status: 404 });
   const { data: office } = await admin.from("offices").select("id,owner_id").eq("id", application.office_id).maybeSingle();
   if (!office || office.owner_id !== userData.user.id) return NextResponse.json({ error: "Only this dental office can view the unlocked candidate." }, { status: 403 });
@@ -31,8 +31,9 @@ export async function POST(request: Request) {
     admin.auth.admin.getUserById(application.professional_id),
   ]);
   let resumeUrl: string | null = null;
-  if (professional?.resume_path) {
-    const { data: signed } = await admin.storage.from("professional-resumes").createSignedUrl(professional.resume_path, 900);
+  const resumePath = application.resume_path_snapshot || professional?.resume_path || null;
+  if (resumePath) {
+    const { data: signed } = await admin.storage.from("professional-resumes").createSignedUrl(resumePath, 900);
     resumeUrl = signed?.signedUrl ?? null;
   }
   const name = [profile?.first_name, profile?.last_name].filter(Boolean).join(" ").trim();

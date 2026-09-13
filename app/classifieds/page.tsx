@@ -470,6 +470,26 @@ export default function DentalJobsPage() {
     } finally { setUnlockBusyId(null); }
   };
 
+  const downloadMatchedResume = async (connection: JobConnection) => {
+    setUnlockBusyId(connection.id);
+    setUnlockError("");
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) throw new Error("Please sign in again.");
+      const response = await fetch("/api/dentaljobs/unlock/details", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${session.access_token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ applicationId: connection.id }),
+      });
+      const result = await response.json();
+      if (!response.ok || !result.unlocked) throw new Error(result.error || "Candidate details are still locked.");
+      if (!result.candidate?.resumeUrl) throw new Error("This matched professional does not have a résumé/CV available.");
+      window.open(result.candidate.resumeUrl, "_blank", "noopener,noreferrer");
+    } catch (value) {
+      setUnlockError(value instanceof Error ? value.message : "Could not open the résumé/CV.");
+    } finally { setUnlockBusyId(null); }
+  };
+
   const loadNotifications = async () => {
     const { data, error } = await supabase
       .from("dentaljobs_notifications")
@@ -524,12 +544,12 @@ export default function DentalJobsPage() {
   const loadConnections = async (roleOverride?: "office" | "professional" | null) => {
     const { data, error } = await supabase
       .from("job_applications")
-      .select("id,listing_id,professional_id,office_id,initiator_role,status,message,resume_path_snapshot,created_at,professional_hidden_at,deleted_at,source_office_listing_id,office_interest_snapshot,professional_interest_snapshot,job_listings(profession,employment_type,city,province,listing_type)")
+      .select("id,listing_id,professional_id,office_id,initiator_role,status,message,resume_path_snapshot,created_at,professional_hidden_at,office_hidden_at,deleted_at,source_office_listing_id,office_interest_snapshot,professional_interest_snapshot,job_listings(profession,employment_type,city,province,listing_type)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (error || !data) return;
     const effectiveRole = roleOverride || portalRole;
-    const rows = (data as any[]).filter((row) => effectiveRole !== "professional" || !row.professional_hidden_at);
+    const rows = (data as any[]).filter((row) => effectiveRole === "professional" ? !row.professional_hidden_at : effectiveRole === "office" ? !row.office_hidden_at : true);
     const professionalIds = [...new Set(rows.map((row) => String(row.professional_id)).filter(Boolean))];
     const previewMap = new Map<string, CandidatePreview>();
     if (professionalIds.length) {
@@ -581,14 +601,14 @@ export default function DentalJobsPage() {
 
   const softDeleteConnection = async (connection: JobConnection) => {
     if (!portalRole || connectionDeletingId) return;
-    if (!window.confirm("Delete this connection? It will be removed from both the office and professional DentalJobs connection lists. Either side can start the interaction again later.")) return;
+    const matchedOfficeCard = portalRole === "office" && isCandidateUnlocked(connection);
+    const message = matchedOfficeCard ? "Remove this matched professional card from your office view? The match and billing history will be retained." : "Delete this connection? It will be removed from both DentalJobs connection lists.";
+    if (!window.confirm(message)) return;
     setConnectionDeletingId(connection.id);
     setConnectionError("");
     try {
-      const { error } = await supabase
-        .from("job_applications")
-        .update({ deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-        .eq("id", connection.id);
+      const values = matchedOfficeCard ? { office_hidden_at: new Date().toISOString(), updated_at: new Date().toISOString() } : { deleted_at: new Date().toISOString(), updated_at: new Date().toISOString() };
+      const { error } = await supabase.from("job_applications").update(values).eq("id", connection.id);
       if (error) throw error;
       setConnections((current) => current.filter((item) => item.id !== connection.id));
       if (activeChat?.id === connection.id) setActiveChat(null);
@@ -608,6 +628,10 @@ export default function DentalJobsPage() {
   const openConnection = (ad: JobCard) => {
     setConnectionError("");
     setConnectionMessage("");
+    if (portalRole === "professional" && ad.kind === "office" && !resumePath) {
+      window.alert("Résumé/CV Required\n\nYou need to upload a résumé or CV to your Professional Account before you can apply for DentalJobs positions.");
+      return;
+    }
     setSelectedOpportunity(ad);
   };
 
@@ -618,6 +642,7 @@ export default function DentalJobsPage() {
     try {
       if (portalRole === "professional" && selectedOpportunity.kind === "office") {
         if (!professionalId || !selectedOpportunity.ownerOfficeId) throw new Error("This opportunity is not available for applications yet.");
+        if (!resumePath) throw new Error("A résumé/CV is required before you can apply for a DentalJobs position.");
         const { data: created, error } = await supabase.from("job_applications").insert({
           listing_id: selectedOpportunity.id, professional_id: professionalId, office_id: selectedOpportunity.ownerOfficeId,
           initiator_role: "professional", status: "pending", message: connectionMessage.trim() || null, resume_path_snapshot: resumePath,
@@ -1034,18 +1059,9 @@ export default function DentalJobsPage() {
                 </div>
               </div>
 
-              <div className="mt-5 grid gap-4 border-t border-slate-200 pt-5 lg:grid-cols-[minmax(0,1.7fr)_minmax(220px,.8fr)]">
-                <div className="rounded-2xl bg-[#f8fafc] p-4 sm:p-5">
-                  <p className="text-sm font-black text-[#002757]">Job Description</p>
-                  <p className="mt-2 max-h-28 overflow-hidden whitespace-pre-wrap text-sm leading-6 text-slate-600">{job.description || "No description was added to this posting."}</p>
-                  <Link href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`} className="mt-3 inline-flex text-sm font-black text-[#245FB8] hover:underline">View full ad</Link>
-                </div>
-                <div className="grid content-start gap-3 rounded-2xl border border-slate-200 bg-white p-4">
-                  <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Employment Type</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{job.employment_type}</p></div>
-                  <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Hours / Schedule</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{job.schedule || job.days_per_week || "To be discussed"}</p></div>
-                  <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Location</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{job.city}, {job.province}</p></div>
-                  <div><p className="text-[11px] font-black uppercase tracking-wide text-slate-400">Interested Dental Professionals</p><p className="mt-0.5 text-sm font-bold text-[#002757]">{jobConnections.length} professional{jobConnections.length === 1 ? "" : "s"} interested</p></div>
-                </div>
+              <div className="mt-5 border-t border-slate-200 pt-5">
+                <p className="text-sm font-black text-[#002757]">Interested Dental Professionals</p>
+                <p className="mt-0.5 text-xs font-semibold text-slate-400">{jobConnections.length === 0 ? "No professional responses yet." : `${jobConnections.length} professional${jobConnections.length === 1 ? "" : "s"} responded to this ad.`}</p>
               </div>
 
               <div className="mt-5 border-t border-slate-200 pt-5">
@@ -1055,7 +1071,7 @@ export default function DentalJobsPage() {
                   const unlocked = isCandidateUnlocked(item);
                   const statusLabel = unlocked ? "Connected" : item.initiatorRole === "office" && item.status === "interested" ? "Mutual Interest" : item.initiatorRole === "professional" && item.status === "pending" ? "New Interest" : item.initiatorRole === "office" && item.status === "pending" ? "Awaiting Professional" : "Interested";
                   const statusClass = unlocked ? "bg-blue-50 text-blue-700" : statusLabel === "Mutual Interest" ? "bg-[#eaf8ee] text-[#017f27]" : statusLabel === "New Interest" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700";
-                  return <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-black text-[#002757]">Dental Professional</p><span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${statusClass}`}>{statusLabel}</span></div><p className="mt-1 text-sm font-bold text-slate-600">{preview?.profession || item.profession || "Dental Professional"}</p><p className="mt-0.5 text-xs font-semibold text-slate-400">{[preview?.safeCity || item.city, preview?.safeProvince || item.province].filter(Boolean).join(", ") || "Location not specified"}{preview?.yearsExperience != null ? ` · ${preview.yearsExperience} yr${preview.yearsExperience === 1 ? "" : "s"} experience` : ""}</p>{preview?.skills?.length ? <div className="mt-2 flex flex-wrap gap-1.5">{preview.skills.slice(0, 3).map((skill) => <span key={skill} className="rounded-md bg-white px-2 py-1 text-[10px] font-black text-slate-500 ring-1 ring-slate-200">{skill}</span>)}</div> : null}</div><div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">{unlocked ? <><button type="button" disabled={unlockBusyId === item.id} onClick={() => void viewUnlockedCandidate(item)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#01A32E]/30 bg-[#eaf8ee] px-3 py-2 text-xs font-black text-[#017f27]"><FileText size={14}/> View Candidate</button><button type="button" onClick={() => void openChat(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#002757] px-3 py-2 text-xs font-black text-white"><MessageCircle size={14}/> Message</button></> : item.initiatorRole === "professional" && item.status === "pending" ? <><button type="button" disabled={connectionBusy || unlockBusyId === item.id} onClick={() => void updateConnection(item, "declined")} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-600">Not Interested</button><button type="button" disabled={unlockBusyId === item.id} onClick={() => void startCandidateUnlock(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#01A32E] px-3 py-2 text-xs font-black text-white"><CreditCard size={14}/>{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button></> : item.initiatorRole === "office" && item.status === "interested" ? <button type="button" disabled={unlockBusyId === item.id} onClick={() => void startCandidateUnlock(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#01A32E] px-3 py-2 text-xs font-black text-white"><CreditCard size={14}/>{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button> : <span className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">Awaiting Response</span>}</div></div></div>;
+                  return <div key={item.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-black text-[#002757]">Dental Professional</p><span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${statusClass}`}>{statusLabel}</span></div><p className="mt-1 text-sm font-bold text-slate-600">{preview?.profession || item.profession || "Dental Professional"}</p><p className="mt-0.5 text-xs font-semibold text-slate-400">{[preview?.safeCity || item.city, preview?.safeProvince || item.province].filter(Boolean).join(", ") || "Location not specified"}{preview?.yearsExperience != null ? ` · ${preview.yearsExperience} yr${preview.yearsExperience === 1 ? "" : "s"} experience` : ""}</p>{preview?.skills?.length ? <div className="mt-2 flex flex-wrap gap-1.5">{preview.skills.slice(0, 3).map((skill) => <span key={skill} className="rounded-md bg-white px-2 py-1 text-[10px] font-black text-slate-500 ring-1 ring-slate-200">{skill}</span>)}</div> : null}</div><div className="flex shrink-0 flex-wrap gap-2 sm:justify-end">{unlocked ? <><button type="button" disabled={unlockBusyId === item.id} onClick={() => void downloadMatchedResume(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#EA4335] px-3 py-2 text-xs font-black text-white"><Download size={14}/> Résumé / CV</button><button type="button" disabled={unlockBusyId === item.id} onClick={() => void viewUnlockedCandidate(item)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#01A32E]/30 bg-[#eaf8ee] px-3 py-2 text-xs font-black text-[#017f27]"><FileText size={14}/> View Candidate</button><button type="button" onClick={() => void openChat(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#002757] px-3 py-2 text-xs font-black text-white"><MessageCircle size={14}/> Message</button><button type="button" disabled={connectionDeletingId === item.id} onClick={() => void softDeleteConnection(item)} className="inline-flex items-center gap-1.5 rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-600"><Trash2 size={14}/> Delete</button></> : item.initiatorRole === "professional" && item.status === "pending" ? <><button type="button" disabled={connectionBusy || unlockBusyId === item.id} onClick={() => void updateConnection(item, "declined")} className="rounded-lg border border-rose-200 bg-white px-3 py-2 text-xs font-black text-rose-600">Not Interested</button><button type="button" disabled={unlockBusyId === item.id} onClick={() => void startCandidateUnlock(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#01A32E] px-3 py-2 text-xs font-black text-white"><CreditCard size={14}/>{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button></> : item.initiatorRole === "office" && item.status === "interested" ? <button type="button" disabled={unlockBusyId === item.id} onClick={() => void startCandidateUnlock(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#01A32E] px-3 py-2 text-xs font-black text-white"><CreditCard size={14}/>{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button> : <span className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-black text-amber-700">Awaiting Response</span>}</div></div></div>;
                 })}</div>}
               </div>
             </article>;
