@@ -61,10 +61,7 @@ type Props = {
   onManage: (job: OfficeJobListing) => void;
   onEdit: (job: OfficeJobListing) => void;
   onSetupBillingCard: () => void;
-  onUpdateConnection: (
-    connection: JobConnection,
-    action: "interested" | "declined" | "withdrawn",
-  ) => void;
+  onUpdateConnection: (connection: JobConnection, action: "interested" | "declined" | "withdrawn") => void;
   onStartMatch: (connection: JobConnection) => void;
   onDownloadResume: (connection: JobConnection) => void;
   onViewCandidate: (connection: JobConnection) => void;
@@ -72,30 +69,22 @@ type Props = {
   onDeleteConnection: (connection: JobConnection) => void;
 };
 
-function candidateSkills(preview?: CandidatePreview | null) {
-  const values = [
-    ...(preview?.skills || []),
-    ...(preview?.software || []),
-    ...(preview?.certifications || []),
-  ];
-
-  return Array.from(new Set(values.filter(Boolean))).slice(0, 5);
+function skillsFor(preview?: CandidatePreview | null) {
+  return Array.from(
+    new Set([
+      ...(preview?.skills || []),
+      ...(preview?.software || []),
+      ...(preview?.certifications || []),
+    ].filter(Boolean)),
+  ).slice(0, 5);
 }
 
-function statusLabel(item: JobConnection, unlocked: boolean) {
+function candidateStatus(item: JobConnection, unlocked: boolean) {
   if (unlocked) return "Connected";
   if (item.initiatorRole === "office" && item.status === "interested") return "Mutual Interest";
   if (item.initiatorRole === "professional" && item.status === "pending") return "New";
   if (item.initiatorRole === "office" && item.status === "pending") return "Awaiting Professional";
   return "Interested";
-}
-
-function statusPillClass(status: string) {
-  if (status === "New") return "bg-[#dcecff] text-[#0869d7]";
-  if (status === "Connected" || status === "Mutual Interest") {
-    return "bg-[#eaf8ee] text-[#017f27]";
-  }
-  return "bg-amber-50 text-amber-700";
 }
 
 export function OfficePostingsCard({
@@ -119,377 +108,160 @@ export function OfficePostingsCard({
   onDeleteConnection,
 }: Props) {
   return (
-    <section
-      id="my-dentaljobs"
-      className="w-full min-w-0 rounded-[24px] border-2 border-[#01A32E] bg-white p-4 shadow-sm sm:p-6 lg:col-span-2"
-    >
-      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-sm font-black uppercase tracking-[0.08em] text-[#009b2f]">
-            Office Postings
-          </p>
-          <h2 className="mt-1 text-3xl font-black tracking-tight text-[#002757] sm:text-4xl">
-            My DentalJobs
-          </h2>
-          <p className="mt-1 text-base font-medium text-[#455f89]">
-            Manage your postings and review each professional who responds.
-          </p>
+    <div id="my-dentaljobs" style={{ width: "100%", display: "block", marginTop: 24 }}>
+      <div
+        style={{
+          width: "100%",
+          display: "block",
+          border: "2px solid #01A32E",
+          borderRadius: 24,
+          background: "#fff",
+          padding: 24,
+          boxSizing: "border-box",
+        }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 16, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ color: "#009b2f", fontWeight: 900, fontSize: 13, letterSpacing: ".08em", textTransform: "uppercase" }}>Office Postings</div>
+            <div style={{ color: "#002757", fontWeight: 900, fontSize: 34, lineHeight: 1.1, marginTop: 4 }}>My DentalJobs</div>
+            <div style={{ color: "#455f89", fontWeight: 600, marginTop: 6 }}>Manage your postings and review each professional who responds.</div>
+          </div>
+          <div style={{ border: "1px solid #bfe9ca", background: "#f2fff6", color: "#009b2f", fontWeight: 900, borderRadius: 999, padding: "10px 18px" }}>
+            {jobs.length} posting{jobs.length === 1 ? "" : "s"}
+          </div>
         </div>
 
-        <span className="w-fit rounded-full border border-[#01A32E]/25 bg-[#f2fff6] px-5 py-3 text-lg font-black text-[#009b2f]">
-          {jobs.length} posting{jobs.length === 1 ? "" : "s"}
-        </span>
-      </header>
-
-      <div className="mt-5 space-y-3">
-        {manageError && (
-          <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
-            {manageError}
-          </p>
-        )}
-
-        {connectionError && (
-          <p className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">
-            {connectionError}
-          </p>
-        )}
-
-        {unlockError && (
-          <div className="flex flex-col gap-3 rounded-xl bg-rose-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm font-bold text-rose-700">{unlockError}</p>
-            {unlockError.toLowerCase().includes("credit card") && (
-              <button
-                type="button"
-                onClick={onSetupBillingCard}
-                className="inline-flex w-fit items-center justify-center gap-2 rounded-lg bg-[#002757] px-4 py-2 text-xs font-black text-white"
-              >
-                <CreditCard size={14} /> Add Card
-              </button>
+        {(manageError || connectionError || unlockError) && (
+          <div style={{ display: "grid", gap: 10, marginTop: 18 }}>
+            {manageError && <div style={{ background: "#fff1f2", color: "#be123c", padding: 12, borderRadius: 10, fontWeight: 700 }}>{manageError}</div>}
+            {connectionError && <div style={{ background: "#fff1f2", color: "#be123c", padding: 12, borderRadius: 10, fontWeight: 700 }}>{connectionError}</div>}
+            {unlockError && (
+              <div style={{ background: "#fff1f2", color: "#be123c", padding: 12, borderRadius: 10, fontWeight: 700, display: "flex", gap: 12, alignItems: "center", justifyContent: "space-between", flexWrap: "wrap" }}>
+                <span>{unlockError}</span>
+                {unlockError.toLowerCase().includes("credit card") && (
+                  <button type="button" onClick={onSetupBillingCard} style={{ border: 0, borderRadius: 8, background: "#002757", color: "#fff", padding: "8px 12px", fontWeight: 900, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <CreditCard size={14} /> Add Card
+                  </button>
+                )}
+              </div>
             )}
           </div>
         )}
-      </div>
 
-      <div className="mt-6 space-y-6">
-        {jobs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50 p-8 text-center text-sm font-semibold text-slate-500">
-            You have no DentalJobs postings yet.
-          </div>
-        ) : (
-          jobs.map((job) => {
-            const daysLeft = Math.max(
-              0,
-              Math.ceil((new Date(job.expires_at).getTime() - Date.now()) / 86400000),
-            );
-            const isActive = job.status === "active" && daysLeft > 0;
-            const displayStatus =
-              job.status === "active" && daysLeft === 0 ? "expired" : job.status;
-
+        <div style={{ display: "grid", gap: 24, marginTop: 24 }}>
+          {jobs.length === 0 ? (
+            <div style={{ border: "1px dashed #cbd5e1", background: "#f8fafc", borderRadius: 16, padding: 30, textAlign: "center", color: "#64748b", fontWeight: 700 }}>
+              You have no DentalJobs postings yet.
+            </div>
+          ) : jobs.map((job) => {
+            const daysLeft = Math.max(0, Math.ceil((new Date(job.expires_at).getTime() - Date.now()) / 86400000));
+            const active = job.status === "active" && daysLeft > 0;
+            const displayStatus = job.status === "active" && daysLeft === 0 ? "expired" : job.status;
             const jobConnections = connections
-              .filter(
-                (item) =>
-                  (item.listingId === job.id || item.sourceOfficeListingId === job.id) &&
-                  item.status !== "declined" &&
-                  item.status !== "withdrawn",
-              )
-              .sort(
-                (a, b) =>
-                  new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-              );
-
-            const newCount = jobConnections.filter(
-              (item) =>
-                item.initiatorRole === "professional" &&
-                item.status === "pending" &&
-                !isCandidateUnlocked(item),
-            ).length;
+              .filter((item) => (item.listingId === job.id || item.sourceOfficeListingId === job.id) && item.status !== "declined" && item.status !== "withdrawn")
+              .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+            const newCount = jobConnections.filter((item) => item.initiatorRole === "professional" && item.status === "pending" && !isCandidateUnlocked(item)).length;
 
             return (
-              <article
-                key={job.id}
-                className="w-full overflow-hidden rounded-[22px] border border-[#b9dfc3] bg-white shadow-sm"
-              >
-                {/* 1. Job posting summary */}
-                <div className="grid grid-cols-1 bg-gradient-to-r from-[#f5fff7] to-white lg:grid-cols-[minmax(0,1fr)_220px]">
-                  <div className="px-5 py-5 sm:px-7 sm:py-6">
-                    <div className="flex flex-wrap items-center gap-3">
-                      <span
-                        className={`rounded-full px-3.5 py-1.5 text-xs font-black uppercase ${
-                          isActive
-                            ? "bg-[#01A32E] text-white"
-                            : displayStatus === "paused"
-                              ? "bg-amber-50 text-amber-700"
-                              : displayStatus === "filled"
-                                ? "bg-blue-50 text-blue-700"
-                                : "bg-slate-100 text-slate-600"
-                        }`}
-                      >
-                        {displayStatus}
-                      </span>
-
-                      {isActive && (
-                        <span className="text-sm font-semibold text-[#455f89] sm:text-base">
-                          {daysLeft} day{daysLeft === 1 ? "" : "s"} remaining
-                        </span>
-                      )}
-
-                      {newCount > 0 && (
-                        <span className="rounded-full bg-[#ffe9ef] px-3 py-1.5 text-xs font-black text-[#c81d4f]">
-                          {newCount} New
-                        </span>
-                      )}
+              <div key={job.id} style={{ width: "100%", display: "block", border: "1px solid #b9dfc3", borderRadius: 18, overflow: "hidden", background: "#fff", boxSizing: "border-box" }}>
+                <div style={{ display: "flex", alignItems: "stretch", justifyContent: "space-between", gap: 0, flexWrap: "wrap", background: "#f7fff9" }}>
+                  <div style={{ flex: "1 1 650px", padding: 24, minWidth: 0, boxSizing: "border-box" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                      <span style={{ background: active ? "#01A32E" : "#eef2f7", color: active ? "#fff" : "#475569", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 900, textTransform: "uppercase" }}>{displayStatus}</span>
+                      {active && <span style={{ color: "#455f89", fontWeight: 700 }}>{daysLeft} day{daysLeft === 1 ? "" : "s"} remaining</span>}
+                      {newCount > 0 && <span style={{ background: "#ffe9ef", color: "#c81d4f", borderRadius: 999, padding: "6px 12px", fontSize: 12, fontWeight: 900 }}>{newCount} New</span>}
                     </div>
-
-                    <h3 className="mt-3 text-2xl font-black leading-tight text-[#002757] sm:text-3xl">
-                      {job.profession} — {job.employment_type}
-                    </h3>
-
-                    <div className="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-[#526a90] sm:text-base">
-                      <span className="inline-flex items-center gap-2">
-                        <MapPin size={18} />
-                        {job.city}, {job.province}
-                      </span>
-                      <span className="inline-flex items-center gap-2">
-                        <BriefcaseBusiness size={18} />
-                        {job.employment_type}
-                      </span>
-                      <span className="inline-flex items-center gap-2">
-                        <Clock3 size={18} />
-                        Posted {new Date(job.created_at).toLocaleDateString("en-CA", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
+                    <div style={{ color: "#002757", fontSize: 26, fontWeight: 900, marginTop: 12 }}>{job.profession} — {job.employment_type}</div>
+                    <div style={{ display: "flex", gap: 22, flexWrap: "wrap", color: "#526a90", fontWeight: 700, marginTop: 12 }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><MapPin size={18} />{job.city}, {job.province}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><BriefcaseBusiness size={18} />{job.employment_type}</span>
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: 7 }}><Clock3 size={18} />Posted {new Date(job.created_at).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}</span>
                     </div>
                   </div>
-
-                  <div className="flex items-center justify-center border-t border-slate-200 px-6 py-5 text-center lg:border-l lg:border-t-0">
-                    <div>
-                      <p className="text-5xl font-black leading-none text-[#01A32E]">
-                        {jobConnections.length}
-                      </p>
-                      <p className="mt-2 text-lg font-semibold text-[#009b2f]">Interested</p>
-                    </div>
+                  <div style={{ flex: "0 0 210px", minHeight: 130, display: "flex", alignItems: "center", justifyContent: "center", borderLeft: "1px solid #e2e8f0", background: "#fff", boxSizing: "border-box" }}>
+                    <div style={{ textAlign: "center" }}><div style={{ color: "#01A32E", fontSize: 44, fontWeight: 900, lineHeight: 1 }}>{jobConnections.length}</div><div style={{ color: "#009b2f", fontSize: 18, fontWeight: 800, marginTop: 6 }}>Interested</div></div>
                   </div>
                 </div>
 
-                {/* 2. Action bar */}
-                <div className="border-y border-slate-200 bg-[#f8fbff] px-4 py-3 sm:px-6">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <button
-                      type="button"
-                      onClick={() => onManage(job)}
-                      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg bg-[#06499d] px-3.5 text-sm font-black text-white shadow-sm"
-                    >
-                      <MoreVertical size={16} /> Manage <ChevronDown size={15} />
-                    </button>
-
-                    <Link
-                      href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`}
-                      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[#7793b9] bg-white px-3.5 text-sm font-black text-[#06499d]"
-                    >
-                      <FileText size={16} /> View Ad
-                    </Link>
-
-                    <div>
-                      <ShareListingButton listingId={job.id} compact />
-                    </div>
-
-                    <button
-                      type="button"
-                      onClick={() => onEdit(job)}
-                      className="inline-flex h-10 items-center justify-center gap-1.5 rounded-lg border border-[#7793b9] bg-white px-3.5 text-sm font-black text-[#06499d]"
-                    >
-                      <Pencil size={16} /> Edit Posting
-                    </button>
-                  </div>
+                <div style={{ width: "100%", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", padding: "12px 18px", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0", background: "#f8fbff", boxSizing: "border-box" }}>
+                  <button type="button" onClick={() => onManage(job)} style={{ height: 38, border: 0, borderRadius: 8, background: "#06499d", color: "white", padding: "0 12px", fontWeight: 900, display: "inline-flex", alignItems: "center", gap: 6 }}><MoreVertical size={15} /> Manage <ChevronDown size={14} /></button>
+                  <Link href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`} style={{ height: 38, border: "1px solid #7793b9", borderRadius: 8, background: "white", color: "#06499d", padding: "0 12px", fontWeight: 900, display: "inline-flex", alignItems: "center", gap: 6, textDecoration: "none" }}><FileText size={15} /> View Ad</Link>
+                  <ShareListingButton listingId={job.id} compact />
+                  <button type="button" onClick={() => onEdit(job)} style={{ height: 38, border: "1px solid #7793b9", borderRadius: 8, background: "white", color: "#06499d", padding: "0 12px", fontWeight: 900, display: "inline-flex", alignItems: "center", gap: 6 }}><Pencil size={15} /> Edit Posting</button>
                 </div>
 
-                {/* 3. Interested professionals */}
-                <section className="px-4 py-5 sm:px-6 sm:py-6">
-                  <div className="flex flex-col gap-2 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
-                    <h4 className="text-xl font-black text-[#002757] sm:text-2xl">
-                      Interested Dental Professionals ({jobConnections.length})
-                    </h4>
-                    <span className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#002757] sm:text-base">
-                      Sort by: Newest First <ChevronDown size={18} />
-                    </span>
+                <div style={{ display: "block", width: "100%", padding: 20, boxSizing: "border-box", background: "#fff" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap", paddingBottom: 14, borderBottom: "1px solid #e2e8f0" }}>
+                    <div style={{ color: "#002757", fontSize: 22, fontWeight: 900 }}>Interested Dental Professionals ({jobConnections.length})</div>
+                    <div style={{ color: "#002757", fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 5 }}>Sort by: Newest First <ChevronDown size={17} /></div>
                   </div>
 
                   {jobConnections.length === 0 ? (
-                    <div className="mt-4 rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm font-semibold text-slate-500">
-                      When a professional selects I’m Interested or Apply to this Position, their
-                      card will appear here.
+                    <div style={{ marginTop: 16, border: "1px dashed #cbd5e1", background: "#f8fafc", borderRadius: 14, padding: 26, textAlign: "center", color: "#64748b", fontWeight: 700 }}>
+                      When a professional selects I’m Interested or Apply to this Position, their card will appear here.
                     </div>
                   ) : (
-                    <div className="mt-4 space-y-4">
+                    <div style={{ display: "grid", gap: 14, marginTop: 16 }}>
                       {jobConnections.map((item) => {
-                        const preview = item.candidatePreview;
+                        const preview = item.candidatePreview as CandidatePreview | null | undefined;
                         const unlocked = isCandidateUnlocked(item);
-                        const profession =
-                          preview?.profession || item.profession || "Dental Professional";
-                        const location =
-                          [
-                            preview?.safeCity || item.city,
-                            preview?.safeProvince || item.province,
-                          ]
-                            .filter(Boolean)
-                            .join(", ") || "Location not specified";
-                        const skills = candidateSkills(preview);
-                        const status = statusLabel(item, unlocked);
+                        const profession = preview?.profession || item.profession || "Dental Professional";
+                        const location = [preview?.safeCity || item.city, preview?.safeProvince || item.province].filter(Boolean).join(", ") || "Location not specified";
+                        const skills = skillsFor(preview);
+                        const status = candidateStatus(item, unlocked);
 
                         return (
-                          <article
-                            key={item.id}
-                            className="w-full overflow-hidden rounded-[18px] border border-[#dbe4ef] bg-white"
-                          >
-                            <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_340px]">
-                              <div className="px-5 py-5 sm:px-6">
-                                <div className="flex flex-wrap items-center gap-3">
-                                  <h5 className="text-xl font-black text-[#002757] sm:text-2xl">
-                                    {profession}
-                                  </h5>
-                                  <span
-                                    className={`rounded-full px-3 py-1 text-xs font-black uppercase ${statusPillClass(status)}`}
-                                  >
-                                    {status}
-                                  </span>
-                                </div>
-
-                                <div className="mt-2 flex flex-wrap gap-x-6 gap-y-2 text-sm font-semibold text-[#526a90] sm:text-base">
-                                  <span className="inline-flex items-center gap-2">
-                                    <MapPin size={17} />
-                                    {location}
-                                  </span>
-                                  {preview?.yearsExperience != null && (
-                                    <span className="inline-flex items-center gap-2">
-                                      <BriefcaseBusiness size={17} />
-                                      {preview.yearsExperience} year
-                                      {preview.yearsExperience === 1 ? "" : "s"} experience
-                                    </span>
-                                  )}
-                                </div>
-
-                                {skills.length > 0 && (
-                                  <div className="mt-4 flex flex-wrap gap-2">
-                                    {skills.map((skill) => (
-                                      <span
-                                        key={skill}
-                                        className="rounded-full border border-[#d9e2ec] bg-[#f7f9fc] px-3.5 py-1.5 text-sm font-medium text-[#455f89]"
-                                      >
-                                        {skill}
-                                      </span>
-                                    ))}
-                                  </div>
-                                )}
-
-                                {preview?.summary && (
-                                  <p className="mt-4 max-w-3xl text-sm leading-6 text-[#455f89] sm:text-base sm:leading-7">
-                                    {preview.summary}
-                                  </p>
-                                )}
-
-                                <button
-                                  type="button"
-                                  onClick={() => onViewCandidate(item)}
-                                  className="mt-4 inline-flex items-center gap-2 text-sm font-black text-[#0869d7] hover:text-[#0056b8] sm:text-base"
-                                >
-                                  View full profile <ArrowRight size={18} />
-                                </button>
+                          <div key={item.id} style={{ width: "100%", display: "flex", alignItems: "stretch", flexWrap: "wrap", border: "1px solid #dbe4ef", borderRadius: 16, overflow: "hidden", boxSizing: "border-box", background: "#fff" }}>
+                            <div style={{ flex: "1 1 620px", minWidth: 0, padding: 20, boxSizing: "border-box" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                <div style={{ color: "#002757", fontSize: 22, fontWeight: 900 }}>{profession}</div>
+                                <span style={{ borderRadius: 999, padding: "5px 10px", fontSize: 11, fontWeight: 900, textTransform: "uppercase", background: status === "New" ? "#dcecff" : status === "Connected" || status === "Mutual Interest" ? "#eaf8ee" : "#fff7ed", color: status === "New" ? "#0869d7" : status === "Connected" || status === "Mutual Interest" ? "#017f27" : "#b45309" }}>{status}</span>
                               </div>
-
-                              <div className="border-t border-slate-200 bg-[#fbfcfe] px-5 py-5 xl:border-l xl:border-t-0">
-                                {unlocked ? (
-                                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                                    <button
-                                      type="button"
-                                      disabled={unlockBusyId === item.id}
-                                      onClick={() => onDownloadResume(item)}
-                                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#EA4335] px-4 py-2.5 text-sm font-black text-white"
-                                    >
-                                      <Download size={17} /> Résumé / CV
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={unlockBusyId === item.id}
-                                      onClick={() => onViewCandidate(item)}
-                                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-[#01A32E]/30 bg-[#eaf8ee] px-4 py-2.5 text-sm font-black text-[#017f27]"
-                                    >
-                                      <FileText size={17} /> View Candidate
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => onOpenChat(item)}
-                                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-[#002757] px-4 py-2.5 text-sm font-black text-white"
-                                    >
-                                      <MessageCircle size={17} /> Message
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={connectionDeletingId === item.id}
-                                      onClick={() => onDeleteConnection(item)}
-                                      className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-rose-200 bg-white px-4 py-2.5 text-sm font-black text-rose-600"
-                                    >
-                                      <Trash2 size={17} /> Delete
-                                    </button>
-                                  </div>
-                                ) : item.initiatorRole === "professional" && item.status === "pending" ? (
-                                  <div className="space-y-2">
-                                    <button
-                                      type="button"
-                                      disabled={connectionBusy || unlockBusyId === item.id}
-                                      onClick={() => onUpdateConnection(item, "declined")}
-                                      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border-2 border-red-500 bg-white px-4 py-2.5 text-base font-black text-red-600"
-                                    >
-                                      <Ban size={18} /> Not Interested
-                                    </button>
-                                    <button
-                                      type="button"
-                                      disabled={unlockBusyId === item.id}
-                                      onClick={() => onStartMatch(item)}
-                                      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#01A32E] px-4 py-2.5 text-base font-black text-white shadow-sm"
-                                    >
-                                      <Handshake size={19} />
-                                      {unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}
-                                    </button>
-                                    <p className="pt-1 text-center text-xs font-medium leading-5 text-[#526a90] sm:text-sm">
-                                      Your contact details remain private until a match is made.
-                                    </p>
-                                  </div>
-                                ) : item.initiatorRole === "office" && item.status === "interested" ? (
-                                  <div className="space-y-2">
-                                    <button
-                                      type="button"
-                                      disabled={unlockBusyId === item.id}
-                                      onClick={() => onStartMatch(item)}
-                                      className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-[#01A32E] px-4 py-2.5 text-base font-black text-white shadow-sm"
-                                    >
-                                      <Handshake size={19} />
-                                      {unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}
-                                    </button>
-                                    <p className="pt-1 text-center text-xs font-medium leading-5 text-[#526a90] sm:text-sm">
-                                      Mutual interest confirmed. LET’S MATCH completes the paid connection.
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <p className="rounded-lg bg-amber-50 px-4 py-4 text-center text-sm font-bold text-amber-700">
-                                    Awaiting professional response.
-                                  </p>
-                                )}
+                              <div style={{ display: "flex", gap: 20, flexWrap: "wrap", marginTop: 10, color: "#526a90", fontWeight: 700 }}>
+                                <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><MapPin size={17} />{location}</span>
+                                {preview?.yearsExperience != null && <span style={{ display: "inline-flex", gap: 6, alignItems: "center" }}><BriefcaseBusiness size={17} />{preview.yearsExperience} year{preview.yearsExperience === 1 ? "" : "s"} experience</span>}
                               </div>
+                              {skills.length > 0 && <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 14 }}>{skills.map((skill) => <span key={skill} style={{ border: "1px solid #d9e2ec", background: "#f7f9fc", color: "#455f89", borderRadius: 999, padding: "6px 11px", fontSize: 13, fontWeight: 700 }}>{skill}</span>)}</div>}
+                              {preview?.summary && <div style={{ color: "#455f89", lineHeight: 1.6, marginTop: 14 }}>{preview.summary}</div>}
+                              <button type="button" onClick={() => onViewCandidate(item)} style={{ marginTop: 14, border: 0, background: "transparent", color: "#0869d7", fontWeight: 900, padding: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
+                                View full profile <ArrowRight size={18} />
+                              </button>
                             </div>
-                          </article>
+
+                            <div style={{ flex: "0 1 330px", minWidth: 280, borderLeft: "1px solid #e2e8f0", padding: 18, boxSizing: "border-box", display: "flex", flexDirection: "column", justifyContent: "center", gap: 10, background: "#fbfdff" }}>
+                              {unlocked ? (
+                                <>
+                                  <button type="button" disabled={unlockBusyId === item.id} onClick={() => onDownloadResume(item)} style={{ minHeight: 44, border: 0, borderRadius: 9, background: "#EA4335", color: "white", fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Download size={17} /> Résumé / CV</button>
+                                  <button type="button" onClick={() => onViewCandidate(item)} style={{ minHeight: 44, border: "1px solid #bfe9ca", borderRadius: 9, background: "#eaf8ee", color: "#017f27", fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}><FileText size={17} /> View Candidate</button>
+                                  <button type="button" onClick={() => onOpenChat(item)} style={{ minHeight: 44, border: 0, borderRadius: 9, background: "#002757", color: "white", fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}><MessageCircle size={17} /> Message</button>
+                                  <button type="button" disabled={connectionDeletingId === item.id} onClick={() => onDeleteConnection(item)} style={{ minHeight: 44, border: "1px solid #fecdd3", borderRadius: 9, background: "white", color: "#e11d48", fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Trash2 size={17} /> Delete</button>
+                                </>
+                              ) : item.initiatorRole === "professional" && item.status === "pending" ? (
+                                <>
+                                  <button type="button" disabled={connectionBusy || unlockBusyId === item.id} onClick={() => onUpdateConnection(item, "declined")} style={{ minHeight: 46, border: "2px solid #ef4444", borderRadius: 9, background: "white", color: "#dc2626", fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Ban size={18} /> Not Interested</button>
+                                  <button type="button" disabled={unlockBusyId === item.id} onClick={() => onStartMatch(item)} style={{ minHeight: 46, border: 0, borderRadius: 9, background: "#01A32E", color: "white", fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Handshake size={18} />{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button>
+                                  <div style={{ textAlign: "center", color: "#526a90", fontSize: 13, lineHeight: 1.5 }}>Your contact details remain private until a match is made.</div>
+                                </>
+                              ) : item.initiatorRole === "office" && item.status === "interested" ? (
+                                <>
+                                  <button type="button" disabled={unlockBusyId === item.id} onClick={() => onStartMatch(item)} style={{ minHeight: 46, border: 0, borderRadius: 9, background: "#01A32E", color: "white", fontWeight: 900, display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 7 }}><Handshake size={18} />{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button>
+                                  <div style={{ textAlign: "center", color: "#526a90", fontSize: 13, lineHeight: 1.5 }}>Mutual interest confirmed. LET’S MATCH completes the paid connection.</div>
+                                </>
+                              ) : (
+                                <div style={{ background: "#fff7ed", color: "#b45309", borderRadius: 9, padding: 12, textAlign: "center", fontWeight: 800 }}>Awaiting professional response.</div>
+                              )}
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
                   )}
-                </section>
-              </article>
+                </div>
+              </div>
             );
-          })
-        )}
+          })}
+        </div>
       </div>
-    </section>
+    </div>
   );
 }
