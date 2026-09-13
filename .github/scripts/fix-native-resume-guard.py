@@ -5,3 +5,4 @@ s=s.replace('''      const details = await loadAccountDetails(user.id);\n      c
 s=s.replace('resume_path_snapshot: details.professional?.resume_path || null,','resume_path_snapshot: resumeRow.resume_path,',1)
 p.write_text(s)
 print('native resume guard updated')
+# trigger workflow
