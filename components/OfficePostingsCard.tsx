@@ -38,24 +38,7 @@ type CandidatePreview = {
   certifications?: string[];
 };
 
-type JobConnection = {
-  id: string;
-  listingId: string;
-  professionalId: string;
-  officeId: string;
-  initiatorRole: "professional" | "office";
-  status: "pending" | "interested" | "declined" | "withdrawn";
-  message: string;
-  resumePath: string | null;
-  createdAt: string;
-  profession: string;
-  employment: string;
-  city: string;
-  province: string;
-  listingType: "office_hiring" | "professional_available";
-  sourceOfficeListingId?: string | null;
-  candidatePreview?: CandidatePreview | null;
-};
+type JobConnection = any;
 
 type Props = {
   jobs: OfficeJobListing[];
