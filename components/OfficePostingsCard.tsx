@@ -22,6 +22,11 @@ type OfficeJobListing = {
   employment_type: string;
   city: string;
   province: string;
+  days_per_week: string | null;
+  pay_min: number | null;
+  pay_max: number | null;
+  schedule: string | null;
+  description: string;
   status: string;
   expires_at: string;
   created_at: string;
@@ -201,9 +206,9 @@ export function OfficePostingsCard({
                                 <button type="button" disabled={unlockBusyId === item.id} onClick={() => onStartMatch(item)} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#01A32E] px-4 py-3 text-lg font-black text-white shadow-sm"><CreditCard size={20}/>{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button>
                                 <p className="text-center text-sm font-medium leading-5 text-[#526a90]">Contact details remain private until a match is made.</p>
                               </> : item.initiatorRole === "office" && item.status === "interested" ? <>
-                                <button type="button" disabled={unlockBusyId === item.id} onClick={() => onStartMatch(item)} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#01A32E] px-4 py-3 text-lg font-black text-white"><CreditCard size={20}/>{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button>
-                                <p className="text-center text-sm font-medium leading-5 text-[#526a90]">Contact details remain private until a match is made.</p>
-                              </> : <span className="rounded-xl bg-amber-50 px-4 py-3 text-center text-base font-black text-amber-700">Awaiting Response</span>}
+                                <button type="button" disabled={unlockBusyId === item.id} onClick={() => onStartMatch(item)} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-xl bg-[#01A32E] px-4 py-3 text-lg font-black text-white shadow-sm"><CreditCard size={20}/>{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button>
+                                <p className="text-center text-sm font-medium leading-5 text-[#526a90]">Mutual interest confirmed. LET’S MATCH completes the paid connection.</p>
+                              </> : <p className="rounded-xl bg-amber-50 px-4 py-4 text-center text-sm font-bold text-amber-700">Awaiting professional response.</p>}
                             </div>
                           </div>
                         </div>
