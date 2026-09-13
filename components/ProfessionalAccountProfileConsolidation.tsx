@@ -24,13 +24,10 @@ export function ProfessionalAccountProfileConsolidation() {
           "Your contact information, location, qualifications and Digital Resume are managed together in one professional profile.";
       }
 
+      // Hide only the old qualifications heading card. Never hide its parent,
+      // because the parent is the entire professional account form.
       const qualificationsContainer = qualificationsHeading.parentElement;
-      const qualificationsCard = qualificationsContainer?.parentElement;
-
-      if (qualificationsCard instanceof HTMLElement) {
-        qualificationsCard.style.display = "none";
-        qualificationsCard.setAttribute("aria-hidden", "true");
-      } else if (qualificationsContainer instanceof HTMLElement) {
+      if (qualificationsContainer instanceof HTMLElement) {
         qualificationsContainer.style.display = "none";
         qualificationsContainer.setAttribute("aria-hidden", "true");
       }
