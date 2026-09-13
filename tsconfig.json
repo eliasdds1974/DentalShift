@@ -23,9 +23,6 @@
       }
     ],
     "paths": {
-      "@/lib/dentalshift": [
-        "./lib/dentalshift-safe.ts"
-      ],
       "@/components/WorkflowWorkspace": [
         "./components/WorkflowWorkspaceV2.tsx"
       ],
