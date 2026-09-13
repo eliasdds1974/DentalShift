@@ -10,7 +10,7 @@ export function OfficeWorkspacePolish() {
   useEffect(() => {
     const apply = () => {
       const page = Array.from(document.querySelectorAll<HTMLElement>(".page-wrap")).find((candidate) => {
-        const postButton = Array.from(candidate.querySelectorAll<HTMLButtonElement>("button")).find((button) => textOf(button) === "Post a shift");
+        const postButton = Array.from(candidate.querySelectorAll<HTMLButtonElement>("button")).find((button) => textOf(button).toLowerCase() === "post a shift");
         return Boolean(postButton) && !candidate.querySelector("#available-shifts-calendar");
       });
       if (!page) return;
@@ -24,7 +24,7 @@ export function OfficeWorkspacePolish() {
       }
 
       // Keep the office header compact and action-first, like the professional portal.
-      const postButton = Array.from(page.querySelectorAll<HTMLButtonElement>("button")).find((button) => textOf(button) === "Post a shift");
+      const postButton = Array.from(page.querySelectorAll<HTMLButtonElement>("button")).find((button) => textOf(button).toLowerCase() === "post a shift");
       if (postButton) {
         postButton.classList.add("shrink-0");
         postButton.style.minWidth = "132px";
