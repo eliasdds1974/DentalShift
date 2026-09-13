@@ -542,14 +542,32 @@ export default function DentalJobsPage() {
   };
 
   const loadConnections = async (roleOverride?: "office" | "professional" | null) => {
+    const effectiveRole = roleOverride || portalRole;
+    if (effectiveRole === "office") {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) return;
+        const response = await fetch("/api/dentaljobs/connections", {
+          headers: { Authorization: `Bearer ${session.access_token}` },
+          cache: "no-store",
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || "Could not load interested professionals.");
+        setConnections((result.connections || []) as JobConnection[]);
+        return;
+      } catch (value) {
+        setConnectionError(value instanceof Error ? value.message : "Could not load interested professionals.");
+        return;
+      }
+    }
+
     const { data, error } = await supabase
       .from("job_applications")
       .select("id,listing_id,professional_id,office_id,initiator_role,status,message,resume_path_snapshot,created_at,professional_hidden_at,office_hidden_at,deleted_at,source_office_listing_id,office_interest_snapshot,professional_interest_snapshot,job_listings(profession,employment_type,city,province,listing_type)")
       .is("deleted_at", null)
       .order("created_at", { ascending: false });
     if (error || !data) return;
-    const effectiveRole = roleOverride || portalRole;
-    const rows = (data as any[]).filter((row) => effectiveRole === "professional" ? !row.professional_hidden_at : effectiveRole === "office" ? !row.office_hidden_at : true);
+    const rows = (data as any[]).filter((row) => effectiveRole === "professional" ? !row.professional_hidden_at : true);
     const professionalIds = [...new Set(rows.map((row) => String(row.professional_id)).filter(Boolean))];
     const previewMap = new Map<string, CandidatePreview>();
     if (professionalIds.length) {
