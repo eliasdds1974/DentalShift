@@ -1,0 +1,291 @@
+name: Integrate Digital Resume into Professional Account
+
+on:
+  push:
+    paths:
+      - ".github/workflows/integrate-digital-resume-account.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Integrate Digital Resume and remove CV upload flow
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          def replace_once(text, old, new, label):
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"{label}: expected 1 match, found {count}")
+              return text.replace(old, new, 1)
+
+          # ---- lib/dentalshift.ts: load the Digital Resume fields with the normal account ----
+          path = Path('lib/dentalshift.ts')
+          text = path.read_text()
+          text = replace_once(text,
+              '  bio: string | null;\n  skills: string[] | null;\n  cpr_path: string | null;',
+              '  bio: string | null;\n  skills: string[] | null;\n  resume_summary: string | null;\n  software: string[] | null;\n  clinical_skills: string[] | null;\n  certifications: string[] | null;\n  education: Array<{ program?: string; school?: string; year?: string }> | null;\n  work_history: Array<{ role?: string; employer?: string; dates?: string; details?: string }> | null;\n  digital_resume_updated_at: string | null;\n  cpr_path: string | null;',
+              'ProfessionalDetails digital resume fields')
+          old_select = 'user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,languages,bio,skills,cpr_path,cpr_status,cpr_expiry_month,cpr_submitted_at,cpr_grace_until,cpr_verified_at,resume_path,available_for_work,local_anesthetic,local_anesthetic_status'
+          new_select = 'user_id,profession,licence_number,licence_province,licence_status,hourly_rate,travel_radius_km,years_experience,languages,bio,skills,resume_summary,software,clinical_skills,certifications,education,work_history,digital_resume_updated_at,cpr_path,cpr_status,cpr_expiry_month,cpr_submitted_at,cpr_grace_until,cpr_verified_at,resume_path,available_for_work,local_anesthetic,local_anesthetic_status'
+          if text.count(old_select) < 2:
+              raise SystemExit('professional select list: expected at least 2 matches')
+          text = text.replace(old_select, new_select)
+          path.write_text(text)
+
+          # ---- app/page.tsx: account form becomes the Digital Resume editor ----
+          path = Path('app/page.tsx')
+          text = path.read_text()
+          text = text.replace('openProfessionalResume, ', '')
+          text = text.replace('uploadProfessionalResume, ', '')
+          text = replace_once(text,
+              'const professionalLanguageOptions = ["French", "Spanish", "Mandarin", "Punjabi", "Arabic", "Hindi", "Tagalog"];',
+              'const professionalLanguageOptions = ["English", "French", "Spanish", "Mandarin", "Punjabi", "Arabic", "Hindi", "Tagalog"];',
+              'language options')
+
+          start = '  const uploadResume = async (file?: File) => {\n'
+          end = '  const submit = async (event: React.FormEvent<HTMLFormElement>) => {\n'
+          if start not in text or end not in text:
+              raise SystemExit('legacy resume methods block not found')
+          before, rest = text.split(start, 1)
+          _, after = rest.split(end, 1)
+          text = before + end + after
+
+          old_prof = '''      professional: details.professional ? {
+        ...details.professional,
+        profession: String(form.get("profession") || ""),
+        licence_number: String(form.get("licence_number") || ""),
+        licence_province: String(form.get("province") || details.profile.province || details.professional.licence_province || ""),
+        hourly_rate: form.get("hourly_rate") ? Number(form.get("hourly_rate")) : null,
+        travel_radius_km: Number(form.get("travel_radius_km") || 25),
+        years_experience: form.get("years_experience") ? Number(form.get("years_experience")) : null,
+        languages: [
+          ...form.getAll("professional_languages").map(String).filter((value) => value !== "Other"),
+          ...String(form.get("other_professional_languages") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        ],
+        bio: details.professional.bio,
+        skills: [
+          ...form.getAll("software").map(String).filter((value) => value !== "Other"),
+          ...String(form.get("other_software") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        ],
+        local_anesthetic: form.get("local_anesthetic") === "on",
+'''
+          new_prof = '''      professional: details.professional ? {
+        ...details.professional,
+        profession: String(form.get("profession") || ""),
+        licence_number: String(form.get("licence_number") || ""),
+        licence_province: String(form.get("province") || details.profile.province || details.professional.licence_province || ""),
+        hourly_rate: form.get("hourly_rate") ? Number(form.get("hourly_rate")) : null,
+        travel_radius_km: Number(form.get("travel_radius_km") || 25),
+        years_experience: String(form.get("years_experience") || "").trim() === "" ? null : Number(form.get("years_experience")),
+        languages: [
+          ...form.getAll("professional_languages").map(String).filter((value) => value !== "Other"),
+          ...String(form.get("other_professional_languages") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        ],
+        bio: String(form.get("digital_resume_summary") || "").trim() || null,
+        skills: [
+          ...form.getAll("software").map(String).filter((value) => value !== "Other"),
+          ...String(form.get("other_software") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        ],
+        local_anesthetic: form.get("local_anesthetic") === "on",
+'''
+          text = replace_once(text, old_prof, new_prof, 'professional save block')
+
+          old_save = '''    try {
+      await saveAccountDetails(next);
+      if (!details?.professional && String(form.get("new_profession") || "").trim()) {
+'''
+          new_save = '''    try {
+      await saveAccountDetails(next);
+      if (details.professional) {
+        const software = [
+          ...form.getAll("software").map(String).filter((value) => value !== "Other"),
+          ...String(form.get("other_software") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        ];
+        const languages = [
+          ...form.getAll("professional_languages").map(String).filter((value) => value !== "Other"),
+          ...String(form.get("other_professional_languages") || "").split(",").map((value) => value.trim()).filter(Boolean),
+        ];
+        const clinicalSkills = String(form.get("digital_resume_skills") || "").split(",").map((value) => value.trim()).filter(Boolean);
+        const certifications = String(form.get("digital_resume_certifications") || "").split(",").map((value) => value.trim()).filter(Boolean);
+        const education = String(form.get("digital_resume_education") || "").split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+          const [program = "", school = "", year = ""] = line.split("|").map((value) => value.trim());
+          return { program, school, year };
+        });
+        const workHistory = String(form.get("digital_resume_work_history") || "").split(/\\r?\\n/).map((line) => line.trim()).filter(Boolean).map((line) => {
+          const [role = "", employer = "", dates = "", details = ""] = line.split("|").map((value) => value.trim());
+          return { role, employer, dates, details };
+        });
+        const { error: resumeError } = await supabase.rpc("save_professional_digital_resume", {
+          p_summary: String(form.get("digital_resume_summary") || "").trim(),
+          p_years_experience: Math.max(0, Number(form.get("years_experience") || 0)),
+          p_languages: languages,
+          p_software: software,
+          p_clinical_skills: clinicalSkills,
+          p_certifications: certifications,
+          p_education: education,
+          p_work_history: workHistory,
+        });
+        if (resumeError) throw new Error(`Your Digital Resume could not be saved: ${resumeError.message}`);
+      }
+      if (!details?.professional && String(form.get("new_profession") || "").trim()) {
+'''
+          text = replace_once(text, old_save, new_save, 'digital resume RPC save')
+
+          text = text.replace('setNotice("Profile saved. Identity changes may return verification to review.");', 'setNotice("Professional Account and Digital Resume saved. Identity changes may return verification to review.");', 1)
+
+          text = text.replace('Select any additional languages you speak.', 'Select every language you speak. This is part of your DentalShift Digital Resume.', 1)
+          text = text.replace('defaultChecked={details.professional?.skills?.includes(software)}', 'defaultChecked={(details.professional?.software || details.professional?.skills || []).includes(software)}', 1)
+          text = text.replace('(details.professional?.skills || []).some((item) => !dentalSoftwareOptions.includes(item))', '(details.professional?.software || details.professional?.skills || []).some((item) => !dentalSoftwareOptions.includes(item))', 1)
+          text = text.replace('(details.professional?.skills || []).filter((item) => !dentalSoftwareOptions.includes(item)).join(", ")', '(details.professional?.software || details.professional?.skills || []).filter((item) => !dentalSoftwareOptions.includes(item)).join(", ")', 1)
+
+          old_cv_card = '''                <div className="rounded-xl border border-dashed border-[#0078FE]/40 bg-[#edf3fa] p-3 sm:col-span-2 lg:col-span-4"><div className="flex flex-col gap-4 sm:flex-row sm:items-center"><span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-white text-[#0078FE] shadow-sm"><FileText size={23} /></span><div className="min-w-0 flex-1"><h3 className="font-extrabold text-[#002757]">Professional résumé/CV</h3><p className="mt-1 text-xs leading-5 text-slate-500">Upload a PDF, DOC or DOCX file. Maximum size 5 MB. Your document is stored privately.</p>{details.professional.resume_path && <p className="mt-2 text-xs font-extrabold text-[#017f27]"><Check size={14} className="mr-1 inline" />Résumé/CV on file</p>}</div><div className="flex flex-wrap gap-2"><label className="primary-btn cursor-pointer justify-center"><Upload size={16} />{busy ? "Please wait…" : details.professional.resume_path ? "Replace CV" : "Upload CV"}<input type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" className="sr-only" disabled={busy} onChange={(event) => void uploadResume(event.target.files?.[0])} /></label>{details.professional.resume_path && <button type="button" onClick={() => void viewResume()} className="secondary-btn">View CV</button>}</div></div></div>
+'''
+          if old_cv_card not in text:
+              raise SystemExit('legacy CV card not found')
+          text = text.replace(old_cv_card, '', 1)
+
+          software_marker = '                {(["Registered Dental Hygienist", "Certified Dental Assistant"].includes(details.professional.profession)) && <div className="rounded-xl border border-dashed border-[#01A32E]/45 bg-[#f3fbf5] p-3 sm:col-span-2 lg:col-span-4">'
+          if software_marker not in text:
+              raise SystemExit('CPR marker not found for Digital Resume insertion')
+          education_default = '{(details.professional.education || []).map((item) => [item.program, item.school, item.year].filter(Boolean).join(" | ")).filter(Boolean).join("\\n")}'
+          work_default = '{(details.professional.work_history || []).map((item) => [item.role, item.employer, item.dates, item.details].filter(Boolean).join(" | ")).filter(Boolean).join("\\n")}'
+          digital_section = '''                <div className="rounded-2xl border-2 border-[#01A32E]/30 bg-[#f5fcf7] p-4 sm:col-span-2 lg:col-span-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3"><div><div className="flex items-center gap-2"><span className="grid h-9 w-9 place-items-center rounded-xl bg-[#01A32E] text-white"><FileText size={18} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">DentalShift Digital Resume</p><h3 className="text-lg font-black text-[#002757]">Your professional profile for DentalJobs</h3></div></div><p className="mt-2 text-xs leading-5 text-slate-600">This replaces the old uploaded résumé/CV. Complete these fields once and DentalShift uses the same structured profile when you apply to DentalJobs positions. Your name and direct contact information stay private until a match.</p></div></div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className="field sm:col-span-2"><span>Professional summary</span><textarea name="digital_resume_summary" rows={4} maxLength={900} defaultValue={details.professional.resume_summary || details.professional.bio || ""} placeholder="Example: Experienced Registered Dental Hygienist focused on patient education, periodontal care and efficient recall appointments…" /></label>
+                    <label className="field sm:col-span-2"><span>Professional skills</span><input name="digital_resume_skills" defaultValue={(details.professional.clinical_skills || []).join(", ")} placeholder="Periodontal therapy, digital scanning, orthodontic assisting…" /><small className="mt-1 block text-xs text-slate-500">Separate skills with commas.</small></label>
+                    <label className="field sm:col-span-2"><span>Certifications & additional training <span className="font-normal text-slate-400">(optional)</span></span><input name="digital_resume_certifications" defaultValue={(details.professional.certifications || []).join(", ")} placeholder="WHMIS, Invisalign training, radiography…" /><small className="mt-1 block text-xs text-slate-500">Do not repeat your professional licence or CPR certificate here.</small></label>
+                    <label className="field sm:col-span-2"><span>Education</span><textarea name="digital_resume_education" rows={3} defaultValue=''' + education_default + ''' placeholder="Dental Hygiene Diploma | SAIT | 2018\nAdd another education entry on a new line" /><small className="mt-1 block text-xs text-slate-500">One entry per line: Program | School | Year.</small></label>
+                    <label className="field sm:col-span-2"><span>Work history</span><textarea name="digital_resume_work_history" rows={4} defaultValue=''' + work_default + ''' placeholder="Registered Dental Hygienist | General Dental Office | 2021–Present | Recall, perio and patient education" /><small className="mt-1 block text-xs text-slate-500">One entry per line: Role | Employer or general office description | Dates | Details. New graduates with 0 years of experience may leave this blank.</small></label>
+                  </div>
+                </div>
+'''
+          text = text.replace(software_marker, digital_section + software_marker, 1)
+          path.write_text(text)
+
+          # ---- DentalJobs applications: Digital Resume readiness replaces CV file requirement ----
+          path = Path('app/classifieds/page.tsx')
+          text = path.read_text()
+          text = text.replace('  const [resumePath, setResumePath] = useState<string | null>(null);\n', '', 1)
+          text = text.replace('          const { data: professionalRow } = await supabase.from("professional_profiles").select("resume_path").eq("user_id", user.id).maybeSingle();\n          setResumePath(professionalRow?.resume_path || null);\n', '', 1)
+
+          old_open = '''  const openConnection = (ad: JobCard) => {
+    setConnectionError("");
+    setConnectionMessage("");
+    if (portalRole === "professional" && ad.kind === "office" && !resumePath) {
+      window.alert("Résumé/CV Required\\n\\nYou need to upload a résumé or CV to your Professional Account before you can apply for DentalJobs positions.");
+      return;
+    }
+    setSelectedOpportunity(ad);
+  };
+'''
+          new_open = '''  const getDigitalResumeReadiness = async () => {
+    const { data, error } = await supabase.rpc("get_professional_digital_resume_readiness");
+    if (error) throw error;
+    const result = (data || {}) as { ready?: boolean; completion?: number; missing?: string[] };
+    return { ready: Boolean(result.ready), completion: Number(result.completion || 0), missing: Array.isArray(result.missing) ? result.missing : [] };
+  };
+
+  const openConnection = async (ad: JobCard) => {
+    setConnectionError("");
+    setConnectionMessage("");
+    if (portalRole === "professional" && ad.kind === "office") {
+      try {
+        const readiness = await getDigitalResumeReadiness();
+        if (!readiness.ready) {
+          const missing = readiness.missing.length ? `\\n\\nStill needed: ${readiness.missing.join(", ")}` : "";
+          const openAccount = window.confirm(`Complete the Digital Resume section of your Professional Account before applying.${missing}\\n\\nOpen your Professional Account now?`);
+          if (openAccount) window.location.assign("/professionals/profile");
+          return;
+        }
+      } catch {
+        window.alert("DentalShift could not verify your Digital Resume. Please try again.");
+        return;
+      }
+    }
+    setSelectedOpportunity(ad);
+  };
+'''
+          text = replace_once(text, old_open, new_open, 'DentalJobs openConnection gate')
+          text = replace_once(text,
+              '        if (!resumePath) throw new Error("A résumé/CV is required before you can apply for a DentalJobs position.");\n',
+              '        const readiness = await getDigitalResumeReadiness();\n        if (!readiness.ready) {\n          const missing = readiness.missing.length ? ` Missing: ${readiness.missing.join(", ")}.` : "";\n          throw new Error(`Complete the Digital Resume section of your Professional Account before applying.${missing}`);\n        }\n',
+              'DentalJobs send gate')
+          text = replace_once(text,
+              '          initiator_role: "professional", status: "pending", message: connectionMessage.trim() || null, resume_path_snapshot: resumePath,\n',
+              '          initiator_role: "professional", status: "pending", message: connectionMessage.trim() || null, resume_path_snapshot: null,\n',
+              'application resume snapshot')
+          text = text.replace('Advertise what you are looking for without displaying your identity. Your résumé/CV already on file can be used when you apply.', 'Advertise what you are looking for without displaying your identity. DentalShift uses the Digital Resume in your Professional Account when you apply.')
+          text = text.replace('Your name and direct contact information will not appear publicly. DentalShift can use the résumé/CV already stored in your account when you apply.', 'Your name and direct contact information will not appear publicly. DentalShift uses the Digital Resume in your Professional Account when you apply.')
+          text = text.replace('DentalShift does not automatically reveal your account contact details. Your résumé/CV may contain identifying or contact information.', 'DentalShift shares your structured Digital Resume while keeping your name and direct contact information private until a match is made.')
+          old_apply_card = '''{portalRole === "professional" && <div className={`mt-4 rounded-2xl border p-4 ${resumePath ? "border-[#01A32E]/25 bg-[#f3fbf5]" : "border-amber-200 bg-amber-50"}`}><div className="flex items-start gap-3"><FileText size={20} className={resumePath ? "text-[#01A32E]" : "text-amber-600"}/><div><p className="font-black text-[#002757]">{resumePath ? "Candidate Preview will be shared" : "No résumé/CV currently on file"}</p><p className="mt-1 text-sm leading-6 text-slate-600">{resumePath ? "DentalShift shares the sanitized Candidate Preview generated from your résumé. Your original résumé, name and direct contact details stay private until a dental office purchases Candidate Unlock." : "Upload a PDF or DOCX résumé in your professional profile so DentalShift can generate a privacy-safe Candidate Preview before you apply."}</p></div></div></div>}'''
+          new_apply_card = '''{portalRole === "professional" && <div className="mt-4 rounded-2xl border border-[#01A32E]/25 bg-[#f3fbf5] p-4"><div className="flex items-start gap-3"><FileText size={20} className="text-[#01A32E]"/><div><p className="font-black text-[#002757]">Digital Resume will be shared</p><p className="mt-1 text-sm leading-6 text-slate-600">DentalShift shares the structured Digital Resume from your Professional Account. Your name, direct contact details and exact address remain private until a match is made. No uploaded résumé/CV is required.</p></div></div></div>}'''
+          text = replace_once(text, old_apply_card, new_apply_card, 'application resume card')
+          text = text.replace('''{postingMode === "professional" && <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-4 sm:col-span-2"><div className="flex items-start gap-3"><FileText size={20} className="mt-0.5 shrink-0 text-[#002757]" /><div><p className="font-black text-[#002757]">Résumé/CV on file</p><p className="mt-1 text-sm leading-6 text-slate-600">When you apply to an office position, DentalShift can use the private résumé/CV stored in your professional profile instead of asking you to upload it again.</p></div></div></div>}''', '''{postingMode === "professional" && <div className="rounded-2xl border border-[#002757]/15 bg-[#edf3fa] p-4 sm:col-span-2"><div className="flex items-start gap-3"><FileText size={20} className="mt-0.5 shrink-0 text-[#002757]" /><div><p className="font-black text-[#002757]">Digital Resume</p><p className="mt-1 text-sm leading-6 text-slate-600">DentalJobs uses the structured Digital Resume in your Professional Account. A traditional résumé or CV upload is not required.</p></div></div></div>}''')
+          path.write_text(text)
+
+          # ---- Candidate card: no CV download action ----
+          path = Path('components/OfficePostingsCard.tsx')
+          text = path.read_text()
+          text = text.replace(', Download,', ',', 1)
+          text = text.replace('  onDownloadResume: (connection: JobConnection) => void;\n', '', 1)
+          text = text.replace('  onDownloadResume,\n', '', 1)
+          import re
+          text, count = re.subn(r'\s*<button disabled=\{unlockBusyId === item\.id\} onClick=\{\(\) => onDownloadResume\(item\)\} style=\{\{ \.\.\.candidateActionBase, border: 0, background: "#EA4335", color: "white" \}\}><Download size=\{15\} /> Résumé / CV</button>', '', text, count=1)
+          if count != 1:
+              raise SystemExit(f'candidate CV button: expected 1 match, found {count}')
+          path.write_text(text)
+
+          # Remove obsolete CV callback/method from classifieds after card no longer needs it.
+          path = Path('app/classifieds/page.tsx')
+          text = path.read_text()
+          start = '  const downloadMatchedResume = async (connection: JobConnection) => {\n'
+          end = '  const loadNotifications = async () => {\n'
+          if start in text and end in text:
+              before, rest = text.split(start, 1)
+              _, after = rest.split(end, 1)
+              text = before + end + after
+          text = text.replace('          onDownloadResume={(connection) => void downloadMatchedResume(connection)}\n', '', 1)
+          # Matched candidate modal should not offer a hosted CV either.
+          import re
+          text = re.sub(r'\{unlockedCandidate\.resumeUrl \? <a href=\{unlockedCandidate\.resumeUrl\}.*?</a> : <p className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm font-semibold text-slate-500">No original résumé is currently available\.</p>\}', '<p className="mt-5 rounded-2xl bg-slate-50 p-4 text-sm font-semibold leading-6 text-slate-600">Need a traditional résumé or another document? Ask the professional directly in DentalShift messaging after the match.</p>', text, count=1, flags=re.S)
+          path.write_text(text)
+
+          # ---- Root layout: no floating Digital Resume button/legacy CV DOM cleanup ----
+          path = Path('app/layout.tsx')
+          text = path.read_text()
+          text = text.replace('import { ProfessionalDigitalResumeLink } from "@/components/ProfessionalDigitalResumeLink";\n', '')
+          text = text.replace('import { ProfessionalDigitalResumeCleanup } from "@/components/ProfessionalDigitalResumeCleanup";\n', '')
+          text = text.replace('<ProfessionalDigitalResumeLink /><ProfessionalDigitalResumeCleanup />', '')
+          path.write_text(text)
+          PY
+
+      - name: Verify migration
+        shell: bash
+        run: |
+          ! grep -q "Professional résumé/CV" app/page.tsx
+          ! grep -q "uploadProfessionalResume" app/page.tsx
+          ! grep -q "Résumé/CV Required" app/classifieds/page.tsx
+          grep -q "digital_resume_summary" app/page.tsx
+          grep -q "save_professional_digital_resume" app/page.tsx
+          grep -q "get_professional_digital_resume_readiness" app/classifieds/page.tsx
+          grep -q "window.location.assign(\"/professionals/profile\")" app/classifieds/page.tsx
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          git config user.name "DentalShift Migration"
+          git config user.email "actions@users.noreply.github.com"
+          git add app/page.tsx app/classifieds/page.tsx app/layout.tsx lib/dentalshift.ts components/OfficePostingsCard.tsx
+          git commit -m "Integrate Digital Resume into Professional Account"
+          git push origin main
