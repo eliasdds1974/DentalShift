@@ -18,6 +18,7 @@ type ContactSettings = {
   province: string;
   postal_code: string;
   country: string;
+  dentaljobs_approval_required: boolean;
 };
 
 const EMPTY: ContactSettings = {
@@ -31,6 +32,7 @@ const EMPTY: ContactSettings = {
   province: "",
   postal_code: "",
   country: "Canada",
+  dentaljobs_approval_required: false,
 };
 
 export default function AdminSettingsPage() {
@@ -61,7 +63,7 @@ export default function AdminSettingsPage() {
         setAuthorized(true);
         const { data, error: loadError } = await supabase
           .from("dentalshift_contact_settings")
-          .select("company_name,support_email,phone,website,address_line1,address_line2,city,province,postal_code,country")
+          .select("company_name,support_email,phone,website,address_line1,address_line2,city,province,postal_code,country,dentaljobs_approval_required")
           .eq("id", true)
           .single();
         if (loadError) throw loadError;
@@ -78,10 +80,11 @@ export default function AdminSettingsPage() {
             province: data.province || "",
             postal_code: data.postal_code || "",
             country: data.country || "Canada",
+            dentaljobs_approval_required: Boolean(data.dentaljobs_approval_required),
           });
         }
       } catch {
-        if (active) setError("DentalShift contact settings could not be loaded.");
+        if (active) setError("DentalShift settings could not be loaded.");
       } finally {
         if (active) setChecking(false);
       }
@@ -90,7 +93,7 @@ export default function AdminSettingsPage() {
     return () => { active = false; };
   }, []);
 
-  const update = (key: keyof ContactSettings, value: string) => {
+  const update = <K extends keyof ContactSettings>(key: K, value: ContactSettings[K]) => {
     setSettings((current) => ({ ...current, [key]: value }));
     setSaved(false);
   };
@@ -117,7 +120,7 @@ export default function AdminSettingsPage() {
       })
       .eq("id", true);
 
-    if (saveError) setError("Contact information could not be saved.");
+    if (saveError) setError("DentalShift settings could not be saved.");
     else setSaved(true);
     setSaving(false);
   };
@@ -137,31 +140,57 @@ export default function AdminSettingsPage() {
           <div>
             <Image src="/dentalshift-logo.svg" alt="DentalShift" width={2171} height={724} className="h-12 w-auto" priority />
             <div className="mt-5 flex items-center gap-2 text-sm font-black uppercase tracking-[.12em] text-[#01A32E]"><Settings size={17} /> Admin settings</div>
-            <h1 className="mt-2 text-3xl font-black text-[#002757]">DentalShift Contact Information</h1>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">This is the central source for DentalShift contact information used in branded PDFs, reports, notices and other platform documents.</p>
+            <h1 className="mt-2 text-3xl font-black text-[#002757]">DentalShift Settings</h1>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Manage platform controls and the contact information used in branded PDFs, reports, notices and other DentalShift documents.</p>
           </div>
           <button onClick={() => router.push("/admin/overview")} className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-black text-[#002757] shadow-sm"><ArrowLeft size={17} /> Back to Admin</button>
         </div>
 
-        <form onSubmit={save} className="mt-7 rounded-3xl border border-slate-200 bg-white p-6 shadow-lg sm:p-8">
-          <div className="grid gap-5 md:grid-cols-2">
-            <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Company name</span><input value={settings.company_name} onChange={(e) => update("company_name", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Support email</span><input type="email" value={settings.support_email} onChange={(e) => update("support_email", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Phone</span><input value={settings.phone} onChange={(e) => update("phone", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Website</span><input value={settings.website} onChange={(e) => update("website", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block md:col-span-2"><span className="mb-1.5 block text-sm font-black text-slate-700">Address line 1</span><input value={settings.address_line1} onChange={(e) => update("address_line1", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block md:col-span-2"><span className="mb-1.5 block text-sm font-black text-slate-700">Address line 2</span><input value={settings.address_line2} onChange={(e) => update("address_line2", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">City</span><input value={settings.city} onChange={(e) => update("city", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Province</span><input value={settings.province} onChange={(e) => update("province", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Postal code</span><input value={settings.postal_code} onChange={(e) => update("postal_code", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-            <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Country</span><input value={settings.country} onChange={(e) => update("country", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
-          </div>
+        <form onSubmit={save} className="mt-7 space-y-6">
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg sm:p-8">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[.12em] text-[#01A32E]">DentalJobs</p>
+                <h2 className="mt-1 text-xl font-black text-[#002757]">Require admin approval before ads go live</h2>
+                <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">When ON, new or edited DentalJobs ads stay hidden until an admin approves them. When OFF, ads that pass the automatic identity screening publish immediately.</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={settings.dentaljobs_approval_required}
+                onClick={() => update("dentaljobs_approval_required", !settings.dentaljobs_approval_required)}
+                className={`relative h-10 w-[76px] shrink-0 rounded-full transition ${settings.dentaljobs_approval_required ? "bg-[#01A32E]" : "bg-slate-300"}`}
+              >
+                <span className={`absolute top-1 h-8 w-8 rounded-full bg-white shadow transition-all ${settings.dentaljobs_approval_required ? "left-10" : "left-1"}`} />
+              </button>
+            </div>
+            <div className={`mt-4 rounded-2xl border p-4 text-sm font-bold ${settings.dentaljobs_approval_required ? "border-amber-200 bg-amber-50 text-amber-800" : "border-[#01A32E]/20 bg-[#f3fbf5] text-[#017f27]"}`}>
+              Approval is currently {settings.dentaljobs_approval_required ? "ON — ads wait for admin review." : "OFF — ads publish automatically after screening."}
+            </div>
+          </section>
 
-          {error && <p className="mt-5 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
-          {saved && <p className="mt-5 rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">DentalShift contact information saved.</p>}
+          <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-lg sm:p-8">
+            <h2 className="text-xl font-black text-[#002757]">DentalShift Contact Information</h2>
+            <p className="mt-1 text-sm text-slate-500">Used in branded platform documents and notices.</p>
+            <div className="mt-5 grid gap-5 md:grid-cols-2">
+              <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Company name</span><input value={settings.company_name} onChange={(e) => update("company_name", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Support email</span><input type="email" value={settings.support_email} onChange={(e) => update("support_email", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Phone</span><input value={settings.phone} onChange={(e) => update("phone", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Website</span><input value={settings.website} onChange={(e) => update("website", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block md:col-span-2"><span className="mb-1.5 block text-sm font-black text-slate-700">Address line 1</span><input value={settings.address_line1} onChange={(e) => update("address_line1", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block md:col-span-2"><span className="mb-1.5 block text-sm font-black text-slate-700">Address line 2</span><input value={settings.address_line2} onChange={(e) => update("address_line2", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">City</span><input value={settings.city} onChange={(e) => update("city", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Province</span><input value={settings.province} onChange={(e) => update("province", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Postal code</span><input value={settings.postal_code} onChange={(e) => update("postal_code", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+              <label className="block"><span className="mb-1.5 block text-sm font-black text-slate-700">Country</span><input value={settings.country} onChange={(e) => update("country", e.target.value)} className="h-11 w-full rounded-xl border border-slate-200 px-3 text-sm font-semibold outline-none focus:border-[#01A32E]" /></label>
+            </div>
+          </section>
 
-          <div className="mt-6 flex justify-end">
-            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#01A32E] disabled:opacity-60"><Save size={17} /> {saving ? "Saving…" : "Save Contact Information"}</button>
+          {error && <p className="rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{error}</p>}
+          {saved && <p className="rounded-xl bg-[#eaf8ee] p-3 text-sm font-bold text-[#017f27]">DentalShift settings saved.</p>}
+
+          <div className="flex justify-end">
+            <button type="submit" disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-[#002757] px-5 py-3 text-sm font-black text-white shadow-sm transition hover:bg-[#01A32E] disabled:opacity-60"><Save size={17} /> {saving ? "Saving…" : "Save Settings"}</button>
           </div>
         </form>
       </div>
