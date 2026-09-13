@@ -34,3 +34,5 @@ jobs:
           fi
           git commit -m "Rebuild Office Postings card cleanly"
           git push origin main
+
+# retry after component type alignment
