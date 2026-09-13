@@ -1,0 +1,24 @@
+name: Use secure office connections feed
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/use-secure-office-connections-feed.py'
+      - '.github/workflows/use-secure-office-connections-feed.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python .github/scripts/use-secure-office-connections-feed.py
+      - run: npm install
+      - run: npm run build
+      - run: git config user.name automation
+      - run: git config user.email automation@example.com
+      - run: git add app/classifieds/page.tsx
+      - run: git diff --cached --quiet || git commit -m "Load office interested professionals securely"
+      - run: git push origin main
