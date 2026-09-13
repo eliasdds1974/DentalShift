@@ -15,10 +15,6 @@ function text(el: Element | null) {
   return el?.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
-function isProfessionalPortal() {
-  return window.localStorage.getItem("dentalshift_portal_role") === "professional";
-}
-
 function professionalSection() {
   return Array.from(document.querySelectorAll("section")).find((section) =>
     Array.from(section.querySelectorAll("p")).some((p) => text(p).toLowerCase() === "my availability ads"),
@@ -43,7 +39,6 @@ export function ProfessionalPostingsCardParity() {
   const countsRef = useRef<Record<string, number>>({});
 
   useEffect(() => {
-    if (!isProfessionalPortal()) return;
     let cancelled = false;
     let observer: MutationObserver | null = null;
 
@@ -76,7 +71,6 @@ export function ProfessionalPostingsCardParity() {
     };
 
     const apply = () => {
-      if (!isProfessionalPortal()) return;
       const section = professionalSection();
       if (!section) return;
 
@@ -145,13 +139,7 @@ export function ProfessionalPostingsCardParity() {
         const info = article.firstElementChild as HTMLElement | null;
         const actions = article.children[1] as HTMLElement | undefined;
         if (!info || !actions) continue;
-
-        article.style.border = "1px solid #b9dfc3";
-        article.style.borderRadius = "14px";
-        article.style.overflow = "hidden";
-        article.style.background = "#fff";
-        article.style.padding = "0";
-        article.style.boxShadow = "none";
+        if (article.dataset.officeParityApplied === "1") continue;
 
         const titleEl = info.querySelector<HTMLElement>("h3");
         const locationEl = info.querySelector<HTMLElement>("h3 + p");
@@ -165,6 +153,13 @@ export function ProfessionalPostingsCardParity() {
         const employment = meta?.employment_type || title.split(" — ").slice(1).join(" — ") || "Position";
         const posted = meta?.created_at ? formatDate(meta.created_at) : "—";
         const active = displayStatus.toLowerCase() === "active";
+
+        article.style.border = "1px solid #b9dfc3";
+        article.style.borderRadius = "14px";
+        article.style.overflow = "hidden";
+        article.style.background = "#fff";
+        article.style.padding = "0";
+        article.style.boxShadow = "none";
 
         info.innerHTML = `
           <div style="background:#f7fff9;padding:12px 14px">
@@ -221,13 +216,16 @@ export function ProfessionalPostingsCardParity() {
           view.style.color = "#06499d";
           view.style.textDecoration = "none";
         }
+
+        article.dataset.officeParityApplied = "1";
       }
     };
 
     void loadMeta();
+    apply();
     observer = new MutationObserver(() => apply());
     observer.observe(document.body, { childList: true, subtree: true });
-    const timer = window.setInterval(apply, 1500);
+    const timer = window.setInterval(apply, 1000);
 
     return () => {
       cancelled = true;
