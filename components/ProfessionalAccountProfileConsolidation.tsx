@@ -5,6 +5,7 @@ import { useEffect } from "react";
 export function ProfessionalAccountProfileConsolidation() {
   useEffect(() => {
     const styleId = "professional-account-color-polish";
+    const loadingStarted = new WeakMap<HTMLFormElement, number>();
 
     const ensureColorStyles = () => {
       if (document.getElementById(styleId)) return;
@@ -92,11 +93,74 @@ export function ProfessionalAccountProfileConsolidation() {
         form[data-professional-account-polish="true"] span.text-slate-500 {
           color: #52647a !important;
         }
+
+        [data-professional-load-recovery="true"] {
+          margin-top: 10px;
+          display: flex;
+          justify-content: center;
+        }
       `;
       document.head.appendChild(style);
     };
 
+    const recoverLoadingState = () => {
+      const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'));
+      const dialog = dialogs.find((node) => node.querySelector("#account-title")?.textContent?.trim() === "Professional account");
+      if (!dialog) return;
+
+      const form = dialog.querySelector<HTMLFormElement>("form");
+      if (!form) return;
+
+      const loadingText = Array.from(form.querySelectorAll<HTMLElement>("p")).find((node) =>
+        (node.textContent || "").includes("Loading your account details") ||
+        (node.textContent || "").includes("taking longer than expected")
+      );
+
+      if (!loadingText) {
+        loadingStarted.delete(form);
+        form.querySelector('[data-professional-load-recovery="true"]')?.remove();
+        return;
+      }
+
+      const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
+      if (submitButton && submitButton.textContent?.trim() === "Saving…") {
+        submitButton.textContent = "Loading…";
+        submitButton.disabled = true;
+      }
+
+      if (!loadingStarted.has(form)) loadingStarted.set(form, Date.now());
+      const startedAt = loadingStarted.get(form) || Date.now();
+      if (Date.now() - startedAt < 7000) return;
+
+      loadingText.textContent = "Your account is taking longer than expected to load.";
+      if (form.querySelector('[data-professional-load-recovery="true"]')) return;
+
+      const recovery = document.createElement("div");
+      recovery.dataset.professionalLoadRecovery = "true";
+
+      const retry = document.createElement("button");
+      retry.type = "button";
+      retry.className = "secondary-btn justify-center";
+      retry.textContent = "Retry loading";
+      retry.addEventListener("click", () => {
+        loadingStarted.delete(form);
+        const closeButton = dialog.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
+        closeButton?.click();
+        window.setTimeout(() => {
+          const accountButton = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+            button.textContent?.trim() === "Account"
+          );
+          accountButton?.click();
+        }, 150);
+      });
+
+      recovery.appendChild(retry);
+      loadingText.insertAdjacentElement("afterend", recovery);
+    };
+
     const consolidate = () => {
+      recoverLoadingState();
+
       const headings = Array.from(document.querySelectorAll<HTMLHeadingElement>("h3"));
       const contactHeading = headings.find((node) => {
         const text = node.textContent?.trim();
@@ -157,8 +221,12 @@ export function ProfessionalAccountProfileConsolidation() {
 
     const observer = new MutationObserver(consolidate);
     observer.observe(document.body, { childList: true, subtree: true });
+    const interval = window.setInterval(recoverLoadingState, 750);
 
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      window.clearInterval(interval);
+    };
   }, []);
 
   return null;
