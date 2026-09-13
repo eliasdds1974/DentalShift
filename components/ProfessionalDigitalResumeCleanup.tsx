@@ -1,9 +1,8 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BriefcaseBusiness, Check, FileText, GraduationCap, Sparkles } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { BriefcaseBusiness, Check, GraduationCap, Sparkles } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
 type EducationEntry = { program: string; school: string; year: string };
@@ -129,14 +128,14 @@ function ResumeFields({ form, onReady }: { form: HTMLFormElement; onReady: (save
   }
 
   return (
-    <div className="rounded-2xl border-2 border-[#01A32E]/30 bg-[#f5fcf7] p-4 sm:col-span-2 lg:col-span-4">
+    <div className="rounded-2xl border-2 border-[#01A32E]/30 bg-[#f5fcf7] p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3">
             <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-[#01A32E] text-white"><Sparkles size={19}/></span>
             <div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">DentalShift Digital Resume</p><h3 className="text-lg font-black text-[#002757]">Your DentalJobs professional profile</h3></div>
           </div>
-          <p className="mt-2 text-xs leading-5 text-slate-600">This replaces the old uploaded Professional résumé/CV. Complete these fields as part of your account and DentalShift uses the same structured profile whenever you apply to a DentalJobs position.</p>
+          <p className="mt-2 text-xs leading-5 text-slate-600">This is part of your Professional Account and replaces the uploaded résumé/CV. DentalShift uses this same structured profile whenever you apply for a DentalJobs position.</p>
         </div>
         <div className="rounded-xl bg-white px-3 py-2 text-center shadow-sm ring-1 ring-[#01A32E]/15"><p className="text-xl font-black text-[#01A32E]">{completion}%</p><p className="text-[10px] font-black uppercase tracking-wide text-slate-400">Application readiness</p></div>
       </div>
@@ -165,21 +164,13 @@ function ResumeFields({ form, onReady }: { form: HTMLFormElement; onReady: (save
 }
 
 export function ProfessionalDigitalResumeCleanup() {
-  const pathname = usePathname();
   const [target, setTarget] = useState<HTMLElement | null>(null);
   const [form, setForm] = useState<HTMLFormElement | null>(null);
   const saveRef = useRef<(() => Promise<void>) | null>(null);
   const bypassRef = useRef(false);
 
   useEffect(() => {
-    if (pathname !== "/professionals/profile") {
-      setTarget(null);
-      setForm(null);
-      return;
-    }
-
     let portalNode: HTMLDivElement | null = null;
-    let mountedForm: HTMLFormElement | null = null;
 
     const integrate = () => {
       const headings = Array.from(document.querySelectorAll("h3"));
@@ -190,13 +181,17 @@ export function ProfessionalDigitalResumeCleanup() {
       if (!(legacyCard instanceof HTMLElement) || !(accountForm instanceof HTMLFormElement)) return;
 
       legacyCard.style.display = "none";
-      if (!portalNode || !portalNode.isConnected) {
-        portalNode = document.createElement("div");
-        portalNode.dataset.digitalResumeAccount = "true";
-        portalNode.className = "sm:col-span-2 lg:col-span-4";
-        legacyCard.parentElement?.insertBefore(portalNode, legacyCard);
+      const existing = accountForm.querySelector<HTMLElement>('[data-digital-resume-account="true"]');
+      if (existing) {
+        setTarget(existing);
+        setForm(accountForm);
+        return;
       }
-      mountedForm = accountForm;
+
+      portalNode = document.createElement("div");
+      portalNode.dataset.digitalResumeAccount = "true";
+      portalNode.className = "sm:col-span-2 lg:col-span-4";
+      legacyCard.parentElement?.insertBefore(portalNode, legacyCard);
       setTarget(portalNode);
       setForm(accountForm);
     };
@@ -211,7 +206,7 @@ export function ProfessionalDigitalResumeCleanup() {
       setTarget(null);
       setForm(null);
     };
-  }, [pathname]);
+  }, []);
 
   useEffect(() => {
     if (!form) return;
@@ -228,7 +223,7 @@ export function ProfessionalDigitalResumeCleanup() {
         bypassRef.current = true;
         form.requestSubmit();
       } catch {
-        // The embedded Digital Resume displays its own save error and keeps the account open.
+        // Embedded Digital Resume shows its own save error and keeps the account open.
       }
     };
     form.addEventListener("submit", intercept, true);
