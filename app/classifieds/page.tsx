@@ -1048,9 +1048,9 @@ export default function DentalJobsPage() {
           <button type="button" onClick={() => { setEditingListing(null); setPostingMode("professional"); setSubmitted(false); setPosted(false); setPublishError(""); }} className="group h-full min-h-[250px] w-full rounded-2xl border-2 border-[#01A32E]/20 bg-white p-5 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-[#01A32E] hover:shadow-md"><div className="flex items-start gap-4"><span className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-[#01A32E] text-white"><UserRound size={24} /></span><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Dental Professional</p><h2 className="mt-1 text-xl font-black text-slate-900">Looking for an Office</h2><p className="mt-2 text-sm leading-6 text-slate-600">Advertise what you are looking for without displaying your identity. Your résumé/CV already on file can be used when you apply.</p><span className="mt-3 inline-flex items-center gap-2 text-sm font-black text-[#01A32E]">Create professional posting <FileText size={16} /></span></div></div></button>
         </div>}
 
-        {portalRole === "office" && <section id="my-dentaljobs" className="relative w-full min-w-0 scroll-mt-24 rounded-3xl border-2 border-[#01A32E]/55 bg-[#effaf2] p-5 shadow-md sm:p-7 lg:col-span-2 lg:min-h-[680px]">
-          <div className="absolute inset-y-0 left-0 w-1.5 bg-[#01A32E]" />
-          <div className="flex flex-wrap items-end justify-between gap-3 pl-1">
+        {portalRole === "office" && <section id="my-dentaljobs" className="relative w-full min-w-0 scroll-mt-24 overflow-hidden rounded-2xl border border-[#01A32E]/30 bg-white shadow-sm lg:col-span-2">
+          <div className="h-1.5 w-full bg-[#01A32E]" />
+          <div className="flex flex-wrap items-end justify-between gap-3 border-b border-slate-200 bg-[#f7fbf8] px-5 py-4 sm:px-6">
             <div>
               <p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Office Postings</p>
               <h2 className="mt-1 text-2xl font-black text-[#002757]">My DentalJobs</h2>
@@ -1062,7 +1062,7 @@ export default function DentalJobsPage() {
           {connectionError && <p className="mt-3 rounded-xl bg-rose-50 p-3 text-sm font-bold text-rose-700">{connectionError}</p>}
           {unlockError && <div className="mt-3 flex flex-col gap-2 rounded-xl bg-rose-50 p-3 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm font-bold text-rose-700">{unlockError}</p>{unlockError.toLowerCase().includes("credit card") && <button type="button" onClick={() => void setupBillingCard()} className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-[#002757] px-3.5 py-2 text-xs font-black text-white"><CreditCard size={14}/> Add Card</button>}</div>}
 
-          <div className="mt-5 grid gap-5">{myOfficeJobs.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-sm font-semibold text-slate-500">You have no DentalJobs postings yet.</div> : myOfficeJobs.map((job) => {
+          <div className="grid gap-4 p-4 sm:p-5">{myOfficeJobs.length === 0 ? <div className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-sm font-semibold text-slate-500">You have no DentalJobs postings yet.</div> : myOfficeJobs.map((job) => {
             const daysLeft = Math.max(0, Math.ceil((new Date(job.expires_at).getTime() - Date.now()) / 86400000));
             const isActive = job.status === "active" && daysLeft > 0;
             const displayStatus = job.status === "active" && daysLeft === 0 ? "expired" : job.status;
@@ -1075,8 +1075,8 @@ export default function DentalJobsPage() {
             const mutualCount = jobConnections.filter((item) => item.initiatorRole === "office" && item.status === "interested" && !isCandidateUnlocked(item)).length;
             const expanded = !!expandedOfficeInterestJobs[job.id];
             const shownConnections = expanded ? jobConnections : jobConnections.slice(0, 3);
-            return <article key={job.id} className="min-w-0 rounded-3xl border-2 bg-white shadow-md" style={{ borderColor: theme.border }}>
-              <div className="p-5 sm:p-7">
+            return <article key={job.id} className="min-w-0 overflow-hidden rounded-2xl border bg-white shadow-sm" style={{ borderColor: theme.border }}>
+              <div className="p-4 sm:p-5">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
@@ -1091,14 +1091,14 @@ export default function DentalJobsPage() {
                   </div>
                 </div>
 
-                <div className="mt-5 flex w-full flex-wrap items-center gap-3 border-t border-slate-100 pt-5">
+                <div className="mt-4 flex w-full flex-wrap items-center gap-2.5 border-t border-slate-100 pt-4">
                   <button type="button" onClick={() => setOfficeManageListing(job)} className="inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-[#002757] px-4 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#01A32E]"><MoreVertical size={15}/> Manage</button>
                   <Link href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`} className="inline-flex min-h-10 items-center justify-center gap-2 whitespace-nowrap rounded-xl border-2 border-[#4285F4]/45 bg-white px-4 py-2.5 text-sm font-black text-[#245FB8] shadow-sm transition hover:bg-[#eef4ff]"><FileText size={15}/> View Ad</Link>
                   <div className="inline-flex shrink-0"><ShareListingButton listingId={job.id} compact /></div>
                 </div>
               </div>
 
-              <div className="border-t-2 border-slate-200 bg-[#fbfdfc] p-5 sm:p-7">
+              <div className="border-t border-slate-200 bg-slate-50/70 p-4 sm:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <div>
                     <p className="text-base font-black text-[#002757]">Interested Dental Professionals</p>
@@ -1107,15 +1107,15 @@ export default function DentalJobsPage() {
                   {jobConnections.length > 3 && <button type="button" onClick={() => setExpandedOfficeInterestJobs((current) => ({ ...current, [job.id]: !expanded }))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-[#002757] hover:bg-slate-50">{expanded ? "Show less" : `View all ${jobConnections.length}`}</button>}
                 </div>
 
-                {jobConnections.length === 0 ? <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center"><UserRound size={22} className="mx-auto text-slate-400"/><p className="mt-2 text-xs font-bold text-slate-500">When a professional selects I’m Interested or Apply to this Position, their card will appear here.</p></div> : <div className="mt-5 grid gap-5">{shownConnections.map((item) => {
+                {jobConnections.length === 0 ? <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-5 text-center"><UserRound size={22} className="mx-auto text-slate-400"/><p className="mt-2 text-xs font-bold text-slate-500">When a professional selects I’m Interested or Apply to this Position, their card will appear here.</p></div> : <div className="mt-3 grid gap-3">{shownConnections.map((item) => {
                   const preview = item.candidatePreview;
                   const unlocked = isCandidateUnlocked(item);
                   const candidateProfession = preview?.profession || item.profession || "Dental Professional";
                   const candidateTheme = getProfessionalCardTheme(candidateProfession);
                   const statusLabel = unlocked ? "Connected" : item.initiatorRole === "office" && item.status === "interested" ? "Mutual Interest" : item.initiatorRole === "professional" && item.status === "pending" ? "New Interest" : item.initiatorRole === "office" && item.status === "pending" ? "Awaiting Professional" : "Interested";
                   const statusClass = unlocked ? "bg-blue-50 text-blue-700" : statusLabel === "Mutual Interest" ? "bg-[#eaf8ee] text-[#017f27]" : statusLabel === "New Interest" ? "bg-rose-50 text-rose-700" : "bg-amber-50 text-amber-700";
-                  return <div key={item.id} className="min-w-0 rounded-2xl border-2 bg-white p-5 shadow-md sm:min-h-[250px] sm:p-6" style={{ borderColor: candidateTheme.border }}>
-                    <div className="flex flex-col gap-6">
+                  return <div key={item.id} className="min-w-0 rounded-xl border-2 bg-white p-4 shadow-sm sm:p-5" style={{ borderColor: candidateTheme.border }}>
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="break-words text-lg font-black" style={{ color: candidateTheme.text }}>{candidateProfession}</p>
@@ -1126,7 +1126,7 @@ export default function DentalJobsPage() {
                         {preview?.summary && <p className="mt-2 max-w-2xl text-sm leading-5 text-slate-500">{preview.summary}</p>}
                         {preview?.skills?.length ? <div className="mt-3 flex flex-wrap gap-2">{preview.skills.slice(0, 5).map((skill) => <span key={skill} className="rounded-lg bg-slate-50 px-2.5 py-1.5 text-[11px] font-black text-slate-600 ring-1 ring-slate-200">{skill}</span>)}</div> : null}
                       </div>
-                      <div className="flex w-full flex-wrap items-center gap-3 border-t-2 border-slate-100 pt-5">
+                      <div className="flex w-full flex-wrap items-center gap-2.5 border-t border-slate-100 pt-4 lg:w-auto lg:shrink-0 lg:border-l lg:border-t-0 lg:pl-5 lg:pt-0">
                         {unlocked ? <>
                           <button type="button" disabled={unlockBusyId === item.id} onClick={() => void downloadMatchedResume(item)} className="inline-flex items-center gap-1.5 rounded-lg bg-[#EA4335] px-3 py-2 text-xs font-black text-white"><Download size={14}/> Résumé / CV</button>
                           <button type="button" disabled={unlockBusyId === item.id} onClick={() => void viewUnlockedCandidate(item)} className="inline-flex items-center gap-1.5 rounded-lg border border-[#01A32E]/30 bg-[#eaf8ee] px-3 py-2 text-xs font-black text-[#017f27]"><FileText size={14}/> View Candidate</button>
