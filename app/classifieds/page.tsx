@@ -1073,8 +1073,8 @@ export default function DentalJobsPage() {
             const newCount = jobConnections.filter((item) => item.initiatorRole === "professional" && item.status === "pending" && !isCandidateUnlocked(item)).length;
             const expanded = !!expandedOfficeInterestJobs[job.id];
             const shownConnections = expanded ? jobConnections : jobConnections.slice(0, 3);
-            return <article key={job.id} className="overflow-hidden rounded-2xl border border-[#01A32E]/35 bg-white shadow-sm">
-              <div className="bg-gradient-to-r from-[#f5fbf6] to-white px-5 py-6 sm:px-7 sm:py-7">
+            return <article key={job.id} className="flex w-full min-w-0 flex-col overflow-hidden rounded-2xl border border-[#01A32E]/35 bg-white shadow-sm">
+              <div className="w-full shrink-0 bg-gradient-to-r from-[#f5fbf6] to-white px-5 py-6 sm:px-7 sm:py-7">
                 <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-3">
@@ -1094,26 +1094,26 @@ export default function DentalJobsPage() {
                   </div>
                 </div>
               </div>
-              <div className="flex flex-wrap items-center gap-3 border-y border-slate-200 bg-white px-5 py-5 sm:px-7">
+              <div className="flex w-full shrink-0 flex-wrap items-center gap-3 border-y border-slate-200 bg-white px-5 py-5 sm:px-7">
                 <button type="button" onClick={() => setOfficeManageListing(job)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-[#002757] px-5 py-2.5 text-sm font-black text-white shadow-sm transition hover:bg-[#01A32E]"><MoreVertical size={16}/> Manage</button>
                 <Link href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`} className="inline-flex min-h-11 items-center justify-center gap-2 whitespace-nowrap rounded-xl border border-[#002757]/25 bg-white px-5 py-2.5 text-sm font-black text-[#002757] transition hover:bg-[#edf3fa]"><FileText size={16}/> View Ad</Link>
                 <div className="inline-flex shrink-0"><ShareListingButton listingId={job.id} compact /></div>
                 <button type="button" onClick={() => openEditListing(job)} className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-[#002757]/25 bg-white px-5 py-2.5 text-sm font-black text-[#002757] transition hover:bg-[#edf3fa] sm:ml-auto"><Pencil size={16}/> Edit Posting</button>
               </div>
-              <div className="bg-[#fbfdfc] px-5 py-6 sm:px-7 sm:py-7">
+              <div className="w-full min-w-0 bg-[#fbfdfc] px-5 py-6 sm:px-7 sm:py-7">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-lg font-black text-[#002757]">Interested Dental Professionals ({jobConnections.length})</p>
                   {jobConnections.length > 3 && <button type="button" onClick={() => setExpandedOfficeInterestJobs((current) => ({ ...current, [job.id]: !expanded }))} className="rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-black text-[#002757]">{expanded ? "Show less" : `View all ${jobConnections.length}`}</button>}
                 </div>
-                {jobConnections.length === 0 ? <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-7 text-center"><UserRound size={22} className="mx-auto text-slate-400"/><p className="mt-2 text-xs font-bold text-slate-500">When a professional selects I’m Interested or Apply to this Position, their card will appear here.</p></div> : <div className="mt-5 grid gap-5">{shownConnections.map((item) => {
+                {jobConnections.length === 0 ? <div className="mt-5 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-7 text-center"><UserRound size={22} className="mx-auto text-slate-400"/><p className="mt-2 text-xs font-bold text-slate-500">When a professional selects I’m Interested or Apply to this Position, their card will appear here.</p></div> : <div className="mt-5 flex w-full min-w-0 flex-col gap-5">{shownConnections.map((item) => {
                   const preview = item.candidatePreview;
                   const unlocked = isCandidateUnlocked(item);
                   const candidateProfession = preview?.profession || item.profession || "Dental Professional";
                   const statusLabel = unlocked ? "Connected" : item.initiatorRole === "office" && item.status === "interested" ? "Mutual Interest" : item.initiatorRole === "professional" && item.status === "pending" ? "New" : item.initiatorRole === "office" && item.status === "pending" ? "Awaiting Professional" : "Interested";
                   const statusClass = unlocked ? "bg-blue-100 text-blue-700" : statusLabel === "Mutual Interest" ? "bg-[#eaf8ee] text-[#017f27]" : statusLabel === "New" ? "bg-blue-100 text-blue-700" : "bg-amber-50 text-amber-700";
-                  return <div key={item.id} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-                    <div className="grid lg:min-h-[285px] lg:grid-cols-[minmax(0,1fr)_320px]">
-                      <div className="p-6 sm:p-7">
+                  return <div key={item.id} className="block w-full min-w-0 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                    <div className="grid w-full min-w-0 grid-cols-1 xl:min-h-[285px] xl:grid-cols-[minmax(0,1fr)_320px]">
+                      <div className="min-w-0 p-6 sm:p-7">
                         <div className="flex gap-5">
                           <div className="relative hidden h-20 w-20 shrink-0 place-items-center rounded-full bg-slate-100 text-slate-400 sm:grid"><UserRound size={40}/><span className="absolute bottom-0 right-0 h-5 w-5 rounded-full border-2 border-white bg-[#01A32E]"/></div>
                           <div className="min-w-0 flex-1">
@@ -1124,7 +1124,7 @@ export default function DentalJobsPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-col justify-center gap-4 border-t border-slate-200 bg-white p-6 lg:border-l lg:border-t-0 lg:p-7">
+                      <div className="flex min-w-0 flex-col justify-center gap-4 border-t border-slate-200 bg-white p-6 xl:border-l xl:border-t-0 xl:p-7">
                         {unlocked ? <>
                           <button type="button" disabled={unlockBusyId === item.id} onClick={() => void downloadMatchedResume(item)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#EA4335] px-4 py-3 text-sm font-black text-white"><Download size={16}/> Résumé / CV</button>
                           <button type="button" disabled={unlockBusyId === item.id} onClick={() => void viewUnlockedCandidate(item)} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-[#01A32E]/30 bg-[#eaf8ee] px-4 py-3 text-sm font-black text-[#017f27]"><FileText size={16}/> View Candidate</button>
