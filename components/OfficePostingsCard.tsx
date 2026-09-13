@@ -142,8 +142,8 @@ export function OfficePostingsCard({
             const newCount = jobConnections.filter((item) => item.initiatorRole === "professional" && item.status === "pending" && !isCandidateUnlocked(item)).length;
 
             return (
-              <article key={job.id} className="overflow-hidden rounded-[22px] border border-[#01A32E]/35 bg-white shadow-sm">
-                <div className="grid grid-cols-1 bg-gradient-to-r from-[#f4fff7] to-white lg:grid-cols-[minmax(0,1fr)_220px]">
+              <article key={job.id} className="flex w-full flex-col overflow-hidden rounded-[22px] border border-[#01A32E]/35 bg-white shadow-sm">
+                <div className="order-1 grid w-full grid-cols-1 bg-gradient-to-r from-[#f4fff7] to-white lg:grid-cols-[minmax(0,1fr)_220px]">
                   <div className="px-6 py-5 sm:px-8 sm:py-6">
                     <div className="flex flex-wrap items-center gap-3">
                       <span className={`rounded-full px-4 py-1.5 text-sm font-black uppercase ${isActive ? "bg-[#01A32E] text-white" : displayStatus === "paused" ? "bg-amber-50 text-amber-700" : displayStatus === "filled" ? "bg-blue-50 text-blue-700" : "bg-slate-100 text-slate-600"}`}>{displayStatus}</span>
@@ -162,7 +162,7 @@ export function OfficePostingsCard({
                   </div>
                 </div>
 
-                <div className="relative z-10 w-full border-y border-[#cbd8e8] bg-[#f8fbff] px-4 py-3 sm:px-6">
+                <div className="order-2 w-full border-y border-[#cbd8e8] bg-[#f8fbff] px-4 py-3 sm:px-6">
                   <div className="flex w-full flex-wrap items-center gap-2">
                     <button type="button" onClick={() => onManage(job)} className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#06499d] px-3 text-sm font-black text-white shadow-sm">
                       <MoreVertical size={15} /> Manage <ChevronDown size={15} />
@@ -177,7 +177,7 @@ export function OfficePostingsCard({
                   </div>
                 </div>
 
-                <div className="w-full bg-white px-5 py-5 sm:px-7 sm:py-6">
+                <div className="order-3 w-full bg-white px-5 py-5 sm:px-7 sm:py-6">
                   <div className="flex w-full flex-col gap-2 border-b border-slate-100 pb-4 sm:flex-row sm:items-center sm:justify-between">
                     <h4 className="text-xl font-black text-[#002757] sm:text-2xl">Interested Dental Professionals ({jobConnections.length})</h4>
                     <span className="inline-flex items-center gap-2 text-base font-semibold text-[#002757]">Sort by: Newest First <ChevronDown size={20} /></span>
@@ -186,7 +186,7 @@ export function OfficePostingsCard({
                   {jobConnections.length === 0 ? (
                     <div className="mt-4 w-full rounded-2xl border border-dashed border-slate-300 bg-slate-50 px-5 py-8 text-center text-sm font-semibold text-slate-500">When a professional selects I’m Interested or Apply to this Position, their card will appear here.</div>
                   ) : (
-                    <div className="mt-4 block w-full space-y-4 clear-both">
+                    <div className="mt-4 block w-full space-y-4">
                       {jobConnections.map((item) => {
                         const preview = item.candidatePreview;
                         const unlocked = isCandidateUnlocked(item);
