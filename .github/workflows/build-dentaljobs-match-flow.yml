@@ -1,0 +1,24 @@
+name: Build DentalJobs matched candidate flow
+on:
+  push:
+    paths:
+      - '.github/workflows/build-dentaljobs-match-flow.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python .github/scripts/update_dentaljobs_candidate_cards.py
+      - run: python .github/scripts/use_resume_snapshot_for_matched_download.py
+      - run: npm install
+      - run: npm run build
+      - run: |
+          git config user.name automation
+          git config user.email automation@localhost
+          git add app/classifieds/page.tsx app/api/dentaljobs/unlock/details/route.ts
+          git diff --cached --quiet || git commit -m "Build DentalJobs matched candidate cards"
+          git push origin main
