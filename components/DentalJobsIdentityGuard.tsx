@@ -43,6 +43,25 @@ function combinedPostingText(form: HTMLFormElement) {
   return `${description}\n${schedule}`;
 }
 
+function applyApprovalMessaging() {
+  if (!onDentalJobsPage()) return;
+
+  document.querySelectorAll<HTMLElement>("h3").forEach((heading) => {
+    const text = heading.textContent?.trim();
+    if (text === "Your ad is now live") heading.textContent = "Submitted for approval";
+    if (text === "Changes saved") heading.textContent = "Changes submitted for approval";
+  });
+
+  document.querySelectorAll<HTMLElement>("p").forEach((paragraph) => {
+    const text = paragraph.textContent?.trim() || "";
+    if (text.startsWith("Your DentalJobs posting has been published and is now visible")) {
+      paragraph.textContent = "Your DentalJobs posting has been submitted for admin review. It will remain hidden from the public marketplace until it is approved.";
+    } else if (text === "Your DentalJobs posting has been updated.") {
+      paragraph.textContent = "Your changes have been submitted for admin review. The listing will remain hidden until the revised wording is approved.";
+    }
+  });
+}
+
 export function DentalJobsIdentityGuard() {
   const [warning, setWarning] = useState<WarningState | null>(null);
 
@@ -87,10 +106,15 @@ export function DentalJobsIdentityGuard() {
       }
     };
 
+    applyApprovalMessaging();
+    const observer = new MutationObserver(() => applyApprovalMessaging());
+    observer.observe(document.body, { childList: true, subtree: true });
+
     window.addEventListener("submit", handleSubmit, true);
     window.addEventListener("click", handleClick, true);
 
     return () => {
+      observer.disconnect();
       window.removeEventListener("submit", handleSubmit, true);
       window.removeEventListener("click", handleClick, true);
     };
