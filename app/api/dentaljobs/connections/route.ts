@@ -5,6 +5,17 @@ export const runtime = "nodejs";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://pvugjtlmtlyfzyvvhcik.supabase.co";
 const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "sb_publishable_cl7HUUywEucu1DsSbuaodA_oKo8qNFJ";
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+function distanceKm(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null) {
+  if ([lat1, lon1, lat2, lon2].some((value) => value == null || !Number.isFinite(Number(value)))) return null;
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const earthKm = 6371;
+  const dLat = toRad(Number(lat2) - Number(lat1));
+  const dLon = toRad(Number(lon2) - Number(lon1));
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(Number(lat1))) * Math.cos(toRad(Number(lat2))) * Math.sin(dLon / 2) ** 2;
+  return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export async function GET(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
@@ -28,8 +39,44 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  const profileMap = new Map<string, { latitude: number | null; longitude: number | null }>();
+  const professionalMap = new Map<string, { languages: string[] }>();
+  const officeMap = new Map<string, { latitude: number | null; longitude: number | null }>();
+
+  if (serviceRoleKey && rows?.length) {
+    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+    const professionalIds = [...new Set((rows || []).map((row: any) => String(row.professional_id)).filter(Boolean))];
+    const officeIds = [...new Set((rows || []).map((row: any) => String(row.office_id)).filter(Boolean))];
+
+    const [{ data: profiles }, { data: professionalProfiles }, { data: offices }] = await Promise.all([
+      professionalIds.length ? admin.from("profiles").select("id,latitude,longitude").in("id", professionalIds) : Promise.resolve({ data: [] as any[] }),
+      professionalIds.length ? admin.from("professional_profiles").select("user_id,languages").in("user_id", professionalIds) : Promise.resolve({ data: [] as any[] }),
+      officeIds.length ? admin.from("offices").select("id,latitude,longitude").in("id", officeIds) : Promise.resolve({ data: [] as any[] }),
+    ]);
+
+    for (const profile of profiles || []) {
+      profileMap.set(String(profile.id), { latitude: profile.latitude ?? null, longitude: profile.longitude ?? null });
+    }
+    for (const professional of professionalProfiles || []) {
+      professionalMap.set(String(professional.user_id), { languages: Array.isArray(professional.languages) ? professional.languages : [] });
+    }
+    for (const office of offices || []) {
+      officeMap.set(String(office.id), { latitude: office.latitude ?? null, longitude: office.longitude ?? null });
+    }
+  }
+
   const connections = (rows || []).map((row: any) => {
     const snapshot = row.professional_interest_snapshot || null;
+    const professionalLocation = profileMap.get(String(row.professional_id));
+    const officeLocation = officeMap.get(String(row.office_id));
+    const calculatedDistance = distanceKm(
+      officeLocation?.latitude,
+      officeLocation?.longitude,
+      professionalLocation?.latitude,
+      professionalLocation?.longitude,
+    );
+    const languages = professionalMap.get(String(row.professional_id))?.languages || [];
+
     return {
       id: row.id,
       listingId: row.listing_id,
@@ -58,6 +105,8 @@ export async function GET(request: Request) {
         skills: Array.isArray(snapshot.skills) ? snapshot.skills : [],
         software: [],
         certifications: [],
+        languages,
+        distanceKm: calculatedDistance == null ? null : Math.round(calculatedDistance * 10) / 10,
       } : null,
       officeInterestSnapshot: row.office_interest_snapshot || null,
     };
