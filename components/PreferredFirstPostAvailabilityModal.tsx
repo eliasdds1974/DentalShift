@@ -173,15 +173,15 @@ export function PreferredFirstPostAvailabilityModal({
               <input type="checkbox" className="h-5 w-5 accent-[#FDB605]" checked={allSelected} onChange={(e) => setSelectedOfficeIds(e.target.checked ? registeredOfficeIds : [])} />
               <span>{allSelected ? "✓ " : ""}Select everyone</span>
             </label>}
+
+            <div className="mt-5 border-t border-[#FDB605]/25 pt-4">
+              <p className="text-sm font-black text-[#002757]">Preferred First duration</p>
+              <div className="mt-2 flex gap-2"><button type="button" onClick={() => setDuration("24h")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "24h" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>24 hours</button><button type="button" onClick={() => setDuration("days")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "days" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Days</button></div>
+              {duration === "days" && <label className="field mt-2"><span>Number of days</span><select value={preferredDays} onChange={(e) => setPreferredDays(Number(e.target.value))}>{preferredDayOptions.map((dayCount) => <option key={dayCount} value={dayCount}>{dayCount} days</option>)}</select></label>}
+            </div>
           </> : <div className="mt-3 rounded-xl bg-white p-3 text-sm text-slate-600">
             <p className="font-bold">No registered Preferred Offices are currently available.</p>
             <p className="mt-1 text-xs">You can add Preferred Offices in your professional account. Availability will otherwise post directly to the General Calendar.</p>
-          </div>}
-
-          {preferredMode && <div className="mt-5 border-t border-[#FDB605]/25 pt-4">
-            <p className="text-sm font-black text-[#002757]">Preferred First duration</p>
-            <div className="mt-2 flex gap-2"><button type="button" onClick={() => setDuration("24h")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "24h" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>24 hours</button><button type="button" onClick={() => setDuration("days")} className={`rounded-xl px-3 py-2 text-xs font-black ${duration === "days" ? "bg-[#FDB605] text-white" : "border border-slate-200 bg-white text-slate-600"}`}>Days</button></div>
-            {duration === "days" && <label className="field mt-2"><span>Number of days</span><select value={preferredDays} onChange={(e) => setPreferredDays(Number(e.target.value))}>{preferredDayOptions.map((dayCount) => <option key={dayCount} value={dayCount}>{dayCount} days</option>)}</select></label>}
           </div>}
         </section>
 
