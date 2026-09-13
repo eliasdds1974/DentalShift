@@ -39,7 +39,7 @@ export function ShareListingButton({ listingId, compact = false }: Props) {
     setOpen((value) => !value);
   };
 
-  return <div className="relative">
+  return <div className="relative" data-listing-id={listingId}>
     <button
       type="button"
       onClick={() => { if (compact && typeof navigator !== "undefined" && "share" in navigator) void nativeShare(); else setOpen((value) => !value); }}
