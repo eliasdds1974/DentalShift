@@ -3,6 +3,7 @@ import { DentalJobsDoNotMatchPlacement } from "@/components/DentalJobsDoNotMatch
 import { DoNotMatchPdfDownload } from "@/components/DoNotMatchPdfDownload";
 import { DentalJobsCancelPostingPolish } from "@/components/DentalJobsCancelPostingPolish";
 import { DentalJobsDynamicFooter } from "@/components/DentalJobsDynamicFooter";
+import { ProfessionalPostingsCardParity } from "@/components/ProfessionalPostingsCardParity";
 
 export default function DentalJobsLayout({ children }: { children: ReactNode }) {
   return (
@@ -10,6 +11,7 @@ export default function DentalJobsLayout({ children }: { children: ReactNode }) 
       <DentalJobsCancelPostingPolish />
       <DentalJobsDoNotMatchPlacement />
       <DoNotMatchPdfDownload />
+      <ProfessionalPostingsCardParity />
       {children}
       <DentalJobsDynamicFooter />
     </>
