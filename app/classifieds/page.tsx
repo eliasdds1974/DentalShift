@@ -604,6 +604,7 @@ export default function DentalJobsPage() {
 
     const refreshConnections = () => { void loadConnections(portalRole); };
     window.addEventListener("focus", refreshConnections);
+    const intervalId = window.setInterval(refreshConnections, 5000);
 
     const channel = supabase
       .channel(`dentaljobs-connection-refresh-${portalRole}`)
@@ -612,6 +613,7 @@ export default function DentalJobsPage() {
 
     return () => {
       window.removeEventListener("focus", refreshConnections);
+      window.clearInterval(intervalId);
       void supabase.removeChannel(channel);
     };
   }, [portalRole]);

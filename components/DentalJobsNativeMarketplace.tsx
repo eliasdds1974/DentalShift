@@ -269,6 +269,12 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
       if (!user) throw new Error("Please sign in again.");
 
       const details = await loadAccountDetails(user.id);
+      const { data: resumeRow, error: resumeError } = await supabase.from("professional_profiles").select("resume_path").eq("user_id", user.id).maybeSingle();
+      if (resumeError) throw resumeError;
+      if (!resumeRow?.resume_path) {
+        window.alert("Résumé/CV Required\n\nPlease add a résumé or CV to your Professional Account before applying for this position.");
+        throw new Error("A résumé/CV is required before you can apply to this position.");
+      }
       const officeId = listing.office_id;
       const professionalId = user.id;
       if (!officeId || !professionalId) throw new Error("This listing is missing account information needed to continue.");
@@ -282,7 +288,7 @@ export function DentalJobsNativeMarketplace({ role }: { role: Role }) {
           initiator_role: "professional",
           status: "pending",
           message: "",
-          resume_path_snapshot: details.professional?.resume_path || null,
+          resume_path_snapshot: resumeRow.resume_path,
           professional_interest_snapshot: {
             label: "Dental Professional",
             city: details.profile.city || null,
