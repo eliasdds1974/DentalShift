@@ -103,6 +103,18 @@ export function ProfessionalAccountProfileConsolidation() {
       document.head.appendChild(style);
     };
 
+    const reopenProfessionalAccount = (dialog: HTMLElement, form: HTMLFormElement) => {
+      loadingStarted.delete(form);
+      const closeButton = dialog.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
+      closeButton?.click();
+      window.setTimeout(() => {
+        const accountButton = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
+          button.textContent?.trim() === "Account"
+        );
+        accountButton?.click();
+      }, 200);
+    };
+
     const recoverLoadingState = () => {
       const dialogs = Array.from(document.querySelectorAll<HTMLElement>('[role="dialog"]'));
       const dialog = dialogs.find((node) => node.querySelector("#account-title")?.textContent?.trim() === "Professional account");
@@ -111,10 +123,10 @@ export function ProfessionalAccountProfileConsolidation() {
       const form = dialog.querySelector<HTMLFormElement>("form");
       if (!form) return;
 
-      const loadingText = Array.from(form.querySelectorAll<HTMLElement>("p")).find((node) =>
-        (node.textContent || "").includes("Loading your account details") ||
-        (node.textContent || "").includes("taking longer than expected")
-      );
+      const loadingText = Array.from(form.querySelectorAll<HTMLElement>("p")).find((node) => {
+        const text = node.textContent || "";
+        return text.includes("Loading your account details") || text.includes("taking longer than expected");
+      });
 
       if (!loadingText) {
         loadingStarted.delete(form);
@@ -122,10 +134,15 @@ export function ProfessionalAccountProfileConsolidation() {
         return;
       }
 
-      const submitButton = form.querySelector<HTMLButtonElement>('button[type="submit"]');
-      if (submitButton && submitButton.textContent?.trim() === "Saving…") {
-        submitButton.textContent = "Loading…";
-        submitButton.disabled = true;
+      // This modal uses the same `busy` flag for loading and saving. While the
+      // account data is still loading, never present that state to the user as
+      // "Saving" because no save action has occurred.
+      const actionButtons = Array.from(form.querySelectorAll<HTMLButtonElement>("button"));
+      const busyButton = actionButtons.find((button) => /^Saving(?:…|\.\.\.)?$/i.test(button.textContent?.trim() || ""));
+      if (busyButton) {
+        busyButton.textContent = "Loading…";
+        busyButton.disabled = true;
+        busyButton.dataset.professionalLoadingButton = "true";
       }
 
       if (!loadingStarted.has(form)) loadingStarted.set(form, Date.now());
@@ -133,6 +150,18 @@ export function ProfessionalAccountProfileConsolidation() {
       if (Date.now() - startedAt < 7000) return;
 
       loadingText.textContent = "Your account is taking longer than expected to load.";
+
+      const loadingButton = form.querySelector<HTMLButtonElement>('[data-professional-loading-button="true"]');
+      if (loadingButton) {
+        loadingButton.textContent = "Retry loading";
+        loadingButton.disabled = false;
+        loadingButton.type = "button";
+        if (loadingButton.dataset.retryBound !== "true") {
+          loadingButton.dataset.retryBound = "true";
+          loadingButton.addEventListener("click", () => reopenProfessionalAccount(dialog, form));
+        }
+      }
+
       if (form.querySelector('[data-professional-load-recovery="true"]')) return;
 
       const recovery = document.createElement("div");
@@ -142,17 +171,7 @@ export function ProfessionalAccountProfileConsolidation() {
       retry.type = "button";
       retry.className = "secondary-btn justify-center";
       retry.textContent = "Retry loading";
-      retry.addEventListener("click", () => {
-        loadingStarted.delete(form);
-        const closeButton = dialog.querySelector<HTMLButtonElement>('button[aria-label="Close"]');
-        closeButton?.click();
-        window.setTimeout(() => {
-          const accountButton = Array.from(document.querySelectorAll<HTMLButtonElement>("button")).find((button) =>
-            button.textContent?.trim() === "Account"
-          );
-          accountButton?.click();
-        }, 150);
-      });
+      retry.addEventListener("click", () => reopenProfessionalAccount(dialog, form));
 
       recovery.appendChild(retry);
       loadingText.insertAdjacentElement("afterend", recovery);
@@ -220,8 +239,8 @@ export function ProfessionalAccountProfileConsolidation() {
     consolidate();
 
     const observer = new MutationObserver(consolidate);
-    observer.observe(document.body, { childList: true, subtree: true });
-    const interval = window.setInterval(recoverLoadingState, 750);
+    observer.observe(document.body, { childList: true, subtree: true, characterData: true });
+    const interval = window.setInterval(recoverLoadingState, 300);
 
     return () => {
       observer.disconnect();
