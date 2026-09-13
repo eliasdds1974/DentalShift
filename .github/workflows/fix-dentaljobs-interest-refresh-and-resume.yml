@@ -1,0 +1,28 @@
+name: Fix DentalJobs interest refresh and resume guard
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/scripts/fix-dentaljobs-interest-refresh-and-resume.py'
+      - '.github/workflows/fix-dentaljobs-interest-refresh-and-resume.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python .github/scripts/fix-dentaljobs-interest-refresh-and-resume.py
+      - run: npm install
+      - run: npm run build
+      - run: |
+          git config user.name automation
+          git config user.email automation@localhost
+          git add app/classifieds/page.tsx components/DentalJobsDetailInterestAction.tsx
+          git diff --cached --quiet || git commit -m "Fix DentalJobs interest cards and resume guard"
+          git push origin main
