@@ -37,38 +37,11 @@ function formatDate(value: string) {
 export function ProfessionalPostingsCardParity() {
   const metaRef = useRef<Record<string, ListingMeta>>({});
   const countsRef = useRef<Record<string, number>>({});
+  const metaLoadedRef = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
     let observer: MutationObserver | null = null;
-
-    const loadMeta = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
-
-      const [{ data: listings }, { data: applications }] = await Promise.all([
-        supabase
-          .from("job_listings")
-          .select("id,employment_type,created_at,status,expires_at")
-          .eq("professional_id", user.id)
-          .eq("listing_type", "professional_available")
-          .order("created_at", { ascending: false }),
-        supabase
-          .from("job_applications")
-          .select("listing_id,status")
-          .eq("professional_id", user.id),
-      ]);
-
-      if (cancelled) return;
-      metaRef.current = Object.fromEntries((listings || []).map((row: any) => [row.id, row]));
-      const counts: Record<string, number> = {};
-      for (const row of applications || []) {
-        if (!row.listing_id || row.status === "declined" || row.status === "withdrawn") continue;
-        counts[row.listing_id] = (counts[row.listing_id] || 0) + 1;
-      }
-      countsRef.current = counts;
-      apply();
-    };
 
     const apply = () => {
       const section = professionalSection();
@@ -128,7 +101,7 @@ export function ProfessionalPostingsCardParity() {
       }
 
       const list = section.querySelector<HTMLElement>(":scope > div.mt-4.grid");
-      if (!list) return;
+      if (!list || !metaLoadedRef.current) return;
       list.style.gap = "14px";
       list.style.marginTop = "12px";
 
@@ -139,7 +112,10 @@ export function ProfessionalPostingsCardParity() {
         const info = article.firstElementChild as HTMLElement | null;
         const actions = article.children[1] as HTMLElement | undefined;
         if (!info || !actions) continue;
-        if (article.dataset.officeParityApplied === "1") continue;
+
+        // If our rendered marker is still present, nothing has overwritten this card.
+        // When React re-renders the legacy card, the marker disappears and we safely re-apply.
+        if (info.querySelector('[data-professional-parity="1"]')) continue;
 
         const titleEl = info.querySelector<HTMLElement>("h3");
         const locationEl = info.querySelector<HTMLElement>("h3 + p");
@@ -162,7 +138,7 @@ export function ProfessionalPostingsCardParity() {
         article.style.boxShadow = "none";
 
         info.innerHTML = `
-          <div style="background:#f7fff9;padding:12px 14px">
+          <div data-professional-parity="1" style="background:#f7fff9;padding:12px 14px">
             <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
               <span style="background:${active ? "#01A32E" : "#eef2f7"};color:${active ? "#fff" : "#475569"};border-radius:999px;padding:4px 9px;font-size:10px;font-weight:900;text-transform:uppercase">${displayStatus}</span>
               ${daysText ? `<span style="color:#455f89;font-size:12px;font-weight:700">${daysText}</span>` : ""}
@@ -216,13 +192,39 @@ export function ProfessionalPostingsCardParity() {
           view.style.color = "#06499d";
           view.style.textDecoration = "none";
         }
-
-        article.dataset.officeParityApplied = "1";
       }
     };
 
+    const loadMeta = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+
+      const [{ data: listings }, { data: applications }] = await Promise.all([
+        supabase
+          .from("job_listings")
+          .select("id,employment_type,created_at,status,expires_at")
+          .eq("professional_id", user.id)
+          .eq("listing_type", "professional_available")
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("job_applications")
+          .select("listing_id,status")
+          .eq("professional_id", user.id),
+      ]);
+
+      if (cancelled) return;
+      metaRef.current = Object.fromEntries((listings || []).map((row: any) => [row.id, row]));
+      const counts: Record<string, number> = {};
+      for (const row of applications || []) {
+        if (!row.listing_id || row.status === "declined" || row.status === "withdrawn") continue;
+        counts[row.listing_id] = (counts[row.listing_id] || 0) + 1;
+      }
+      countsRef.current = counts;
+      metaLoadedRef.current = true;
+      apply();
+    };
+
     void loadMeta();
-    apply();
     observer = new MutationObserver(() => apply());
     observer.observe(document.body, { childList: true, subtree: true });
     const timer = window.setInterval(apply, 1000);
