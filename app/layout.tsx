@@ -7,6 +7,7 @@ import { ProfessionalWorkspacePolish } from "@/components/ProfessionalWorkspaceP
 import { OfficeWorkspacePolish } from "@/components/OfficeWorkspacePolish";
 import { ProfessionalDigitalResumeLink } from "@/components/ProfessionalDigitalResumeLink";
 import { ProfessionalDigitalResumeCleanup } from "@/components/ProfessionalDigitalResumeCleanup";
+import { ProfessionalAccountProfileConsolidation } from "@/components/ProfessionalAccountProfileConsolidation";
 import { DentalJobsDigitalResumeApply } from "@/components/DentalJobsDigitalResumeApply";
 
 export const metadata: Metadata = {
@@ -28,7 +29,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}<ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /><ProfessionalWorkspacePolish /><OfficeWorkspacePolish /><ProfessionalDigitalResumeLink /><ProfessionalDigitalResumeCleanup /><DentalJobsDigitalResumeApply /></body>
+      <body className="antialiased">{children}<ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /><ProfessionalWorkspacePolish /><OfficeWorkspacePolish /><ProfessionalDigitalResumeLink /><ProfessionalDigitalResumeCleanup /><ProfessionalAccountProfileConsolidation /><DentalJobsDigitalResumeApply /></body>
     </html>
   );
 }
