@@ -1,13 +1,42 @@
 "use client";
 
 import { useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
 function textOf(element: Element | null) {
   return element?.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
+type ConfirmedProfessionalResume = {
+  booking_id: string;
+  professional_id: string;
+  professional_name: string;
+  years_experience: number | null;
+  software: string[] | null;
+  equipment_familiarity: string[] | null;
+};
+
+function makeDetailRow(label: string, value: string) {
+  const row = document.createElement("div");
+  row.dataset.scheduledResumeDetail = label;
+
+  const heading = document.createElement("p");
+  heading.className = "text-[10px] font-black uppercase tracking-wide text-slate-400";
+  heading.textContent = label;
+
+  const content = document.createElement("p");
+  content.className = "mt-0.5 font-extrabold text-[#002757]";
+  content.textContent = value;
+
+  row.append(heading, content);
+  return row;
+}
+
 export function OfficeWorkspacePolish() {
   useEffect(() => {
+    let cancelled = false;
+    let resumeDetails = new Map<string, ConfirmedProfessionalResume>();
+
     const apply = () => {
       const page = Array.from(document.querySelectorAll<HTMLElement>(".page-wrap")).find((candidate) => {
         const postButton = Array.from(candidate.querySelectorAll<HTMLButtonElement>("button")).find((button) => textOf(button).toLowerCase() === "post a shift");
@@ -57,8 +86,6 @@ export function OfficeWorkspacePolish() {
         return textOf(heading) === "Confirmed bookings";
       });
 
-      // Confirmed work is the office-side equivalent of the professional's
-      // confirmed schedule, so keep it ahead of lower-priority marketplace detail.
       if (confirmed && candidates && confirmed.previousElementSibling !== summary) {
         candidates.parentElement?.insertBefore(confirmed, candidates);
       }
@@ -88,8 +115,6 @@ export function OfficeWorkspacePolish() {
         });
       }
 
-      // In the Scheduled sidebar card, the professional name and position are
-      // already visible above the Details button, so remove those duplicate rows.
       Array.from(page.querySelectorAll<HTMLElement>("article")).forEach((article) => {
         const detailButton = Array.from(article.querySelectorAll<HTMLButtonElement>("button")).find((button) => {
           const label = textOf(button);
@@ -97,27 +122,64 @@ export function OfficeWorkspacePolish() {
         });
         if (!detailButton) return;
 
-        const detailLabels = Array.from(article.querySelectorAll<HTMLElement>("p")).filter((node) => {
-          const label = node.textContent?.trim();
-          return label === "Professional" || label === "Position";
-        });
+        const detailLabels = Array.from(article.querySelectorAll<HTMLElement>("p"));
+        const labelText = detailLabels.map((node) => node.textContent?.trim() || "");
+        const isScheduledProfessionalCard = labelText.includes("Licence / Registration") && labelText.includes("Phone") && labelText.includes("Email");
+        if (!isScheduledProfessionalCard) return;
 
-        detailLabels.forEach((label) => {
-          const row = label.parentElement;
-          if (row) row.style.display = "none";
-        });
+        detailLabels
+          .filter((node) => node.textContent?.trim() === "Professional" || node.textContent?.trim() === "Position")
+          .forEach((label) => {
+            const row = label.parentElement;
+            if (row) row.style.display = "none";
+          });
+
+        const professionalName = article.querySelector<HTMLElement>("strong")?.textContent?.trim().toLowerCase() || "";
+        const resume = resumeDetails.get(professionalName);
+        if (!resume) return;
+
+        const licenceLabel = detailLabels.find((node) => node.textContent?.trim() === "Licence / Registration");
+        const grid = licenceLabel?.parentElement?.parentElement as HTMLElement | null;
+        if (!grid || grid.dataset.resumeFieldsAdded === "true") return;
+
+        const years = resume.years_experience == null
+          ? "Not listed"
+          : `${resume.years_experience} ${resume.years_experience === 1 ? "year" : "years"}`;
+        const software = resume.software?.length ? resume.software.join(", ") : "Not listed";
+        const equipment = resume.equipment_familiarity?.length ? resume.equipment_familiarity.join(", ") : "Not listed";
+
+        grid.append(
+          makeDetailRow("Years of Experience", years),
+          makeDetailRow("Dental Software", software),
+          makeDetailRow("Equipment Familiarity", equipment),
+        );
+        grid.dataset.resumeFieldsAdded = "true";
       });
 
-      // Mirror the professional portal terminology everywhere in the office view.
       Array.from(page.querySelectorAll<HTMLElement>("h1, h2, p")).forEach((node) => {
         if (node.textContent?.trim() === "Bookings") node.textContent = "Confirmed bookings";
       });
     };
 
+    const loadResumeDetails = async () => {
+      const { data, error } = await supabase.rpc("office_confirmed_professional_resume_details");
+      if (cancelled || error) return;
+      resumeDetails = new Map(
+        ((data || []) as ConfirmedProfessionalResume[])
+          .filter((row) => Boolean(row.professional_name))
+          .map((row) => [row.professional_name.trim().toLowerCase(), row]),
+      );
+      apply();
+    };
+
     apply();
+    void loadResumeDetails();
     const observer = new MutationObserver(apply);
     observer.observe(document.body, { childList: true, subtree: true });
-    return () => observer.disconnect();
+    return () => {
+      cancelled = true;
+      observer.disconnect();
+    };
   }, []);
 
   return null;
