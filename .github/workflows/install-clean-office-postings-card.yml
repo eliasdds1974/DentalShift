@@ -32,7 +32,7 @@ jobs:
             echo "No changes to commit"
             exit 0
           fi
-          git commit -m "Rebuild Office Postings card cleanly"
+          git commit -m "Install rebuilt Office Postings card"
           git push origin main
 
-# retry after component type alignment
+# install after callback type compatibility fix
