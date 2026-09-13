@@ -1,0 +1,24 @@
+name: Fix native resume and office refresh
+on:
+  push:
+    paths:
+      - '.github/scripts/fix-native-resume-guard.py'
+      - '.github/scripts/add-office-connection-polling.py'
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - run: python .github/scripts/fix-native-resume-guard.py
+      - run: python .github/scripts/add-office-connection-polling.py
+      - run: npm install
+      - run: npm run build
+      - run: git config user.name automation
+      - run: git config user.email automation@example.com
+      - run: git add components/DentalJobsNativeMarketplace.tsx app/classifieds/page.tsx
+      - run: git diff --cached --quiet || git commit -m "Fix DentalJobs professional interest and office refresh"
+      - run: git push origin main
