@@ -46,7 +46,7 @@ export async function GET(request: Request) {
     }
     if (view === "dentaljobs") {
       const [{ data: listings }, { data: applications }, { data: unlocks }] = await Promise.all([
-        admin.from("job_listings").select("id,listing_type,profession,office_id,professional_id,employment_type,city,province,status,created_at,expires_at,offices(name)").order("created_at", { ascending: false }).limit(500),
+        admin.from("job_listings").select("id,listing_type,profession,office_id,professional_id,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,status,moderation_status,moderation_note,moderated_at,moderated_by,created_at,published_at,expires_at,offices(name)").order("created_at", { ascending: false }).limit(500),
         admin.from("job_applications").select("id,listing_id,professional_id,office_id,initiator_role,status,created_at,responded_at,job_listings(profession,employment_type,city,province)").order("created_at", { ascending: false }).limit(500),
         admin.from("candidate_unlocks").select("id,application_id,office_id,professional_id,amount_cents,currency,status,billing_period,created_at,paid_at,offices(name)").order("created_at", { ascending: false }).limit(500),
       ]);
@@ -69,6 +69,46 @@ export async function POST(request: Request) {
       const resolution = String(body.resolution || "").trim();
       if (!id || resolution.length < 3) return NextResponse.json({ error: "Enter a resolution." }, { status: 400 });
       const { error } = await admin.from("disputes").update({ status: "resolved", resolution, resolved_at: new Date().toISOString() }).eq("id", id);
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+    if (body?.action === "approve_listing") {
+      const id = String(body.id || "");
+      if (!id) return NextResponse.json({ error: "Listing ID is required." }, { status: 400 });
+      const { data: listing, error: readError } = await admin.from("job_listings").select("listing_type").eq("id", id).maybeSingle();
+      if (readError) throw readError;
+      if (!listing) return NextResponse.json({ error: "Listing not found." }, { status: 404 });
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + (listing.listing_type === "professional_available" ? 14 : 30) * 86400000).toISOString();
+      const { error } = await admin.from("job_listings").update({
+        moderation_status: "approved",
+        moderation_note: null,
+        moderated_at: now.toISOString(),
+        moderated_by: ctx.userId,
+        status: "active",
+        published_at: now.toISOString(),
+        expires_at: expiresAt,
+        closed_at: null,
+        close_reason: null,
+        updated_at: now.toISOString(),
+      }).eq("id", id);
+      if (error) throw error;
+      return NextResponse.json({ ok: true });
+    }
+    if (body?.action === "reject_listing") {
+      const id = String(body.id || "");
+      const note = String(body.note || "").trim();
+      if (!id) return NextResponse.json({ error: "Listing ID is required." }, { status: 400 });
+      if (note.length < 3) return NextResponse.json({ error: "Enter a short reason before rejecting the listing." }, { status: 400 });
+      const now = new Date().toISOString();
+      const { error } = await admin.from("job_listings").update({
+        moderation_status: "rejected",
+        moderation_note: note,
+        moderated_at: now,
+        moderated_by: ctx.userId,
+        status: "paused",
+        updated_at: now,
+      }).eq("id", id);
       if (error) throw error;
       return NextResponse.json({ ok: true });
     }
