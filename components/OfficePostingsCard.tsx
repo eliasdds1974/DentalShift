@@ -253,32 +253,34 @@ export function OfficePostingsCard({
                   </div>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3 border-y border-slate-200 bg-white px-6 py-4 sm:px-8">
+                <div className="flex flex-nowrap items-center gap-2 overflow-x-auto border-y border-slate-200 bg-white px-4 py-3 sm:px-6">
                   <button
                     type="button"
                     onClick={() => onManage(job)}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#06499d] px-5 py-3 text-base font-black text-white shadow-sm"
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#06499d] px-3.5 py-2 text-sm font-black text-white shadow-sm"
                   >
-                    <MoreVertical size={20} />
+                    <MoreVertical size={16} />
                     Manage
-                    <ChevronDown size={20} className="ml-1" />
+                    <ChevronDown size={16} />
                   </button>
 
                   <Link
                     href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-[#7793b9] bg-white px-6 py-3 text-base font-black text-[#06499d]"
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#7793b9] bg-white px-3.5 py-2 text-sm font-black text-[#06499d]"
                   >
-                    <FileText size={20} /> View Ad
+                    <FileText size={16} /> View Ad
                   </Link>
 
-                  <ShareListingButton listingId={job.id} compact />
+                  <div className="shrink-0">
+                    <ShareListingButton listingId={job.id} compact />
+                  </div>
 
                   <button
                     type="button"
                     onClick={() => onEdit(job)}
-                    className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border-2 border-[#7793b9] bg-white px-6 py-3 text-base font-black text-[#06499d] sm:ml-auto"
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#7793b9] bg-white px-3.5 py-2 text-sm font-black text-[#06499d]"
                   >
-                    <Pencil size={20} /> Edit Posting
+                    <Pencil size={16} /> Edit Posting
                   </button>
                 </div>
 
