@@ -37,6 +37,53 @@ fieldset:has(input[name="software"]) > div { gap:.35rem!important; }
 fieldset:has(input[name="software"]) label { gap:.35rem!important; border-radius:.6rem!important; padding:.38rem .5rem!important; font-size:.72rem!important; line-height:1.1!important; }
 fieldset:has(input[name="software"]) input[name="software"] { width:.85rem!important; height:.85rem!important; }
 
+/* Professional account color contrast — CSS only, no layout or loading logic */
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) {
+  background:#f8fafc;
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) .field > span,
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) fieldset > legend {
+  color:#002757;
+  font-weight:850;
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]),
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) select,
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) textarea {
+  border-color:#b8c8db;
+  background:#fff;
+  color:#172033;
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):focus,
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) select:focus,
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) textarea:focus {
+  border-color:#0078fe;
+  box-shadow:0 0 0 3px rgb(0 120 254/.12);
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) fieldset {
+  border-color:#c7d6e7!important;
+  background:#fbfdff!important;
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) fieldset:has(input[name="professional_languages"]) {
+  border-color:rgb(1 163 46/.28)!important;
+  background:#f3fbf5!important;
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) fieldset:has(input[name="software"]) {
+  border-color:rgb(0 120 254/.24)!important;
+  background:#f3f8ff!important;
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) h3,
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) h4 {
+  color:#002757;
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) input[type="checkbox"],
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) input[type="radio"] {
+  accent-color:#01A32E;
+}
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) small,
+section[role="dialog"] form:has(input[name="profession"]):has(input[name="travel_radius_km"]) .text-slate-500 {
+  color:#53677d;
+}
+
 /* DentalJobs: Professional "Looking for an Office" card mirrors Office "Post a Position" */
 .dental-jobs-compact-layout main > section:first-of-type .mx-auto > .mt-6.grid > button:has(.lucide-user-round) {
   position:relative!important;
