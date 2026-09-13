@@ -17,7 +17,15 @@ jobs:
         with:
           ref: main
       - name: Build approved card only
-        run: python .github/scripts/build-approved-office-dentaljobs-card.py
+        run: |
+          python .github/scripts/build-approved-office-dentaljobs-card.py
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/classifieds/page.tsx')
+          s = p.read_text()
+          s = s.replace('CalendarDays size={16}', 'Clock3 size={16}')
+          p.write_text(s)
+          PY
       - name: Install dependencies
         run: npm install
       - name: Production build
