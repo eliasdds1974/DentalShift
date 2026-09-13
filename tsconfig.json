@@ -29,6 +29,9 @@
       "@/components/MarketingHome": [
         "./components/MarketingHomeDirectAdmin.tsx"
       ],
+      "@/lib/dentalshift": [
+        "./lib/dentalshift-safe.ts"
+      ],
       "@/*": [
         "./*"
       ]
