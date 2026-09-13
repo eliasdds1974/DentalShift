@@ -18,7 +18,10 @@ export default function DentalJobsPage() {
 
     void (async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
         if (!user) throw new Error("Please sign in to open DentalJobs.");
 
         const details = await loadAccountDetails(user.id);
@@ -40,7 +43,11 @@ export default function DentalJobsPage() {
         setRole(resolvedRole);
       } catch (caught) {
         if (!cancelled) {
-          setRoleError(caught instanceof Error ? caught.message : "Unable to determine your DentalShift account role.");
+          setRoleError(
+            caught instanceof Error
+              ? caught.message
+              : "Unable to determine your DentalShift account role.",
+          );
         }
       } finally {
         if (!cancelled) setReady(true);
@@ -72,7 +79,9 @@ export default function DentalJobsPage() {
       <main className="min-h-[70vh] bg-[#f5f8fb] px-4 py-12 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-xl rounded-3xl border border-rose-200 bg-white p-7 text-center shadow-sm">
           <h1 className="text-2xl font-black text-[#002757]">DentalJobs</h1>
-          <p className="mt-3 text-sm font-semibold text-rose-700">{roleError || "Unable to open DentalJobs."}</p>
+          <p className="mt-3 text-sm font-semibold text-rose-700">
+            {roleError || "Unable to open DentalJobs."}
+          </p>
         </div>
       </main>
     );
@@ -108,59 +117,6 @@ export default function DentalJobsPage() {
             height: 100% !important;
             min-height: 230px !important;
           }
-        }
-
-        /* Keep the Office Postings area in normal document flow.
-           These rules intentionally prevent posting and candidate cards from
-           being positioned, translated, floated, or layered over one another. */
-        .dentaljobs-role-office #my-dentaljobs {
-          position: static !important;
-          transform: none !important;
-          isolation: auto !important;
-        }
-
-        .dentaljobs-role-office #my-dentaljobs > div,
-        .dentaljobs-role-office #my-dentaljobs article,
-        .dentaljobs-role-office #my-dentaljobs article > div {
-          position: static !important;
-          inset: auto !important;
-          transform: none !important;
-          float: none !important;
-          clear: both !important;
-          z-index: auto !important;
-          width: 100% !important;
-          max-width: 100% !important;
-        }
-
-        .dentaljobs-role-office #my-dentaljobs article {
-          display: flex !important;
-          flex-direction: column !important;
-          align-items: stretch !important;
-          height: auto !important;
-          min-height: 0 !important;
-        }
-
-        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(1) {
-          order: 1 !important;
-        }
-
-        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(2) {
-          order: 2 !important;
-        }
-
-        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(3) {
-          order: 3 !important;
-        }
-
-        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(3) > div,
-        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(3) > div > div {
-          position: static !important;
-          inset: auto !important;
-          transform: none !important;
-          float: none !important;
-          clear: both !important;
-          z-index: auto !important;
-          max-width: 100% !important;
         }
 
         .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.items-stretch.gap-4 > div:first-child > button {
