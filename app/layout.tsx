@@ -6,6 +6,7 @@ import { ProfessionalInvitationCalendar } from "@/components/ProfessionalInvitat
 import { ProfessionalWorkspacePolish } from "@/components/ProfessionalWorkspacePolish";
 import { OfficeWorkspacePolish } from "@/components/OfficeWorkspacePolish";
 import { ProfessionalDigitalResumeLink } from "@/components/ProfessionalDigitalResumeLink";
+import { ProfessionalDigitalResumeCleanup } from "@/components/ProfessionalDigitalResumeCleanup";
 
 export const metadata: Metadata = {
   title: "DentalShift | Dental staffing made simple",
@@ -26,7 +27,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="antialiased">{children}<ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /><ProfessionalWorkspacePolish /><OfficeWorkspacePolish /><ProfessionalDigitalResumeLink /></body>
+      <body className="antialiased">{children}<ProfessionalMarketplaceCleanup /><ProfessionalAvailabilityCalendar /><ProfessionalInvitationCalendar /><ProfessionalWorkspacePolish /><OfficeWorkspacePolish /><ProfessionalDigitalResumeLink /><ProfessionalDigitalResumeCleanup /></body>
     </html>
   );
 }
