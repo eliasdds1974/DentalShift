@@ -39,7 +39,7 @@ export function PreferredFirstPostShiftModal({
   const [profession, setProfession] = useState(professions[0]);
   const [days, setDays] = useState<PreferredFirstDayEntry[]>([{ date: todayKey(), startTime: "08:00", endTime: "17:00" }]);
   const [hourlyRate, setHourlyRate] = useState("");
-  const [audience, setAudience] = useState<"preferred" | "general">("preferred");
+  const [audience, setAudience] = useState<"preferred" | "general">("general");
   const [duration, setDuration] = useState<"24h" | "days">("24h");
   const [preferredDays, setPreferredDays] = useState(2);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -47,6 +47,7 @@ export function PreferredFirstPostShiftModal({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const hasPreferredProfessionals = preferredProfessionals.length > 0;
   const matchingPreferred = useMemo(() => preferredProfessionals.filter((p) => p.matched_professional_id && roleCode(p.profession) === roleCode(profession)), [preferredProfessionals, profession]);
   const matchingIds = useMemo(() => matchingPreferred.map((person) => person.matched_professional_id!).filter(Boolean), [matchingPreferred]);
   const allSelected = matchingIds.length > 0 && matchingIds.every((id) => selectedIds.includes(id));
@@ -108,8 +109,8 @@ export function PreferredFirstPostShiftModal({
         <section className="rounded-2xl border border-[#FDB605]/50 bg-[#fffdf5] p-4">
           <p className="text-sm font-black text-[#002757]">Who should see this first?</p>
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
-            <label className={`cursor-pointer rounded-xl border p-3 ${audience === "preferred" ? "border-[#FDB605] bg-[#FFF7D6]" : "border-slate-200 bg-white"}`}><input type="radio" className="mr-2 accent-[#FDB605]" checked={audience === "preferred"} onChange={() => setAudience("preferred")} /><strong className="text-sm text-[#9A6D00]">★ Preferred Professionals First</strong><span className="mt-1 block text-xs text-slate-600">Private priority access before the General Calendar.</span></label>
             <label className={`cursor-pointer rounded-xl border p-3 ${audience === "general" ? "border-[#4285F4] bg-blue-50" : "border-slate-200 bg-white"}`}><input type="radio" className="mr-2 accent-[#4285F4]" checked={audience === "general"} onChange={() => setAudience("general")} /><strong className="text-sm text-[#002757]">General Calendar</strong><span className="mt-1 block text-xs text-slate-600">Available immediately to matching professionals.</span></label>
+            <label className={`rounded-xl border p-3 ${!hasPreferredProfessionals ? "cursor-not-allowed border-slate-200 bg-slate-100 opacity-60" : audience === "preferred" ? "cursor-pointer border-[#FDB605] bg-[#FFF7D6]" : "cursor-pointer border-slate-200 bg-white"}`}><input type="radio" className="mr-2 accent-[#FDB605]" checked={audience === "preferred"} disabled={!hasPreferredProfessionals} onChange={() => { if (hasPreferredProfessionals) setAudience("preferred"); }} /><strong className={`text-sm ${hasPreferredProfessionals ? "text-[#9A6D00]" : "text-slate-500"}`}>★ Preferred Professionals First</strong><span className="mt-1 block text-xs text-slate-600">{hasPreferredProfessionals ? "Private priority access before the General Calendar." : "Add a Preferred Professional in your account to use this option."}</span></label>
           </div>
         </section>
 
