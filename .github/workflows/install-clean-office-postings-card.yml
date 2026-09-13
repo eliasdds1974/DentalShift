@@ -1,0 +1,36 @@
+name: Install clean Office Postings card
+
+on:
+  push:
+    paths:
+      - '.github/workflows/install-clean-office-postings-card.yml'
+      - '.github/scripts/install-clean-office-postings-card.py'
+      - 'components/OfficePostingsCard.tsx'
+
+permissions:
+  contents: write
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Replace legacy Office Postings card
+        run: python .github/scripts/install-clean-office-postings-card.py
+      - name: Install dependencies
+        run: npm install
+      - name: Production build
+        run: npm run build
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/classifieds/page.tsx components/OfficePostingsCard.tsx
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit -m "Rebuild Office Postings card cleanly"
+          git push origin main
