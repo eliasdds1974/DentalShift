@@ -2,8 +2,14 @@
 
 import { useState } from "react";
 import { Clock3, MapPin, Star } from "lucide-react";
+import { supabase } from "@/lib/supabase";
 
 export type AvailableStaffRole = "RDH" | "CDA" | "DA" | "ST" | "DT";
+
+type ResumeDetails = {
+  software: string[];
+  equipment: string[];
+};
 
 export type AnonymousAvailableStaff = {
   id: string;
@@ -66,14 +72,41 @@ export function AnonymousAvailableStaffPanel({
   busyApplicationId?: string | null;
 }) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set());
+  const [resumeDetails, setResumeDetails] = useState<Record<string, ResumeDetails | null>>({});
+  const [resumeDetailsLoading, setResumeDetailsLoading] = useState<Record<string, boolean>>({});
+
+  const loadResumeDetails = async (professionalId: string) => {
+    if (Object.prototype.hasOwnProperty.call(resumeDetails, professionalId) || resumeDetailsLoading[professionalId]) return;
+
+    setResumeDetailsLoading((current) => ({ ...current, [professionalId]: true }));
+    try {
+      const { data, error } = await supabase.rpc("get_available_professional_resume_details", {
+        p_professional_id: professionalId,
+      });
+      if (error) throw error;
+
+      const value = data && typeof data === "object" ? data as Record<string, unknown> : null;
+      const software = Array.isArray(value?.software) ? value.software.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+      const equipment = Array.isArray(value?.equipment) ? value.equipment.filter((item): item is string => typeof item === "string" && item.trim().length > 0) : [];
+
+      setResumeDetails((current) => ({ ...current, [professionalId]: { software, equipment } }));
+    } catch {
+      setResumeDetails((current) => ({ ...current, [professionalId]: null }));
+    } finally {
+      setResumeDetailsLoading((current) => ({ ...current, [professionalId]: false }));
+    }
+  };
 
   const toggleDetails = (id: string) => {
+    const willExpand = !expandedIds.has(id);
     setExpandedIds((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
       else next.add(id);
       return next;
     });
+
+    if (willExpand) void loadResumeDetails(id);
   };
 
   const groups = (["RDH", "CDA", "DA", "ST", "DT"] as AvailableStaffRole[])
@@ -93,6 +126,8 @@ export function AnonymousAvailableStaffPanel({
         <div className="divide-y divide-slate-100">
           {items.map((item) => {
             const expanded = expandedIds.has(item.id);
+            const structuredResume = resumeDetails[item.id];
+            const structuredResumeLoading = Boolean(resumeDetailsLoading[item.id]);
             return <article key={item.id} className={`p-3 ${item.interested ? "bg-[#f3fbf5]" : ""}`}>
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -124,7 +159,10 @@ export function AnonymousAvailableStaffPanel({
                   <span>Rate: <strong>{item.requestedRate != null ? `$${item.requestedRate.toFixed(2)}/hr` : (item.minimumHourlyRate != null ? `$${item.minimumHourlyRate.toFixed(2)}/hr` : "Not specified")}</strong></span>
                 </div>
                 {item.qualifications?.length ? <div className="mt-2 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Qualifications: </span>{item.qualifications.map((qualification) => `${qualification.label}${qualification.verified ? " ✓" : ""}`).join(", ")}</div> : null}
-                {item.software?.length ? <div className="mt-1 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Dental Software Experience: </span>{item.software.join(", ")}</div> : null}
+                <div className="mt-2 rounded-xl border border-[#0078FE]/15 bg-[#f7faff] p-2.5 text-[11px] text-slate-600">
+                  <div><span className="font-black text-[#002757]">Dental Software: </span>{structuredResumeLoading ? "Loading…" : structuredResume?.software?.length ? structuredResume.software.join(", ") : "Not provided"}</div>
+                  <div className="mt-1"><span className="font-black text-[#002757]">Equipment Familiarity: </span>{structuredResumeLoading ? "Loading…" : structuredResume?.equipment?.length ? structuredResume.equipment.join(", ") : "Not provided"}</div>
+                </div>
                 {item.languages?.length ? <div className="mt-1 text-[11px] text-slate-600"><span className="font-black text-[#002757]">Languages Spoken: </span>{item.languages.join(", ")}</div> : null}
                 <p className="mt-2 text-[10px] leading-4 text-slate-500">Identity and contact details are shared after booking confirmation.</p>
               </div>}
