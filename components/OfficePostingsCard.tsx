@@ -41,13 +41,19 @@ type CandidatePreview = {
 type JobConnection = {
   id: string;
   listingId: string;
-  sourceOfficeListingId?: string | null;
+  professionalId: string;
+  officeId: string;
   initiatorRole: "professional" | "office";
   status: "pending" | "interested" | "declined" | "withdrawn";
+  message: string;
+  resumePath: string | null;
   createdAt: string;
   profession: string;
+  employment: string;
   city: string;
   province: string;
+  listingType: "office_hiring" | "professional_available";
+  sourceOfficeListingId?: string | null;
   candidatePreview?: CandidatePreview | null;
 };
 
