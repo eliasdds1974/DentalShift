@@ -599,6 +599,23 @@ export default function DentalJobsPage() {
     }));
   };
 
+  useEffect(() => {
+    if (!portalRole) return;
+
+    const refreshConnections = () => { void loadConnections(portalRole); };
+    window.addEventListener("focus", refreshConnections);
+
+    const channel = supabase
+      .channel(`dentaljobs-connection-refresh-${portalRole}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "job_applications" }, refreshConnections)
+      .subscribe();
+
+    return () => {
+      window.removeEventListener("focus", refreshConnections);
+      void supabase.removeChannel(channel);
+    };
+  }, [portalRole]);
+
   const softDeleteConnection = async (connection: JobConnection) => {
     if (!portalRole || connectionDeletingId) return;
     const matchedOfficeCard = portalRole === "office" && isCandidateUnlocked(connection);
