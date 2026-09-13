@@ -5,9 +5,42 @@ import { CalendarDays, Plus, Star, Trash2, X } from "lucide-react";
 import type { FavouriteOffice } from "@/lib/dentalshift";
 import { createPreferredFirstAvailabilityBatch, emailPreferredFirstBatch, type PreferredFirstDayEntry } from "@/lib/preferred-first";
 
+function dateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
 function todayKey() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return dateKey(new Date());
+}
+
+function timeKey(date: Date) {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(date.getMinutes()).padStart(2, "0")}`;
+}
+
+function initialAvailabilityDay(): PreferredFirstDayEntry {
+  const now = new Date();
+  const start = new Date(now);
+  start.setSeconds(0, 0);
+  start.setMinutes(Math.ceil((start.getMinutes() + 5) / 15) * 15);
+
+  if (start.getMinutes() >= 60) {
+    start.setHours(start.getHours() + 1, 0, 0, 0);
+  }
+
+  const closing = new Date(now);
+  closing.setHours(17, 0, 0, 0);
+
+  if (start.getTime() < closing.getTime() - 30 * 60 * 1000) {
+    return { date: dateKey(now), startTime: timeKey(start), endTime: "17:00" };
+  }
+
+  const tomorrow = new Date(now);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  return { date: dateKey(tomorrow), startTime: "08:00", endTime: "17:00" };
+}
+
+function availabilityStart(day: PreferredFirstDayEntry) {
+  return new Date(`${day.date}T${day.startTime}:00`);
 }
 
 const preferredDayOptions = [2, 3, 4, 5, 6, 7];
@@ -27,7 +60,7 @@ export function PreferredFirstPostAvailabilityModal({
   onClose: () => void;
   onPosted: () => Promise<void> | void;
 }) {
-  const [days, setDays] = useState<PreferredFirstDayEntry[]>([{ date: todayKey(), startTime: "08:00", endTime: "17:00" }]);
+  const [days, setDays] = useState<PreferredFirstDayEntry[]>(() => [initialAvailabilityDay()]);
   const [hourlyRate, setHourlyRate] = useState(defaultHourlyRate ? String(defaultHourlyRate) : "");
   const [audience, setAudience] = useState<"preferred" | "general">("preferred");
   const [duration, setDuration] = useState<"24h" | "days">("24h");
@@ -51,7 +84,21 @@ export function PreferredFirstPostAvailabilityModal({
     event.preventDefault();
     setError("");
     setSuccess("");
-    if (days.some((day) => !day.date || !day.startTime || !day.endTime || day.endTime <= day.startTime)) return setError("Please complete each day with a valid start and end time.");
+
+    if (days.some((day) => !day.date || !day.startTime || !day.endTime || day.endTime <= day.startTime)) {
+      return setError("Please complete each day with a valid start and end time.");
+    }
+
+    const now = Date.now();
+    const pastStart = days.find((day) => availabilityStart(day).getTime() < now - 5 * 60 * 1000);
+    if (pastStart) {
+      const suggested = initialAvailabilityDay();
+      if (pastStart.date === todayKey() && suggested.date === todayKey()) {
+        return setError(`For today, choose a start time of ${suggested.startTime} or later. Availability cannot begin in the past.`);
+      }
+      return setError("Availability cannot begin in the past. Please choose a future date and start time.");
+    }
+
     if (!Number(hourlyRate) || Number(hourlyRate) <= 0) return setError("Please enter your hourly rate.");
     if (audience === "preferred" && registeredPreferredOffices.length === 0) return setError("You do not have a registered DentalShift office in your Preferred Offices list. Choose General Calendar or add a Preferred Office first.");
     if (audience === "preferred" && selectedOfficeIds.length === 0) return setError("Select at least one Preferred Office.");
@@ -77,7 +124,8 @@ export function PreferredFirstPostAvailabilityModal({
       await onPosted();
       setTimeout(onClose, 700);
     } catch (value) {
-      setError(value instanceof Error ? value.message : "Your availability could not be posted.");
+      const message = value instanceof Error ? value.message : typeof value === "object" && value && "message" in value ? String((value as { message?: unknown }).message || "") : "";
+      setError(message || "Your availability could not be posted.");
     } finally {
       setBusy(false);
     }
