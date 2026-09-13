@@ -36,7 +36,6 @@ export default function DentalJobsPage() {
           throw new Error("DentalJobs is available from an Office or Professional account.");
         }
 
-        // Set the legacy workspace role before the retained management tools mount.
         window.localStorage.setItem("dentalshift_portal_role", resolvedRole);
         setRole(resolvedRole);
       } catch (caught) {
@@ -82,9 +81,6 @@ export default function DentalJobsPage() {
   return (
     <div className={`dentaljobs-native-shell dentaljobs-role-${role}`}>
       <style>{`
-        /* The legacy classifieds marketplace remains mounted only so its posting,
-           application, messaging and management tools are preserved. Its old
-           marketplace is never painted; the native marketplace below owns listings. */
         .dentaljobs-native-shell .dentaljobs-legacy-tools main > section:nth-of-type(2) {
           display: none !important;
         }
@@ -93,9 +89,6 @@ export default function DentalJobsPage() {
           padding-bottom: 1.25rem !important;
         }
 
-        /* The native marketplace controls its own responsive 1/2/3/4-column listing grid. */
-
-        /* Search/filter controls are intentionally not part of DentalJobs. */
         .dentaljobs-native-shell .dentaljobs-legacy-filterbar,
         .dentaljobs-native-shell input[type="search"],
         .dentaljobs-native-shell [role="search"],
@@ -103,7 +96,6 @@ export default function DentalJobsPage() {
           display: none !important;
         }
 
-        /* Only the three Office action cards use the forced three-column layout. */
         @media (min-width: 768px) {
           .dentaljobs-role-office .dentaljobs-office-action-grid {
             grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
@@ -118,8 +110,59 @@ export default function DentalJobsPage() {
           }
         }
 
-        /* Professional portal top cards intentionally mirror the Office portal
-           navy + DentalShift green treatment from the very first render. */
+        /* Keep the Office Postings area in normal document flow.
+           These rules intentionally prevent posting and candidate cards from
+           being positioned, translated, floated, or layered over one another. */
+        .dentaljobs-role-office #my-dentaljobs {
+          position: static !important;
+          transform: none !important;
+          isolation: auto !important;
+        }
+
+        .dentaljobs-role-office #my-dentaljobs > div,
+        .dentaljobs-role-office #my-dentaljobs article,
+        .dentaljobs-role-office #my-dentaljobs article > div {
+          position: static !important;
+          inset: auto !important;
+          transform: none !important;
+          float: none !important;
+          clear: both !important;
+          z-index: auto !important;
+          width: 100% !important;
+          max-width: 100% !important;
+        }
+
+        .dentaljobs-role-office #my-dentaljobs article {
+          display: flex !important;
+          flex-direction: column !important;
+          align-items: stretch !important;
+          height: auto !important;
+          min-height: 0 !important;
+        }
+
+        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(1) {
+          order: 1 !important;
+        }
+
+        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(2) {
+          order: 2 !important;
+        }
+
+        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(3) {
+          order: 3 !important;
+        }
+
+        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(3) > div,
+        .dentaljobs-role-office #my-dentaljobs article > div:nth-child(3) > div > div {
+          position: static !important;
+          inset: auto !important;
+          transform: none !important;
+          float: none !important;
+          clear: both !important;
+          z-index: auto !important;
+          max-width: 100% !important;
+        }
+
         .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type div.mt-6.grid.items-stretch.gap-4 > div:first-child > button {
           position: relative !important;
           overflow: hidden !important;
