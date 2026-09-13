@@ -1,6 +1,10 @@
 "use client";
 
-import { useEffect } from "react";
+import Link from "next/link";
+import { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
+import { BriefcaseBusiness, ChevronDown, Clock3, FileText, MapPin, MoreVertical, Pencil } from "lucide-react";
+import { ShareListingButton } from "@/components/ShareListingButton";
 import { supabase } from "@/lib/supabase";
 
 type Listing = {
@@ -19,20 +23,24 @@ type Application = {
   status: string;
 };
 
+const btn: React.CSSProperties = {
+  height: 32,
+  borderRadius: 7,
+  padding: "0 10px",
+  fontSize: 13,
+  fontWeight: 900,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  gap: 5,
+  whiteSpace: "nowrap",
+};
+
 function text(el: Element | null) {
   return el?.textContent?.replace(/\s+/g, " ").trim() || "";
 }
 
-function escapeHtml(value: unknown) {
-  return String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
-}
-
-function legacySection() {
+function findLegacySection() {
   return Array.from(document.querySelectorAll("section")).find((section) =>
     Array.from(section.querySelectorAll("p")).some((p) => text(p).toLowerCase() === "my availability ads"),
   ) as HTMLElement | undefined;
@@ -43,139 +51,28 @@ function daysRemaining(expiresAt: string) {
   return Math.max(0, Math.ceil(ms / 86400000));
 }
 
-function formatDate(value: string) {
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? "—"
-    : date.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });
-}
-
 export function ProfessionalPostingsCardParity() {
+  const [host, setHost] = useState<HTMLElement | null>(null);
+  const [listings, setListings] = useState<Listing[]>([]);
+  const [applications, setApplications] = useState<Application[]>([]);
+
   useEffect(() => {
     let cancelled = false;
     let observer: MutationObserver | null = null;
-    let listings: Listing[] = [];
-    let applications: Application[] = [];
 
-    const renderReplacement = () => {
-      const oldSection = legacySection();
+    const ensureHost = () => {
+      const oldSection = findLegacySection();
       if (!oldSection) return;
 
-      // Remove the old My Availability Ads card from view entirely.
       oldSection.style.display = "none";
 
-      let replacement = document.querySelector<HTMLElement>("[data-professional-postings-replacement='1']");
-      if (!replacement) {
-        replacement = document.createElement("section");
-        replacement.dataset.professionalPostingsReplacement = "1";
-        oldSection.insertAdjacentElement("afterend", replacement);
+      let nextHost = document.querySelector<HTMLElement>("[data-professional-office-card-host='1']");
+      if (!nextHost) {
+        nextHost = document.createElement("div");
+        nextHost.dataset.professionalOfficeCardHost = "1";
+        oldSection.insertAdjacentElement("afterend", nextHost);
       }
-
-      const countByListing = new Map<string, number>();
-      for (const application of applications) {
-        if (!application.listing_id || application.status === "declined" || application.status === "withdrawn") continue;
-        countByListing.set(application.listing_id, (countByListing.get(application.listing_id) || 0) + 1);
-      }
-
-      const cards = listings.length === 0
-        ? `<div style="border:1px dashed #cbd5e1;background:#f8fafc;border-radius:12px;padding:18px;text-align:center;color:#64748b;font-size:13px;font-weight:700">You have no DentalJobs postings yet.</div>`
-        : listings.map((job) => {
-            const remaining = daysRemaining(job.expires_at);
-            const active = job.status === "active" && remaining > 0;
-            const displayStatus = job.status === "active" && remaining === 0 ? "expired" : job.status;
-            const interested = countByListing.get(job.id) || 0;
-
-            return `
-              <div data-professional-listing-id="${escapeHtml(job.id)}" style="border:1px solid #b9dfc3;border-radius:14px;overflow:hidden;background:#fff">
-                <div style="background:#f7fff9;padding:12px 14px">
-                  <div style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">
-                    <span style="background:${active ? "#01A32E" : "#eef2f7"};color:${active ? "#fff" : "#475569"};border-radius:999px;padding:4px 9px;font-size:10px;font-weight:900;text-transform:uppercase">${escapeHtml(displayStatus)}</span>
-                    ${active ? `<span style="color:#455f89;font-size:12px;font-weight:700">${remaining} day${remaining === 1 ? "" : "s"} remaining</span>` : ""}
-                  </div>
-
-                  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:7px">
-                    <div style="color:#002757;font-size:20px;font-weight:900">${escapeHtml(job.profession)} — ${escapeHtml(job.employment_type)}</div>
-                    <span style="border:1px solid #bfe9ca;background:#f2fff6;color:#009b2f;border-radius:999px;padding:4px 9px;font-size:11px;font-weight:900">${interested} Interested</span>
-                  </div>
-
-                  <div style="display:flex;gap:16px;flex-wrap:wrap;color:#526a90;font-size:12px;font-weight:700;margin-top:7px">
-                    <span style="display:inline-flex;align-items:center;gap:5px">⌖ ${escapeHtml(job.city)}, ${escapeHtml(job.province)}</span>
-                    <span style="display:inline-flex;align-items:center;gap:5px">▣ ${escapeHtml(job.employment_type)}</span>
-                    <span style="display:inline-flex;align-items:center;gap:5px">◷ Posted ${escapeHtml(formatDate(job.created_at))}</span>
-                  </div>
-                </div>
-
-                <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding:7px 10px;border-top:1px solid #e2e8f0;border-bottom:1px solid #e2e8f0;background:#f8fbff">
-                  <button type="button" data-professional-manage="${escapeHtml(job.id)}" style="height:32px;border:0;border-radius:7px;padding:0 10px;background:#06499d;color:white;font-size:13px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer">⋮ Manage⌄</button>
-                  <a href="/jobs/${encodeURIComponent(job.id)}?returnTo=${encodeURIComponent("/dental-jobs")}" style="height:32px;border:1px solid #7793b9;border-radius:7px;padding:0 10px;background:white;color:#06499d;font-size:13px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:5px;text-decoration:none">▤ View Ad</a>
-                  <button type="button" data-professional-share="${escapeHtml(job.id)}" style="height:32px;border:0;border-radius:7px;padding:0 10px;background:#4285F4;color:white;font-size:13px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer">⌯ Share Listing</button>
-                  <button type="button" data-professional-edit="${escapeHtml(job.id)}" style="height:32px;border:1px solid #7793b9;border-radius:7px;padding:0 10px;background:white;color:#06499d;font-size:13px;font-weight:900;display:inline-flex;align-items:center;justify-content:center;gap:5px;cursor:pointer">✎ Edit Posting</button>
-                </div>
-
-                <div style="padding:12px">
-                  <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap;padding-bottom:8px;border-bottom:1px solid #e2e8f0">
-                    <div style="color:#002757;font-size:17px;font-weight:900">Interested Dental Offices (${interested})</div>
-                    <div style="color:#002757;font-size:12px;font-weight:700">Sort by: Newest First⌄</div>
-                  </div>
-                  <div style="margin-top:9px;border:1px dashed #cbd5e1;background:#f8fafc;border-radius:10px;padding:14px;text-align:center;color:#64748b;font-size:12px;font-weight:700">
-                    ${interested === 0
-                      ? "When a dental office selects I’m Interested, its card will appear here."
-                      : "Dental office response cards will be defined here next."}
-                  </div>
-                </div>
-              </div>`;
-          }).join("");
-
-      replacement.innerHTML = `
-        <div style="width:100%;margin-top:14px;border:2px solid #01A32E;border-radius:18px;background:#fff;padding:14px;box-sizing:border-box">
-          <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
-            <div>
-              <div style="color:#009b2f;font-weight:900;font-size:11px;text-transform:uppercase">Professional Postings</div>
-              <div style="color:#002757;font-weight:900;font-size:26px">My DentalJobs</div>
-              <div style="color:#455f89;font-weight:600;font-size:13px">Manage your postings and review each dental office that responds.</div>
-            </div>
-            <div style="border:1px solid #bfe9ca;background:#f2fff6;color:#009b2f;font-weight:900;border-radius:999px;padding:6px 12px;font-size:13px">
-              ${listings.length} posting${listings.length === 1 ? "" : "s"}
-            </div>
-          </div>
-          <div style="display:grid;gap:14px;margin-top:12px">${cards}</div>
-        </div>`;
-
-      for (const button of Array.from(replacement.querySelectorAll<HTMLButtonElement>("[data-professional-manage]"))) {
-        button.onclick = () => {
-          const id = button.dataset.professionalManage;
-          const hiddenArticle = oldSection.querySelector<HTMLElement>(`a[href^="/jobs/${CSS.escape(id || "")}"]`)?.closest("article");
-          const hiddenManage = Array.from(hiddenArticle?.querySelectorAll<HTMLButtonElement>("button") || []).find((item) => text(item).includes("Manage"));
-          hiddenManage?.click();
-        };
-      }
-
-      for (const button of Array.from(replacement.querySelectorAll<HTMLButtonElement>("[data-professional-edit]"))) {
-        button.onclick = () => {
-          const id = button.dataset.professionalEdit;
-          const hiddenArticle = oldSection.querySelector<HTMLElement>(`a[href^="/jobs/${CSS.escape(id || "")}"]`)?.closest("article");
-          const hiddenManage = Array.from(hiddenArticle?.querySelectorAll<HTMLButtonElement>("button") || []).find((item) => text(item).includes("Manage"));
-          hiddenManage?.click();
-        };
-      }
-
-      for (const button of Array.from(replacement.querySelectorAll<HTMLButtonElement>("[data-professional-share]"))) {
-        button.onclick = async () => {
-          const id = button.dataset.professionalShare || "";
-          const url = `${window.location.origin}/jobs/${id}`;
-          try {
-            if (navigator.share) await navigator.share({ title: "DentalJobs", url });
-            else {
-              await navigator.clipboard.writeText(url);
-              const previous = button.textContent;
-              button.textContent = "Copied";
-              window.setTimeout(() => { button.textContent = previous; }, 1400);
-            }
-          } catch {
-            // User cancelled share or browser blocked it; no action needed.
-          }
-        };
-      }
+      if (!cancelled) setHost((current) => current || nextHost!);
     };
 
     const load = async () => {
@@ -196,27 +93,125 @@ export function ProfessionalPostingsCardParity() {
       ]);
 
       if (cancelled) return;
-      listings = (listingRows || []) as Listing[];
-      applications = (applicationRows || []) as Application[];
-      renderReplacement();
+      setListings((listingRows || []) as Listing[]);
+      setApplications((applicationRows || []) as Application[]);
     };
 
+    ensureHost();
     void load();
 
-    observer = new MutationObserver(() => renderReplacement());
+    observer = new MutationObserver(ensureHost);
     observer.observe(document.body, { childList: true, subtree: true });
-
-    const timer = window.setInterval(() => renderReplacement(), 1000);
 
     return () => {
       cancelled = true;
       observer?.disconnect();
-      window.clearInterval(timer);
-      document.querySelector("[data-professional-postings-replacement='1']")?.remove();
-      const oldSection = legacySection();
+      document.querySelector("[data-professional-office-card-host='1']")?.remove();
+      const oldSection = findLegacySection();
       if (oldSection) oldSection.style.display = "";
     };
   }, []);
 
-  return null;
+  const counts = useMemo(() => {
+    const map = new Map<string, number>();
+    for (const item of applications) {
+      if (!item.listing_id || item.status === "declined" || item.status === "withdrawn") continue;
+      map.set(item.listing_id, (map.get(item.listing_id) || 0) + 1);
+    }
+    return map;
+  }, [applications]);
+
+  const clickLegacyAction = (listingId: string, action: "manage" | "edit") => {
+    const oldSection = findLegacySection();
+    if (!oldSection) return;
+    const link = oldSection.querySelector<HTMLAnchorElement>(`a[href^="/jobs/${CSS.escape(listingId)}"]`);
+    const article = link?.closest("article");
+    if (!article) return;
+
+    const buttons = Array.from(article.querySelectorAll<HTMLButtonElement>("button"));
+    const manage = buttons.find((button) => text(button).toLowerCase().includes("manage"));
+
+    if (action === "manage") {
+      manage?.click();
+      return;
+    }
+
+    // The existing professional card opens Edit from its Manage dialog.
+    manage?.click();
+  };
+
+  if (!host) return null;
+
+  return createPortal(
+    <div id="my-dentaljobs" style={{ width: "100%", marginTop: 14 }}>
+      <div style={{ border: "2px solid #01A32E", borderRadius: 18, background: "#fff", padding: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <div>
+            <div style={{ color: "#009b2f", fontWeight: 900, fontSize: 11, textTransform: "uppercase" }}>Office Postings</div>
+            <div style={{ color: "#002757", fontWeight: 900, fontSize: 26 }}>My DentalJobs</div>
+            <div style={{ color: "#455f89", fontWeight: 600, fontSize: 13 }}>Manage your postings and review each office who responds.</div>
+          </div>
+          <div style={{ border: "1px solid #bfe9ca", background: "#f2fff6", color: "#009b2f", fontWeight: 900, borderRadius: 999, padding: "6px 12px", fontSize: 13 }}>
+            {listings.length} posting{listings.length === 1 ? "" : "s"}
+          </div>
+        </div>
+
+        <div style={{ display: "grid", gap: 14, marginTop: 12 }}>
+          {listings.length === 0 ? (
+            <div style={{ border: "1px dashed #cbd5e1", background: "#f8fafc", borderRadius: 12, padding: 18, textAlign: "center", color: "#64748b", fontSize: 13, fontWeight: 700 }}>
+              You have no DentalJobs postings yet.
+            </div>
+          ) : listings.map((job) => {
+            const remaining = daysRemaining(job.expires_at);
+            const active = job.status === "active" && remaining > 0;
+            const displayStatus = job.status === "active" && remaining === 0 ? "expired" : job.status;
+            const interested = counts.get(job.id) || 0;
+
+            return (
+              <div key={job.id} style={{ border: "1px solid #b9dfc3", borderRadius: 14, overflow: "hidden", background: "#fff" }}>
+                <div style={{ background: "#f7fff9", padding: "12px 14px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
+                    <span style={{ background: active ? "#01A32E" : "#eef2f7", color: active ? "#fff" : "#475569", borderRadius: 999, padding: "4px 9px", fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}>{displayStatus}</span>
+                    {active && <span style={{ color: "#455f89", fontSize: 12, fontWeight: 700 }}>{remaining} day{remaining === 1 ? "" : "s"} remaining</span>}
+                  </div>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap", marginTop: 7 }}>
+                    <div style={{ color: "#002757", fontSize: 20, fontWeight: 900 }}>{job.profession} — {job.employment_type}</div>
+                    <span style={{ border: "1px solid #bfe9ca", background: "#f2fff6", color: "#009b2f", borderRadius: 999, padding: "4px 9px", fontSize: 11, fontWeight: 900 }}>{interested} Interested</span>
+                  </div>
+
+                  <div style={{ display: "flex", gap: 16, flexWrap: "wrap", color: "#526a90", fontSize: 12, fontWeight: 700, marginTop: 7 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><MapPin size={14} />{job.city}, {job.province}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><BriefcaseBusiness size={14} />{job.employment_type}</span>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5 }}><Clock3 size={14} />Posted {new Date(job.created_at).toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" })}</span>
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap", padding: "7px 10px", borderTop: "1px solid #e2e8f0", borderBottom: "1px solid #e2e8f0", background: "#f8fbff" }}>
+                  <button onClick={() => clickLegacyAction(job.id, "manage")} style={{ ...btn, border: 0, background: "#06499d", color: "white" }}><MoreVertical size={13} />Manage<ChevronDown size={12} /></button>
+                  <Link href={`/jobs/${job.id}?returnTo=${encodeURIComponent("/dental-jobs")}`} style={{ ...btn, border: "1px solid #7793b9", background: "white", color: "#06499d", textDecoration: "none" }}><FileText size={13} />View Ad</Link>
+                  <ShareListingButton listingId={job.id} compact />
+                  <button onClick={() => clickLegacyAction(job.id, "edit")} style={{ ...btn, border: "1px solid #7793b9", background: "white", color: "#06499d" }}><Pencil size={13} />Edit Posting</button>
+                </div>
+
+                <div style={{ padding: 12 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", paddingBottom: 8, borderBottom: "1px solid #e2e8f0" }}>
+                    <div style={{ color: "#002757", fontSize: 17, fontWeight: 900 }}>Interested Dental Offices ({interested})</div>
+                    <div style={{ color: "#002757", fontSize: 12, fontWeight: 700, display: "inline-flex", alignItems: "center", gap: 4 }}>Sort by: Newest First <ChevronDown size={14} /></div>
+                  </div>
+
+                  <div style={{ marginTop: 9, border: "1px dashed #cbd5e1", background: "#f8fafc", borderRadius: 10, padding: 14, textAlign: "center", color: "#64748b", fontSize: 12, fontWeight: 700 }}>
+                    {interested === 0
+                      ? "When a dental office responds to this posting, its card will appear here."
+                      : "Office response details will appear here."}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </div>,
+    host,
+  );
 }
