@@ -45,6 +45,12 @@ function toIso(entry: PreferredFirstDayEntry) {
   };
 }
 
+function rpcError(error: { message?: string; details?: string; hint?: string } | null | undefined, fallback: string) {
+  if (!error) return new Error(fallback);
+  const parts = [error.message, error.details, error.hint].filter(Boolean);
+  return new Error(parts.join(" — ") || fallback);
+}
+
 async function screenPreferredFirstNotes(notes?: string) {
   const content = notes?.trim();
   if (!content) return;
@@ -55,7 +61,7 @@ async function screenPreferredFirstNotes(notes?: string) {
     p_booking_id: null,
     p_availability_id: null,
   });
-  if (error) throw error;
+  if (error) throw rpcError(error, "Shift Notes could not be checked.");
   const result = data as { allowed?: boolean; reason?: string | null } | null;
   if (!result?.allowed) {
     throw new Error(`Please remove contact information from Shift Notes${result?.reason ? ` (${result.reason})` : ""}. Contact details are shared after scheduling.`);
@@ -85,7 +91,7 @@ export async function createPreferredFirstShiftBatch(input: {
     p_preferred_until: input.preferredFirst ? input.preferredUntil : null,
     p_recipient_ids: input.preferredFirst && input.recipientIds?.length ? input.recipientIds : null,
   });
-  if (error) throw error;
+  if (error) throw rpcError(error, "The shift could not be posted.");
   return data as PreferredFirstBatchResult;
 }
 
@@ -107,18 +113,18 @@ export async function createPreferredFirstAvailabilityBatch(input: {
     p_preferred_until: input.preferredFirst ? input.preferredUntil : null,
     p_office_ids: input.preferredFirst && input.officeIds?.length ? input.officeIds : null,
   });
-  if (error) throw error;
+  if (error) throw rpcError(error, "Your availability could not be posted.");
   return data as PreferredFirstBatchResult;
 }
 
 export async function releasePreferredFirstShiftBatch(batchId: string) {
   const { error } = await supabase.rpc("release_preferred_shift_batch", { p_batch_id: batchId });
-  if (error) throw error;
+  if (error) throw rpcError(error, "The Preferred First shift could not be released.");
 }
 
 export async function releasePreferredFirstAvailabilityBatch(batchId: string) {
   const { error } = await supabase.rpc("release_preferred_availability_batch", { p_batch_id: batchId });
-  if (error) throw error;
+  if (error) throw rpcError(error, "The Preferred First availability could not be released.");
 }
 
 export async function emailPreferredFirstBatch(kind: "shift" | "availability", batchId: string) {
