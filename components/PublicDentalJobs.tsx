@@ -108,7 +108,7 @@ function ListingCard({ listing }: { listing: PublicJobListing }) {
 
   return (
     <article className="flex min-h-[315px] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:shadow-lg">
-      <div className="h-1.5" style={{ backgroundColor: accent }} />
+      <div className="h-1.5" style={{ backgroundColor: theme.accent }} />
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start gap-3">
           <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl text-white" style={{ backgroundColor: accent }}>
@@ -118,7 +118,7 @@ function ListingCard({ listing }: { listing: PublicJobListing }) {
             <p className="text-[10px] font-black uppercase tracking-[0.12em]" style={{ color: text }}>
               {professional ? "Professional looking for an office" : "Dental office hiring"}
             </p>
-            <h4 className="mt-1 text-base font-black leading-5 text-[#002757]">
+            <h4 className="mt-1 text-base font-black leading-5" style={{ color: theme.text }}>
               {professional ? `${listing.profession} Available` : listing.profession}
             </h4>
           </div>
