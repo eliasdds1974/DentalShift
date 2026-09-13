@@ -16,6 +16,15 @@ export default function DentalJobsPage() {
   useEffect(() => {
     let cancelled = false;
 
+    const storedRole = window.localStorage.getItem("dentalshift_portal_role");
+    if (storedRole === "office" || storedRole === "professional") {
+      setRole(storedRole);
+      setReady(true);
+      return () => {
+        cancelled = true;
+      };
+    }
+
     void (async () => {
       try {
         const {
