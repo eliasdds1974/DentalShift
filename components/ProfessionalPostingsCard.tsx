@@ -1,8 +1,29 @@
 "use client";
 
 import Link from "next/link";
+import { createPortal } from "react-dom";
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import { BriefcaseBusiness, ChevronDown, Clock3, FileText, MapPin, MoreVertical, Pencil, Play, Pause, RefreshCw, Trash2, X, Building2, Check, Ban } from "lucide-react";
+import {
+  Ban,
+  BriefcaseBusiness,
+  Building2,
+  Car,
+  Check,
+  ChevronDown,
+  Clock3,
+  FileText,
+  Languages,
+  MapPin,
+  Monitor,
+  MoreVertical,
+  Navigation,
+  Pause,
+  Pencil,
+  Play,
+  RefreshCw,
+  Trash2,
+  X,
+} from "lucide-react";
 import { ShareListingButton } from "@/components/ShareListingButton";
 import { supabase } from "@/lib/supabase";
 
@@ -26,12 +47,6 @@ type OfficeInterestSnapshot = {
   label?: string | null;
   city?: string | null;
   province?: string | null;
-  profession?: string | null;
-  employment_type?: string | null;
-  days_per_week?: string | null;
-  pay_min?: number | string | null;
-  pay_max?: number | string | null;
-  schedule?: string | null;
 };
 
 type Connection = {
@@ -42,6 +57,22 @@ type Connection = {
   createdAt: string;
   officeId: string;
   officeInterestSnapshot?: OfficeInterestSnapshot | null;
+};
+
+type SafeOfficeProfile = {
+  id: string;
+  city: string | null;
+  province: string | null;
+  software: string[] | null;
+  languages: string[] | null;
+  parking_info: string | null;
+  latitude: number | null;
+  longitude: number | null;
+};
+
+type ProfessionalCoords = {
+  latitude: number | null;
+  longitude: number | null;
 };
 
 const btn: React.CSSProperties = {
@@ -64,11 +95,28 @@ function connectionStatus(connection: Connection) {
   return connection.initiatorRole === "office" ? "New" : "Pending";
 }
 
+function kmBetween(lat1?: number | null, lon1?: number | null, lat2?: number | null, lon2?: number | null) {
+  if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return null;
+  const rad = (value: number) => (value * Math.PI) / 180;
+  const earthKm = 6371;
+  const dLat = rad(lat2 - lat1);
+  const dLon = rad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return earthKm * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function displayList(values?: string[] | null) {
+  const clean = (values || []).map((value) => String(value).trim()).filter(Boolean);
+  return clean.length ? clean.join(" · ") : "Not provided";
+}
+
 export function ProfessionalPostingsCard() {
   const [host, setHost] = useState<HTMLElement | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [jobs, setJobs] = useState<ProfessionalJobListing[]>([]);
   const [connections, setConnections] = useState<Connection[]>([]);
+  const [officeProfiles, setOfficeProfiles] = useState<Record<string, SafeOfficeProfile>>({});
+  const [professionalCoords, setProfessionalCoords] = useState<ProfessionalCoords>({ latitude: null, longitude: null });
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState<string | null>(null);
   const [manageJob, setManageJob] = useState<ProfessionalJobListing | null>(null);
@@ -112,7 +160,7 @@ export function ProfessionalPostingsCard() {
         body: JSON.stringify({ applicationId, eventType }),
       });
     } catch {
-      // The core DentalJobs action should still succeed if notification delivery fails.
+      // The DentalJobs action should still succeed if notification delivery fails.
     }
   }, []);
 
@@ -120,8 +168,9 @@ export function ProfessionalPostingsCard() {
     const professionalId = targetUserId || userId;
     if (!professionalId) return;
     setError("");
+
     try {
-      const [{ data: listingRows, error: listingError }, { data: connectionRows, error: connectionError }] = await Promise.all([
+      const [listingResult, connectionResult, profileResult] = await Promise.all([
         supabase
           .from("job_listings")
           .select("id,profession,employment_type,city,province,days_per_week,pay_min,pay_max,schedule,description,status,expires_at,created_at")
@@ -135,11 +184,17 @@ export function ProfessionalPostingsCard() {
           .is("deleted_at", null)
           .is("professional_hidden_at", null)
           .order("created_at", { ascending: false }),
+        supabase
+          .from("profiles")
+          .select("latitude,longitude")
+          .eq("id", professionalId)
+          .maybeSingle(),
       ]);
-      if (listingError) throw listingError;
-      if (connectionError) throw connectionError;
-      setJobs((listingRows || []) as ProfessionalJobListing[]);
-      setConnections((connectionRows || []).map((row: any) => ({
+
+      if (listingResult.error) throw listingResult.error;
+      if (connectionResult.error) throw connectionResult.error;
+
+      const mappedConnections = (connectionResult.data || []).map((row: any) => ({
         id: row.id,
         listingId: row.listing_id,
         officeId: row.office_id,
@@ -147,7 +202,44 @@ export function ProfessionalPostingsCard() {
         status: row.status,
         createdAt: row.created_at,
         officeInterestSnapshot: row.office_interest_snapshot || null,
-      })) as Connection[]);
+      })) as Connection[];
+
+      setJobs((listingResult.data || []) as ProfessionalJobListing[]);
+      setConnections(mappedConnections);
+      if (!profileResult.error && profileResult.data) {
+        setProfessionalCoords({
+          latitude: profileResult.data.latitude == null ? null : Number(profileResult.data.latitude),
+          longitude: profileResult.data.longitude == null ? null : Number(profileResult.data.longitude),
+        });
+      }
+
+      const officeIds = Array.from(new Set(mappedConnections.map((item) => item.officeId).filter(Boolean)));
+      if (!officeIds.length) {
+        setOfficeProfiles({});
+        return;
+      }
+
+      const { data: offices, error: officesError } = await supabase
+        .from("offices")
+        .select("id,city,province,software,languages,parking_info,latitude,longitude")
+        .in("id", officeIds);
+
+      if (!officesError && offices) {
+        const next: Record<string, SafeOfficeProfile> = {};
+        for (const office of offices as any[]) {
+          next[String(office.id)] = {
+            id: String(office.id),
+            city: office.city || null,
+            province: office.province || null,
+            software: Array.isArray(office.software) ? office.software : [],
+            languages: Array.isArray(office.languages) ? office.languages : [],
+            parking_info: office.parking_info || null,
+            latitude: office.latitude == null ? null : Number(office.latitude),
+            longitude: office.longitude == null ? null : Number(office.longitude),
+          };
+        }
+        setOfficeProfiles(next);
+      }
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Could not load your DentalJobs postings.");
     }
@@ -169,15 +261,17 @@ export function ProfessionalPostingsCard() {
     const refresh = () => void load(userId);
     window.addEventListener("focus", refresh);
     const interval = window.setInterval(refresh, 4000);
-    const listingsChannel = supabase
+    const channel = supabase
       .channel(`professional-postings-${userId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "job_listings" }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "job_applications" }, refresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "offices" }, refresh)
       .subscribe();
+
     return () => {
       window.removeEventListener("focus", refresh);
       window.clearInterval(interval);
-      void supabase.removeChannel(listingsChannel);
+      void supabase.removeChannel(channel);
     };
   }, [userId, load]);
 
@@ -186,8 +280,7 @@ export function ProfessionalPostingsCard() {
     setError("");
     try {
       if (action === "delete") {
-        const confirmed = window.confirm("Delete this DentalJobs posting? This cannot be undone.");
-        if (!confirmed) return;
+        if (!window.confirm("Delete this DentalJobs posting? This cannot be undone.")) return;
         const { error: deleteError } = await supabase.from("job_listings").delete().eq("id", job.id);
         if (deleteError) throw deleteError;
       } else {
@@ -339,33 +432,51 @@ export function ProfessionalPostingsCard() {
 
                   {jobConnections.length === 0 ? (
                     <div style={{ marginTop: 9, border: "1px dashed #cbd5e1", background: "#f8fafc", borderRadius: 10, padding: 14, textAlign: "center", color: "#64748b", fontSize: 12, fontWeight: 700 }}>
-                      When a dental office selects I’m Interested, its card will appear here.
+                      When a dental office selects I’m Interested, its anonymous office card will appear here.
                     </div>
                   ) : (
                     <div style={{ display: "grid", gap: 8, marginTop: 9 }}>
                       {jobConnections.map((connection) => {
-                        const office = connection.officeInterestSnapshot || {};
+                        const profile = officeProfiles[connection.officeId];
+                        const snapshot = connection.officeInterestSnapshot || {};
                         const status = connectionStatus(connection);
-                        const location = [office.city, office.province].filter(Boolean).join(", ") || "Location not specified";
-                        const pay = office.pay_min || office.pay_max
-                          ? `${office.pay_min ? `$${office.pay_min}` : ""}${office.pay_min && office.pay_max ? "–" : ""}${office.pay_max ? `$${office.pay_max}` : ""}/hr`
-                          : null;
+                        const city = profile?.city || snapshot.city || "Location not specified";
+                        const province = profile?.province || snapshot.province || "";
+                        const location = [city, province].filter(Boolean).join(", ");
+                        const distance = kmBetween(professionalCoords.latitude, professionalCoords.longitude, profile?.latitude, profile?.longitude);
+
                         return (
                           <div key={connection.id} style={{ border: "1px solid #dbe4ef", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
                             <div style={{ padding: 12 }}>
                               <div style={{ display: "flex", alignItems: "center", gap: 7, flexWrap: "wrap" }}>
-                                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#002757", fontSize: 17, fontWeight: 900 }}><Building2 size={18} />{office.label || "Dental Office"}</div>
+                                <div style={{ display: "inline-flex", alignItems: "center", gap: 7, color: "#002757", fontSize: 17, fontWeight: 900 }}><Building2 size={18} />Dental Office</div>
                                 <span style={{ borderRadius: 999, padding: "3px 8px", fontSize: 9, fontWeight: 900, textTransform: "uppercase", background: status === "New" ? "#dcecff" : status === "Mutual Interest" ? "#eaf8ee" : "#fff7ed", color: status === "New" ? "#0869d7" : status === "Mutual Interest" ? "#017f27" : "#b45309" }}>{status}</span>
                               </div>
-                              <div style={{ display: "flex", gap: 14, flexWrap: "wrap", marginTop: 6, color: "#526a90", fontSize: 12, fontWeight: 700 }}>
-                                <span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}><MapPin size={14} />{location}</span>
-                                {office.profession && <span style={{ display: "inline-flex", gap: 5, alignItems: "center" }}><BriefcaseBusiness size={14} />{office.profession}</span>}
-                                {office.employment_type && <span>{office.employment_type}</span>}
-                                {office.days_per_week && <span>{office.days_per_week} days/week</span>}
-                                {pay && <span>{pay}</span>}
+
+                              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(180px,1fr))", gap: 8, marginTop: 10 }}>
+                                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, background: "#f8fafc" }}>
+                                  <div style={{ display: "flex", gap: 6, alignItems: "center", color: "#64748b", fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}><MapPin size={13} />Location</div>
+                                  <div style={{ marginTop: 4, color: "#002757", fontSize: 13, fontWeight: 800 }}>{location}</div>
+                                </div>
+                                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, background: "#f8fafc" }}>
+                                  <div style={{ display: "flex", gap: 6, alignItems: "center", color: "#64748b", fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}><Navigation size={13} />Distance</div>
+                                  <div style={{ marginTop: 4, color: "#002757", fontSize: 13, fontWeight: 800 }}>{distance == null ? "Not available" : `${distance < 10 ? distance.toFixed(1) : Math.round(distance)} km away`}</div>
+                                </div>
+                                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, background: "#f8fafc" }}>
+                                  <div style={{ display: "flex", gap: 6, alignItems: "center", color: "#64748b", fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}><Monitor size={13} />Dental Software</div>
+                                  <div style={{ marginTop: 4, color: "#002757", fontSize: 13, fontWeight: 800 }}>{displayList(profile?.software)}</div>
+                                </div>
+                                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, background: "#f8fafc" }}>
+                                  <div style={{ display: "flex", gap: 6, alignItems: "center", color: "#64748b", fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}><Languages size={13} />Languages</div>
+                                  <div style={{ marginTop: 4, color: "#002757", fontSize: 13, fontWeight: 800 }}>{displayList(profile?.languages)}</div>
+                                </div>
+                                <div style={{ border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, background: "#f8fafc", gridColumn: "1 / -1" }}>
+                                  <div style={{ display: "flex", gap: 6, alignItems: "center", color: "#64748b", fontSize: 10, fontWeight: 900, textTransform: "uppercase" }}><Car size={13} />Parking</div>
+                                  <div style={{ marginTop: 4, color: "#002757", fontSize: 13, fontWeight: 800 }}>{profile?.parking_info?.trim() || "Not provided"}</div>
+                                </div>
                               </div>
-                              {office.schedule && <div style={{ marginTop: 7, color: "#526a90", fontSize: 12 }}>{office.schedule}</div>}
                             </div>
+
                             <div style={{ display: "flex", gap: 6, flexWrap: "wrap", padding: "8px 10px", borderTop: "1px solid #e2e8f0", background: "#f8fbff" }}>
                               {connection.initiatorRole === "office" && connection.status === "pending" && <>
                                 <button disabled={busyId === connection.id} onClick={() => void respond(connection, "interested")} style={{ ...btn, border: 0, background: "#01A32E", color: "#fff", opacity: busyId === connection.id ? .6 : 1 }}><Check size={13} />I’m Interested</button>
@@ -407,27 +518,28 @@ export function ProfessionalPostingsCard() {
       {editJob && (
         <div className="fixed inset-0 z-[125] overflow-y-auto bg-[#00162f]/60 p-4" onClick={() => setEditJob(null)}>
           <form onSubmit={saveEdit} className="mx-auto my-6 w-full max-w-xl rounded-3xl bg-white p-5 shadow-2xl" onClick={(event) => event.stopPropagation()}>
-            <div className="flex items-start justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Edit Posting</p><h3 className="mt-1 text-xl font-black text-[#002757]">{editJob.profession}</h3></div><button type="button" onClick={() => setEditJob(null)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-500"><X size={16} /></button></div>
-            <div className="mt-5 grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-bold text-[#002757]">Profession<input name="profession" defaultValue={editJob.profession} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
-              <label className="text-sm font-bold text-[#002757]">Employment<input name="employment_type" defaultValue={editJob.employment_type} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
-              <label className="text-sm font-bold text-[#002757]">City<input name="city" defaultValue={editJob.city} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
-              <label className="text-sm font-bold text-[#002757]">Province<input name="province" defaultValue={editJob.province} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
-              <label className="text-sm font-bold text-[#002757]">Days / week<input name="days_per_week" defaultValue={editJob.days_per_week || ""} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
-              <div className="grid grid-cols-2 gap-2"><label className="text-sm font-bold text-[#002757]">Pay from<input name="pay_min" type="number" defaultValue={editJob.pay_min ?? ""} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label><label className="text-sm font-bold text-[#002757]">Pay to<input name="pay_max" type="number" defaultValue={editJob.pay_max ?? ""} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label></div>
-              <label className="sm:col-span-2 text-sm font-bold text-[#002757]">Schedule<input name="schedule" defaultValue={editJob.schedule || ""} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
-              <label className="sm:col-span-2 text-sm font-bold text-[#002757]">Description<textarea name="description" rows={5} defaultValue={editJob.description} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+            <div className="flex items-start justify-between gap-4">
+              <div><p className="text-xs font-black uppercase tracking-[0.12em] text-[#017f27]">Edit Posting</p><h3 className="mt-1 text-xl font-black text-[#002757]">Professional DentalJobs Posting</h3></div>
+              <button type="button" onClick={() => setEditJob(null)} className="grid h-9 w-9 place-items-center rounded-full border border-slate-200 text-slate-500"><X size={16} /></button>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              <label className="text-xs font-black text-slate-600">Profession<input name="profession" defaultValue={editJob.profession} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+              <label className="text-xs font-black text-slate-600">Employment Type<input name="employment_type" defaultValue={editJob.employment_type} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+              <label className="text-xs font-black text-slate-600">City<input name="city" defaultValue={editJob.city} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+              <label className="text-xs font-black text-slate-600">Province<input name="province" defaultValue={editJob.province} required className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+              <label className="text-xs font-black text-slate-600">Days / Week<input name="days_per_week" defaultValue={editJob.days_per_week || ""} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+              <label className="text-xs font-black text-slate-600">Schedule<input name="schedule" defaultValue={editJob.schedule || ""} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+              <label className="text-xs font-black text-slate-600">Pay From<input name="pay_min" type="number" defaultValue={editJob.pay_min ?? ""} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+              <label className="text-xs font-black text-slate-600">Pay To<input name="pay_max" type="number" defaultValue={editJob.pay_max ?? ""} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
+              <label className="text-xs font-black text-slate-600 sm:col-span-2">Description<textarea name="description" rows={5} defaultValue={editJob.description} className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm" /></label>
             </div>
             <button disabled={busyId === editJob.id} className="mt-5 w-full rounded-xl bg-[#01A32E] px-4 py-3 text-sm font-black text-white disabled:opacity-60">Save Changes</button>
           </form>
         </div>
       )}
     </div>
-  ), [jobs, connections, error, busyId, manageJob, editJob, userId]);
+  ), [jobs, connections, officeProfiles, professionalCoords, error, busyId, manageJob, editJob, userId]);
 
   if (!host) return null;
-
-  // Avoid importing react-dom on the server; this component is client-only.
-  const { createPortal } = require("react-dom") as typeof import("react-dom");
   return createPortal(content, host);
 }
