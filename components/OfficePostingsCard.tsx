@@ -210,6 +210,10 @@ export function OfficePostingsCard({
                           const languages = (preview?.languages || []).filter(Boolean);
                           const distance = preview?.distanceKm;
                           const status = statusFor(item, unlocked);
+                          const resolvedApplicationId = String(item.applicationId || item.id || "");
+                          const matchItem = resolvedApplicationId && resolvedApplicationId !== String(item.id)
+                            ? { ...item, id: resolvedApplicationId }
+                            : item;
 
                           return (
                             <div key={item.id} style={{ display: "flex", flexWrap: "wrap", border: "1px solid #dbe4ef", borderRadius: 12, overflow: "hidden" }}>
@@ -245,12 +249,12 @@ export function OfficePostingsCard({
                                 ) : item.initiatorRole === "professional" && item.status === "pending" ? (
                                   <>
                                     <button disabled={connectionBusy || unlockBusyId === item.id} onClick={() => onUpdateConnection(item, "declined")} style={{ ...candidateActionBase, border: "1.5px solid #f3a6ad", background: "#fff7f8", color: "#c6283d", boxShadow: "0 1px 2px rgba(190,24,60,.08)" }}><Ban size={15} /> Not Interested</button>
-                                    <button disabled={unlockBusyId === item.id} onClick={() => onStartMatch(item)} style={{ ...candidateActionBase, minHeight: 44, border: "1px solid #018d29", background: "linear-gradient(180deg,#10b63b 0%,#019c2f 100%)", color: "white", boxShadow: "0 5px 12px rgba(1,163,46,.22)", letterSpacing: ".02em" }}><Handshake size={16} />{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button>
+                                    <button disabled={unlockBusyId === resolvedApplicationId} onClick={() => onStartMatch(matchItem)} style={{ ...candidateActionBase, minHeight: 44, border: "1px solid #018d29", background: "linear-gradient(180deg,#10b63b 0%,#019c2f 100%)", color: "white", boxShadow: "0 5px 12px rgba(1,163,46,.22)", letterSpacing: ".02em" }}><Handshake size={16} />{unlockBusyId === resolvedApplicationId ? "Matching…" : "LET’S MATCH"}</button>
                                     <div style={{ textAlign: "center", color: "#65758f", fontSize: 10, lineHeight: 1.35, padding: "0 8px" }}>Contact details remain private until a match is made.</div>
                                   </>
                                 ) : item.initiatorRole === "office" && item.status === "interested" ? (
                                   <>
-                                    <button disabled={unlockBusyId === item.id} onClick={() => onStartMatch(item)} style={{ ...candidateActionBase, minHeight: 44, border: "1px solid #018d29", background: "linear-gradient(180deg,#10b63b 0%,#019c2f 100%)", color: "white", boxShadow: "0 5px 12px rgba(1,163,46,.22)", letterSpacing: ".02em" }}><Handshake size={16} />{unlockBusyId === item.id ? "Matching…" : "LET’S MATCH"}</button>
+                                    <button disabled={unlockBusyId === resolvedApplicationId} onClick={() => onStartMatch(matchItem)} style={{ ...candidateActionBase, minHeight: 44, border: "1px solid #018d29", background: "linear-gradient(180deg,#10b63b 0%,#019c2f 100%)", color: "white", boxShadow: "0 5px 12px rgba(1,163,46,.22)", letterSpacing: ".02em" }}><Handshake size={16} />{unlockBusyId === resolvedApplicationId ? "Matching…" : "LET’S MATCH"}</button>
                                     <div style={{ textAlign: "center", color: "#65758f", fontSize: 10, lineHeight: 1.35 }}>Mutual interest confirmed. LET’S MATCH completes the paid connection.</div>
                                   </>
                                 ) : (
