@@ -11,8 +11,10 @@ function cleanHeaderValue(value: string | undefined | null) {
 const supabaseUrl = cleanHeaderValue(process.env.NEXT_PUBLIC_SUPABASE_URL) || "https://pvugjtlmtlyfzyvvhcik.supabase.co";
 const supabasePublishableKey = cleanHeaderValue(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) || "sb_publishable_cl7HUUywEucu1DsSbuaodA_oKo8qNFJ";
 const serviceRoleKey = cleanHeaderValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
-const unlockPriceCents = Number(process.env.DENTALJOBS_UNLOCK_PRICE_CENTS ?? "2900");
 const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.dentalshift.ca").trim();
+
+// DentalJobs matching is intentionally free while the paid billing flow is still being built.
+const matchPriceCents = 0;
 
 function safeFileName(path: string, professionalName: string) {
   const original = path.split("/").pop() || "resume.pdf";
@@ -118,7 +120,7 @@ async function sendMatchEmail(input: {
 export async function POST(request: Request) {
   const authorization = cleanHeaderValue(request.headers.get("authorization"));
   if (!authorization.startsWith("Bearer ")) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
-  if (!serviceRoleKey) return NextResponse.json({ error: "Candidate match billing is not configured yet." }, { status: 503 });
+  if (!serviceRoleKey) return NextResponse.json({ error: "DentalJobs matching is not configured yet." }, { status: 503 });
 
   try {
     const accessToken = authorization.slice("Bearer ".length);
@@ -162,19 +164,12 @@ export async function POST(request: Request) {
     }
 
     const resumePath = application.resume_path_snapshot || professional?.resume_path || null;
-
-    const { data: billing } = await admin
-      .from("office_billing_profiles")
-      .select("billing_status,payment_method_on_file,provider_payment_method_id")
-      .eq("office_id", application.office_id)
-      .maybeSingle();
-    if (!billing || billing.billing_status !== "active" || !billing.payment_method_on_file || !billing.provider_payment_method_id) {
-      return NextResponse.json({ error: "A valid credit card must be on file before you can complete a DentalJobs match.", needsPaymentMethod: true }, { status: 402 });
-    }
-
     const nowIso = new Date().toISOString();
     const billingPeriod = nowIso.slice(0, 7);
 
+    // Keep the existing unlock record because the rest of the DentalJobs experience
+    // uses it to expose matched candidate details. During the build phase it carries
+    // a $0 amount and no billing line item is created.
     const { data: existing } = await admin
       .from("candidate_unlocks")
       .select("id,status")
@@ -189,7 +184,7 @@ export async function POST(request: Request) {
       if (unlockId) {
         const { error } = await admin.from("candidate_unlocks").update({
           application_id: application.id,
-          amount_cents: unlockPriceCents,
+          amount_cents: matchPriceCents,
           currency: "cad",
           status: "accrued",
           billing_period: billingPeriod,
@@ -201,7 +196,7 @@ export async function POST(request: Request) {
           application_id: application.id,
           office_id: application.office_id,
           professional_id: application.professional_id,
-          amount_cents: unlockPriceCents,
+          amount_cents: matchPriceCents,
           currency: "cad",
           status: "accrued",
           billing_period: billingPeriod,
@@ -209,20 +204,6 @@ export async function POST(request: Request) {
         if (error || !created) return NextResponse.json({ error: "Could not record this match." }, { status: 400 });
         unlockId = created.id;
       }
-
-      const { error: lineError } = await admin.from("billing_line_items").upsert({
-        office_id: application.office_id,
-        booking_id: null,
-        service_date: nowIso.slice(0, 10),
-        description: "DentalJobs Candidate Match",
-        amount_cents: unlockPriceCents,
-        status: "unbilled",
-        invoice_id: null,
-        source_type: "dentaljobs_unlock",
-        source_id: unlockId,
-        updated_at: nowIso,
-      }, { onConflict: "source_type,source_id" });
-      if (lineError) return NextResponse.json({ error: "Could not add this match to billing." }, { status: 400 });
     }
 
     const { error: applicationUpdateError } = await admin.from("job_applications").update({
@@ -265,9 +246,10 @@ export async function POST(request: Request) {
       matched: true,
       alreadyUnlocked,
       applicationId: application.id,
-      amountCents: unlockPriceCents,
+      amountCents: matchPriceCents,
       billingPeriod,
-      billedMonthly: true,
+      billedMonthly: false,
+      freeDuringBuild: true,
       emailQueued: !alreadyUnlocked,
       resumeAttachedWhenAvailable: Boolean(resumePath),
     });
