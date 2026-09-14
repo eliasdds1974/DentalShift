@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import ClassifiedsPage from "../classifieds/page";
 import { DentalJobsNativeMarketplace } from "@/components/DentalJobsNativeMarketplace";
+import { ProfessionalPostingsCard } from "@/components/ProfessionalPostingsCard";
 import { loadAccountDetails } from "@/lib/dentalshift";
 import { supabase } from "@/lib/supabase";
 
@@ -170,26 +171,9 @@ export default function DentalJobsPage() {
           color: #fff !important;
           padding: .625rem 1rem !important;
         }
-
-        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type section.relative.mt-6 {
-          border-color: rgba(1, 163, 46, .55) !important;
-          background: #effaf2 !important;
-        }
-
-        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type section.relative.mt-6 > div.absolute:first-child {
-          background: #01A32E !important;
-        }
-
-        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type section.relative.mt-6 > div:nth-of-type(2) p:first-child {
-          color: #017f27 !important;
-        }
-
-        .dentaljobs-role-professional .dentaljobs-legacy-tools main > section:first-of-type section.relative.mt-6 > div:nth-of-type(2) > span {
-          border-color: rgba(1, 163, 46, .30) !important;
-          color: #017f27 !important;
-          background: #fff !important;
-        }
       `}</style>
+
+      {role === "professional" && <ProfessionalPostingsCard />}
 
       <div className="dentaljobs-legacy-tools">
         <ClassifiedsPage />
