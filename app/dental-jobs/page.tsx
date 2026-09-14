@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import ClassifiedsPage from "../classifieds/page";
 import { DentalJobsNativeMarketplace } from "@/components/DentalJobsNativeMarketplace";
 import { ProfessionalPostingsCard } from "@/components/ProfessionalPostingsCard";
+import { ProfessionalPostingsLayoutFix } from "@/components/ProfessionalPostingsLayoutFix";
 import { loadAccountDetails } from "@/lib/dentalshift";
 import { supabase } from "@/lib/supabase";
 
@@ -174,6 +175,7 @@ export default function DentalJobsPage() {
       `}</style>
 
       {role === "professional" && <ProfessionalPostingsCard />}
+      {role === "professional" && <ProfessionalPostingsLayoutFix />}
 
       <div className="dentaljobs-legacy-tools">
         <ClassifiedsPage />
