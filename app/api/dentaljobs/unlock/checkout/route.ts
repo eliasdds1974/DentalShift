@@ -114,7 +114,7 @@ async function sendMatchEmail(input: {
 export async function POST(request: Request) {
   const authorization = request.headers.get("authorization") ?? "";
   if (!authorization.startsWith("Bearer ")) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
-  if (!serviceRoleKey) return NextResponse.json({ error: "Candidate unlock billing is not configured yet." }, { status: 503 });
+  if (!serviceRoleKey) return NextResponse.json({ error: "Candidate match billing is not configured yet." }, { status: 503 });
 
   const accessToken = authorization.slice("Bearer ".length);
   const requestClient = createClient(supabaseUrl, supabasePublishableKey, {
@@ -128,39 +128,20 @@ export async function POST(request: Request) {
 
   const body = await request.json().catch(() => null) as { applicationId?: string } | null;
   const applicationId = body?.applicationId?.trim();
-  if (!applicationId) return NextResponse.json({ error: "Application is required." }, { status: 400 });
+  if (!applicationId) return NextResponse.json({ error: "Application ID is required." }, { status: 400 });
 
-  const applicationSelect = "id,office_id,professional_id,resume_path_snapshot";
-  let { data: application } = await admin
+  const { data: application, error: applicationLookupError } = await admin
     .from("job_applications")
-    .select(applicationSelect)
+    .select("id,office_id,professional_id,resume_path_snapshot")
     .eq("id", applicationId)
     .maybeSingle();
 
-  if (!application) {
-    const { data: ownedOffices } = await admin
-      .from("offices")
-      .select("id")
-      .eq("owner_id", userData.user.id);
-    const officeIds = (ownedOffices || []).map((row) => row.id);
-
-    if (officeIds.length) {
-      const { data: fallbackRows } = await admin
-        .from("job_applications")
-        .select(applicationSelect)
-        .in("office_id", officeIds)
-        .is("deleted_at", null)
-        .or(`listing_id.eq.${applicationId},source_office_listing_id.eq.${applicationId},professional_id.eq.${applicationId}`)
-        .order("created_at", { ascending: false })
-        .limit(1);
-      application = fallbackRows?.[0] || null;
-    }
+  if (applicationLookupError) {
+    return NextResponse.json({ error: applicationLookupError.message }, { status: 400 });
   }
 
   if (!application) {
-    return NextResponse.json({
-      error: "We could not find the current application for this professional. Please refresh DentalJobs and try LET’S MATCH again.",
-    }, { status: 404 });
+    return NextResponse.json({ error: `Application ${applicationId} was not found.` }, { status: 404 });
   }
 
   const [{ data: office }, { data: professional }, { data: professionalProfile }, { data: professionalAuth }] = await Promise.all([
@@ -277,7 +258,7 @@ export async function POST(request: Request) {
     unlocked: true,
     matched: true,
     alreadyUnlocked,
-    resolvedApplicationId: application.id,
+    applicationId: application.id,
     amountCents: unlockPriceCents,
     billingPeriod,
     billedMonthly: true,
