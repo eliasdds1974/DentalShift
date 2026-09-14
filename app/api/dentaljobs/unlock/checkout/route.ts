@@ -139,7 +139,7 @@ export async function POST(request: Request) {
 
     const { data: application, error: applicationLookupError } = await admin
       .from("job_applications")
-      .select("id,office_id,professional_id,resume_path_snapshot")
+      .select("id,listing_id,office_id,professional_id,resume_path_snapshot")
       .eq("id", applicationId)
       .maybeSingle();
 
@@ -152,11 +152,12 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "This DentalJobs application no longer exists." }, { status: 404 });
     }
 
-    const [{ data: office }, { data: professional }, { data: professionalProfile }, { data: professionalAuth }] = await Promise.all([
+    const [{ data: office }, { data: professional }, { data: professionalProfile }, { data: professionalAuth }, { data: listing }] = await Promise.all([
       admin.from("offices").select("id,owner_id,name,communication_email,contact_name").eq("id", application.office_id).maybeSingle(),
       admin.from("professional_profiles").select("profession,resume_path").eq("user_id", application.professional_id).maybeSingle(),
       admin.from("profiles").select("first_name,last_name,phone,city,province").eq("id", application.professional_id).maybeSingle(),
       admin.auth.admin.getUserById(application.professional_id),
+      admin.from("job_listings").select("id,listing_type,status").eq("id", application.listing_id).maybeSingle(),
     ]);
 
     if (!office || office.owner_id !== userData.user.id) {
@@ -167,9 +168,6 @@ export async function POST(request: Request) {
     const nowIso = new Date().toISOString();
     const billingPeriod = nowIso.slice(0, 7);
 
-    // Keep the existing unlock record because the rest of the DentalJobs experience
-    // uses it to expose matched candidate details. During the build phase it carries
-    // a $0 amount and no billing line item is created.
     const { data: existing } = await admin
       .from("candidate_unlocks")
       .select("id,status")
@@ -214,6 +212,21 @@ export async function POST(request: Request) {
     }).eq("id", application.id);
     if (applicationUpdateError) return NextResponse.json({ error: "Could not complete this match." }, { status: 400 });
 
+    // A professional availability ad represents that professional looking for an office.
+    // Once an office completes LET'S MATCH, remove that ad from the public marketplace.
+    // The professional still retains the posting in My DentalJobs with status "filled".
+    if (listing?.listing_type === "professional_available" && listing.status !== "filled") {
+      const { error: listingUpdateError } = await admin.from("job_listings").update({
+        status: "filled",
+        closed_at: nowIso,
+        close_reason: "matched",
+        updated_at: nowIso,
+      }).eq("id", listing.id);
+      if (listingUpdateError) {
+        console.error("[dentaljobs-match] could not close matched professional listing", listingUpdateError);
+      }
+    }
+
     const professionalName = [professionalProfile?.first_name, professionalProfile?.last_name].filter(Boolean).join(" ").trim() || "Dental Professional";
     const professionalFirstName = professionalProfile?.first_name?.trim() || professionalName;
     const professionalEmail = professionalAuth.user?.email?.trim() || "";
@@ -250,6 +263,7 @@ export async function POST(request: Request) {
       billingPeriod,
       billedMonthly: false,
       freeDuringBuild: true,
+      listingClosed: listing?.listing_type === "professional_available",
       emailQueued: !alreadyUnlocked,
       resumeAttachedWhenAvailable: Boolean(resumePath),
     });
