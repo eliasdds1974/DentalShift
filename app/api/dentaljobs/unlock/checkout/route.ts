@@ -45,31 +45,16 @@ async function sendMatchEmail(input: {
 
   try {
     const resendApiKey = process.env.RESEND_API_KEY;
-    if (!resendApiKey) {
-      console.error("[dentaljobs-match] RESEND_API_KEY is not configured");
-      return;
-    }
+    if (!resendApiKey) return;
 
     const { data: officeOwnerAuth } = await admin.auth.admin.getUserById(input.officeOwnerId);
     const officeEmail = input.officeCommunicationEmail?.trim() || officeOwnerAuth.user?.email?.trim() || "";
-    if (!officeEmail || !input.professionalEmail) {
-      console.error("[dentaljobs-match] missing office or professional email", {
-        applicationId: input.applicationId,
-        hasOfficeEmail: Boolean(officeEmail),
-        hasProfessionalEmail: Boolean(input.professionalEmail),
-      });
-      return;
-    }
+    if (!officeEmail || !input.professionalEmail) return;
 
     let resumeBlob: Blob | null = null;
     if (input.resumePath) {
-      const { data, error: resumeError } = await admin.storage
-        .from("professional-resumes")
-        .download(input.resumePath);
+      const { data } = await admin.storage.from("professional-resumes").download(input.resumePath);
       resumeBlob = data ?? null;
-      if (resumeError || !resumeBlob) {
-        console.error("[dentaljobs-match] resume download failed", resumeError);
-      }
     }
 
     const detailsHtml = `<div style="margin:20px 0;padding:18px;background:#F5F8FB;border:1px solid #DCE5EF;border-radius:12px;color:#334155;font-size:14px;line-height:1.7;">
@@ -105,18 +90,12 @@ async function sendMatchEmail(input: {
     const attachments: Array<{ filename: string; content: string }> = [];
     if (resumeBlob && input.resumePath) {
       const bytes = Buffer.from(await resumeBlob.arrayBuffer());
-      attachments.push({
-        filename: safeFileName(input.resumePath, input.professionalName),
-        content: bytes.toString("base64"),
-      });
+      attachments.push({ filename: safeFileName(input.resumePath, input.professionalName), content: bytes.toString("base64") });
     }
 
-    const response = await fetch("https://api.resend.com/emails", {
+    await fetch("https://api.resend.com/emails", {
       method: "POST",
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        "Content-Type": "application/json",
-      },
+      headers: { Authorization: `Bearer ${resendApiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         from: "DentalShift <support@dentalshift.ca>",
         to: [officeEmail],
@@ -127,16 +106,8 @@ async function sendMatchEmail(input: {
         attachments,
       }),
     });
-
-    if (!response.ok) {
-      console.error("[dentaljobs-match] email failed", {
-        status: response.status,
-        body: await response.text(),
-        applicationId: input.applicationId,
-      });
-    }
-  } catch (emailError) {
-    console.error("[dentaljobs-match] email error", emailError);
+  } catch (error) {
+    console.error("[dentaljobs-match] email error", error);
   }
 }
 
@@ -150,9 +121,7 @@ export async function POST(request: Request) {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: authorization } },
   });
-  const admin = createClient(supabaseUrl, serviceRoleKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-  });
+  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
   const { data: userData, error: userError } = await requestClient.auth.getUser(accessToken);
   if (userError || !userData.user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
@@ -161,29 +130,43 @@ export async function POST(request: Request) {
   const applicationId = body?.applicationId?.trim();
   if (!applicationId) return NextResponse.json({ error: "Application is required." }, { status: 400 });
 
-  const { data: application } = await admin
+  const applicationSelect = "id,office_id,professional_id,resume_path_snapshot";
+  let { data: application } = await admin
     .from("job_applications")
-    .select("id,office_id,professional_id,resume_path_snapshot")
+    .select(applicationSelect)
     .eq("id", applicationId)
     .maybeSingle();
-  if (!application) return NextResponse.json({ error: "Application not found." }, { status: 404 });
+
+  if (!application) {
+    const { data: ownedOffices } = await admin
+      .from("offices")
+      .select("id")
+      .eq("owner_id", userData.user.id);
+    const officeIds = (ownedOffices || []).map((row) => row.id);
+
+    if (officeIds.length) {
+      const { data: fallbackRows } = await admin
+        .from("job_applications")
+        .select(applicationSelect)
+        .in("office_id", officeIds)
+        .is("deleted_at", null)
+        .or(`listing_id.eq.${applicationId},source_office_listing_id.eq.${applicationId},professional_id.eq.${applicationId}`)
+        .order("created_at", { ascending: false })
+        .limit(1);
+      application = fallbackRows?.[0] || null;
+    }
+  }
+
+  if (!application) {
+    return NextResponse.json({
+      error: "We could not find the current application for this professional. Please refresh DentalJobs and try LET’S MATCH again.",
+    }, { status: 404 });
+  }
 
   const [{ data: office }, { data: professional }, { data: professionalProfile }, { data: professionalAuth }] = await Promise.all([
-    admin
-      .from("offices")
-      .select("id,owner_id,name,communication_email,contact_name")
-      .eq("id", application.office_id)
-      .maybeSingle(),
-    admin
-      .from("professional_profiles")
-      .select("profession,resume_path")
-      .eq("user_id", application.professional_id)
-      .maybeSingle(),
-    admin
-      .from("profiles")
-      .select("first_name,last_name,phone,city,province")
-      .eq("id", application.professional_id)
-      .maybeSingle(),
+    admin.from("offices").select("id,owner_id,name,communication_email,contact_name").eq("id", application.office_id).maybeSingle(),
+    admin.from("professional_profiles").select("profession,resume_path").eq("user_id", application.professional_id).maybeSingle(),
+    admin.from("profiles").select("first_name,last_name,phone,city,province").eq("id", application.professional_id).maybeSingle(),
     admin.auth.admin.getUserById(application.professional_id),
   ]);
 
@@ -217,32 +200,25 @@ export async function POST(request: Request) {
 
   if (!alreadyUnlocked) {
     if (unlockId) {
-      const { error } = await admin
-        .from("candidate_unlocks")
-        .update({
-          application_id: application.id,
-          amount_cents: unlockPriceCents,
-          currency: "cad",
-          status: "accrued",
-          billing_period: billingPeriod,
-          updated_at: nowIso,
-        })
-        .eq("id", unlockId);
+      const { error } = await admin.from("candidate_unlocks").update({
+        application_id: application.id,
+        amount_cents: unlockPriceCents,
+        currency: "cad",
+        status: "accrued",
+        billing_period: billingPeriod,
+        updated_at: nowIso,
+      }).eq("id", unlockId);
       if (error) return NextResponse.json({ error: error.message }, { status: 400 });
     } else {
-      const { data: created, error } = await admin
-        .from("candidate_unlocks")
-        .insert({
-          application_id: application.id,
-          office_id: application.office_id,
-          professional_id: application.professional_id,
-          amount_cents: unlockPriceCents,
-          currency: "cad",
-          status: "accrued",
-          billing_period: billingPeriod,
-        })
-        .select("id")
-        .single();
+      const { data: created, error } = await admin.from("candidate_unlocks").insert({
+        application_id: application.id,
+        office_id: application.office_id,
+        professional_id: application.professional_id,
+        amount_cents: unlockPriceCents,
+        currency: "cad",
+        status: "accrued",
+        billing_period: billingPeriod,
+      }).select("id").single();
       if (error || !created) return NextResponse.json({ error: error?.message || "Could not record candidate match." }, { status: 400 });
       unlockId = created.id;
     }
@@ -262,21 +238,15 @@ export async function POST(request: Request) {
     if (lineError) return NextResponse.json({ error: lineError.message }, { status: 400 });
   }
 
-  const { error: applicationUpdateError } = await admin
-    .from("job_applications")
-    .update({
-      status: "interested",
-      responded_at: nowIso,
-      office_hidden_at: nowIso,
-      updated_at: nowIso,
-    })
-    .eq("id", application.id);
+  const { error: applicationUpdateError } = await admin.from("job_applications").update({
+    status: "interested",
+    responded_at: nowIso,
+    office_hidden_at: nowIso,
+    updated_at: nowIso,
+  }).eq("id", application.id);
   if (applicationUpdateError) return NextResponse.json({ error: applicationUpdateError.message }, { status: 400 });
 
-  const professionalName = [professionalProfile?.first_name, professionalProfile?.last_name]
-    .filter(Boolean)
-    .join(" ")
-    .trim() || "Dental Professional";
+  const professionalName = [professionalProfile?.first_name, professionalProfile?.last_name].filter(Boolean).join(" ").trim() || "Dental Professional";
   const professionalFirstName = professionalProfile?.first_name?.trim() || professionalName;
   const professionalEmail = professionalAuth.user?.email?.trim() || "";
   const profession = professional?.profession || "Dental Professional";
@@ -307,6 +277,7 @@ export async function POST(request: Request) {
     unlocked: true,
     matched: true,
     alreadyUnlocked,
+    resolvedApplicationId: application.id,
     amountCents: unlockPriceCents,
     billingPeriod,
     billedMonthly: true,
