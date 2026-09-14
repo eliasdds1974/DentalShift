@@ -5,6 +5,7 @@ import ClassifiedsPage from "../classifieds/page";
 import { DentalJobsNativeMarketplace } from "@/components/DentalJobsNativeMarketplace";
 import { ProfessionalPostingsCard } from "@/components/ProfessionalPostingsCard";
 import { ProfessionalPostingsLayoutFix } from "@/components/ProfessionalPostingsLayoutFix";
+import { ProfessionalInterestDecisionSync } from "@/components/ProfessionalInterestDecisionSync";
 import { loadAccountDetails } from "@/lib/dentalshift";
 import { supabase } from "@/lib/supabase";
 
@@ -176,6 +177,7 @@ export default function DentalJobsPage() {
 
       {role === "professional" && <ProfessionalPostingsCard />}
       {role === "professional" && <ProfessionalPostingsLayoutFix />}
+      {role === "professional" && <ProfessionalInterestDecisionSync />}
 
       <div className="dentaljobs-legacy-tools">
         <ClassifiedsPage />
