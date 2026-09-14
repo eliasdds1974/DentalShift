@@ -35,7 +35,7 @@ async function sendMatchEmail(input: {
   professionalPhone: string | null;
   profession: string;
   professionalLocation: string;
-  resumePath: string;
+  resumePath: string | null;
 }) {
   if (!serviceRoleKey) return;
 
@@ -61,12 +61,15 @@ async function sendMatchEmail(input: {
       return;
     }
 
-    const { data: resumeBlob, error: resumeError } = await admin.storage
-      .from("professional-resumes")
-      .download(input.resumePath);
-
-    if (resumeError || !resumeBlob) {
-      console.error("[dentaljobs-match] resume download failed", resumeError);
+    let resumeBlob: Blob | null = null;
+    if (input.resumePath) {
+      const { data, error: resumeError } = await admin.storage
+        .from("professional-resumes")
+        .download(input.resumePath);
+      resumeBlob = data ?? null;
+      if (resumeError || !resumeBlob) {
+        console.error("[dentaljobs-match] resume download failed", resumeError);
+      }
     }
 
     const detailsHtml = `<div style="margin:20px 0;padding:18px;background:#F5F8FB;border:1px solid #DCE5EF;border-radius:12px;color:#334155;font-size:14px;line-height:1.7;">
@@ -79,6 +82,9 @@ async function sendMatchEmail(input: {
     </div>`;
 
     const officeGreeting = input.officeContactName?.trim() || input.officeName?.trim() || "Dental Office";
+    const resumeNote = resumeBlob
+      ? " The professional’s résumé/CV is attached for your review."
+      : " A résumé/CV was not available for this earlier application; please request it directly from the professional if needed.";
 
     const html = renderDentalShiftEmail({
       siteUrl,
@@ -88,16 +94,16 @@ async function sendMatchEmail(input: {
       intro: `Your office selected LET’S MATCH with ${input.professionalName}.`,
       bodyHtml: `${detailsHtml}
         <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#334155;">We recommend contacting ${escapeEmailHtml(input.professionalFirstName)} promptly to introduce your office, discuss the opportunity and arrange an interview.</p>
-        <p style="margin:0;font-size:14px;line-height:1.7;color:#64748B;">${escapeEmailHtml(input.professionalFirstName)} has been copied on this email so both parties can connect directly.${resumeBlob ? " The professional’s résumé/CV is attached for your review." : ""}</p>`,
+        <p style="margin:0;font-size:14px;line-height:1.7;color:#64748B;">${escapeEmailHtml(input.professionalFirstName)} has been copied on this email so both parties can connect directly.${escapeEmailHtml(resumeNote)}</p>`,
       actionLabel: "Open DentalJobs",
       actionUrl: `${siteUrl}/dental-jobs`,
       noteHtml: `<p style="margin:0;font-size:13px;line-height:1.6;color:#64748B;">DentalShift introduced this match. Interviewing, hiring decisions and employment terms remain between the dental office and the professional.</p>`,
     });
 
-    const text = `You’ve made a DentalJobs match\n\nHello ${officeGreeting},\n\nYour office selected LET’S MATCH with ${input.professionalName}.\n\nProfessional contact details\nName: ${input.professionalName}\nProfession: ${input.profession}\nEmail: ${input.professionalEmail}${input.professionalPhone ? `\nPhone: ${input.professionalPhone}` : ""}${input.professionalLocation ? `\nLocation: ${input.professionalLocation}` : ""}\n\nWe recommend contacting ${input.professionalFirstName} promptly to introduce your office, discuss the opportunity and arrange an interview.\n\n${input.professionalFirstName} has been copied on this email so both parties can connect directly.${resumeBlob ? " The professional’s résumé/CV is attached for your review." : ""}\n\nThe DentalShift Team`;
+    const text = `You’ve made a DentalJobs match\n\nHello ${officeGreeting},\n\nYour office selected LET’S MATCH with ${input.professionalName}.\n\nProfessional contact details\nName: ${input.professionalName}\nProfession: ${input.profession}\nEmail: ${input.professionalEmail}${input.professionalPhone ? `\nPhone: ${input.professionalPhone}` : ""}${input.professionalLocation ? `\nLocation: ${input.professionalLocation}` : ""}\n\nWe recommend contacting ${input.professionalFirstName} promptly to introduce your office, discuss the opportunity and arrange an interview.\n\n${input.professionalFirstName} has been copied on this email so both parties can connect directly.${resumeNote}\n\nThe DentalShift Team`;
 
     const attachments: Array<{ filename: string; content: string }> = [];
-    if (resumeBlob) {
+    if (resumeBlob && input.resumePath) {
       const bytes = Buffer.from(await resumeBlob.arrayBuffer());
       attachments.push({
         filename: safeFileName(input.resumePath, input.professionalName),
@@ -186,9 +192,6 @@ export async function POST(request: Request) {
   }
 
   const resumePath = application.resume_path_snapshot || professional?.resume_path || null;
-  if (!resumePath) {
-    return NextResponse.json({ error: "This professional must have a résumé/CV on file before a match can be completed." }, { status: 400 });
-  }
 
   const { data: billing } = await admin
     .from("office_billing_profiles")
@@ -196,7 +199,7 @@ export async function POST(request: Request) {
     .eq("office_id", application.office_id)
     .maybeSingle();
   if (!billing || billing.billing_status !== "active" || !billing.payment_method_on_file || !billing.provider_payment_method_id) {
-    return NextResponse.json({ error: "A valid credit card must be on file before you can unlock a candidate.", needsPaymentMethod: true }, { status: 402 });
+    return NextResponse.json({ error: "A valid credit card must be on file before you can complete a DentalJobs match.", needsPaymentMethod: true }, { status: 402 });
   }
 
   const nowIso = new Date().toISOString();
@@ -240,7 +243,7 @@ export async function POST(request: Request) {
         })
         .select("id")
         .single();
-      if (error || !created) return NextResponse.json({ error: error?.message || "Could not record candidate unlock." }, { status: 400 });
+      if (error || !created) return NextResponse.json({ error: error?.message || "Could not record candidate match." }, { status: 400 });
       unlockId = created.id;
     }
 
@@ -308,5 +311,6 @@ export async function POST(request: Request) {
     billingPeriod,
     billedMonthly: true,
     emailQueued: !alreadyUnlocked,
+    resumeAttachedWhenAvailable: Boolean(resumePath),
   });
 }
