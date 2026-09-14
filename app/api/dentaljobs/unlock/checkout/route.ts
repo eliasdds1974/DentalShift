@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import { escapeEmailHtml, renderDentalShiftEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
@@ -19,6 +19,119 @@ function safeFileName(path: string, professionalName: string) {
     .replace(/[^a-z0-9]+/gi, "-")
     .replace(/^-+|-+$/g, "") || "Dental-Professional";
   return `${base}-Resume.${extension}`;
+}
+
+async function sendMatchEmail(input: {
+  applicationId: string;
+  officeId: string;
+  officeOwnerId: string;
+  officeName: string | null;
+  officeCommunicationEmail: string | null;
+  officeContactName: string | null;
+  professionalId: string;
+  professionalName: string;
+  professionalFirstName: string;
+  professionalEmail: string;
+  professionalPhone: string | null;
+  profession: string;
+  professionalLocation: string;
+  resumePath: string;
+}) {
+  if (!serviceRoleKey) return;
+
+  const admin = createClient(supabaseUrl, serviceRoleKey, {
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  try {
+    const resendApiKey = process.env.RESEND_API_KEY;
+    if (!resendApiKey) {
+      console.error("[dentaljobs-match] RESEND_API_KEY is not configured");
+      return;
+    }
+
+    const { data: officeOwnerAuth } = await admin.auth.admin.getUserById(input.officeOwnerId);
+    const officeEmail = input.officeCommunicationEmail?.trim() || officeOwnerAuth.user?.email?.trim() || "";
+    if (!officeEmail || !input.professionalEmail) {
+      console.error("[dentaljobs-match] missing office or professional email", {
+        applicationId: input.applicationId,
+        hasOfficeEmail: Boolean(officeEmail),
+        hasProfessionalEmail: Boolean(input.professionalEmail),
+      });
+      return;
+    }
+
+    const { data: resumeBlob, error: resumeError } = await admin.storage
+      .from("professional-resumes")
+      .download(input.resumePath);
+
+    if (resumeError || !resumeBlob) {
+      console.error("[dentaljobs-match] resume download failed", resumeError);
+    }
+
+    const detailsHtml = `<div style="margin:20px 0;padding:18px;background:#F5F8FB;border:1px solid #DCE5EF;border-radius:12px;color:#334155;font-size:14px;line-height:1.7;">
+      <strong style="display:block;margin-bottom:8px;color:#002757;">Professional contact details</strong>
+      <div><strong>Name:</strong> ${escapeEmailHtml(input.professionalName)}</div>
+      <div><strong>Profession:</strong> ${escapeEmailHtml(input.profession)}</div>
+      <div><strong>Email:</strong> ${escapeEmailHtml(input.professionalEmail)}</div>
+      ${input.professionalPhone ? `<div><strong>Phone:</strong> ${escapeEmailHtml(input.professionalPhone)}</div>` : ""}
+      ${input.professionalLocation ? `<div><strong>Location:</strong> ${escapeEmailHtml(input.professionalLocation)}</div>` : ""}
+    </div>`;
+
+    const officeGreeting = input.officeContactName?.trim() || input.officeName?.trim() || "Dental Office";
+
+    const html = renderDentalShiftEmail({
+      siteUrl,
+      preheader: `You matched with ${input.professionalName}`,
+      title: "You’ve made a DentalJobs match",
+      greeting: `Hello ${officeGreeting},`,
+      intro: `Your office selected LET’S MATCH with ${input.professionalName}.`,
+      bodyHtml: `${detailsHtml}
+        <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#334155;">We recommend contacting ${escapeEmailHtml(input.professionalFirstName)} promptly to introduce your office, discuss the opportunity and arrange an interview.</p>
+        <p style="margin:0;font-size:14px;line-height:1.7;color:#64748B;">${escapeEmailHtml(input.professionalFirstName)} has been copied on this email so both parties can connect directly.${resumeBlob ? " The professional’s résumé/CV is attached for your review." : ""}</p>`,
+      actionLabel: "Open DentalJobs",
+      actionUrl: `${siteUrl}/dental-jobs`,
+      noteHtml: `<p style="margin:0;font-size:13px;line-height:1.6;color:#64748B;">DentalShift introduced this match. Interviewing, hiring decisions and employment terms remain between the dental office and the professional.</p>`,
+    });
+
+    const text = `You’ve made a DentalJobs match\n\nHello ${officeGreeting},\n\nYour office selected LET’S MATCH with ${input.professionalName}.\n\nProfessional contact details\nName: ${input.professionalName}\nProfession: ${input.profession}\nEmail: ${input.professionalEmail}${input.professionalPhone ? `\nPhone: ${input.professionalPhone}` : ""}${input.professionalLocation ? `\nLocation: ${input.professionalLocation}` : ""}\n\nWe recommend contacting ${input.professionalFirstName} promptly to introduce your office, discuss the opportunity and arrange an interview.\n\n${input.professionalFirstName} has been copied on this email so both parties can connect directly.${resumeBlob ? " The professional’s résumé/CV is attached for your review." : ""}\n\nThe DentalShift Team`;
+
+    const attachments: Array<{ filename: string; content: string }> = [];
+    if (resumeBlob) {
+      const bytes = Buffer.from(await resumeBlob.arrayBuffer());
+      attachments.push({
+        filename: safeFileName(input.resumePath, input.professionalName),
+        content: bytes.toString("base64"),
+      });
+    }
+
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${resendApiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        from: "DentalShift <support@dentalshift.ca>",
+        to: [officeEmail],
+        cc: [input.professionalEmail],
+        subject: `DentalShift Match: ${input.professionalName} — ${input.profession}`,
+        text,
+        html,
+        attachments,
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("[dentaljobs-match] email failed", {
+        status: response.status,
+        body: await response.text(),
+        applicationId: input.applicationId,
+      });
+    }
+  } catch (emailError) {
+    console.error("[dentaljobs-match] email error", emailError);
+  }
 }
 
 export async function POST(request: Request) {
@@ -86,6 +199,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "A valid credit card must be on file before you can unlock a candidate.", needsPaymentMethod: true }, { status: 402 });
   }
 
+  const nowIso = new Date().toISOString();
+  const billingPeriod = nowIso.slice(0, 7);
+
   const { data: existing } = await admin
     .from("candidate_unlocks")
     .select("id,status")
@@ -93,62 +209,55 @@ export async function POST(request: Request) {
     .eq("professional_id", application.professional_id)
     .maybeSingle();
 
-  if (existing && ["accrued", "billed", "paid"].includes(existing.status)) {
-    await admin
-      .from("job_applications")
-      .update({ office_hidden_at: new Date().toISOString(), updated_at: new Date().toISOString() })
-      .eq("id", application.id);
-    return NextResponse.json({ unlocked: true, alreadyUnlocked: true, matched: true });
-  }
-
-  const nowIso = new Date().toISOString();
-  const billingPeriod = nowIso.slice(0, 7);
   let unlockId = existing?.id ?? null;
+  const alreadyUnlocked = Boolean(existing && ["accrued", "billed", "paid"].includes(existing.status));
 
-  if (unlockId) {
-    const { error } = await admin
-      .from("candidate_unlocks")
-      .update({
-        application_id: application.id,
-        amount_cents: unlockPriceCents,
-        currency: "cad",
-        status: "accrued",
-        billing_period: billingPeriod,
-        updated_at: nowIso,
-      })
-      .eq("id", unlockId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-  } else {
-    const { data: created, error } = await admin
-      .from("candidate_unlocks")
-      .insert({
-        application_id: application.id,
-        office_id: application.office_id,
-        professional_id: application.professional_id,
-        amount_cents: unlockPriceCents,
-        currency: "cad",
-        status: "accrued",
-        billing_period: billingPeriod,
-      })
-      .select("id")
-      .single();
-    if (error || !created) return NextResponse.json({ error: error?.message || "Could not record candidate unlock." }, { status: 400 });
-    unlockId = created.id;
+  if (!alreadyUnlocked) {
+    if (unlockId) {
+      const { error } = await admin
+        .from("candidate_unlocks")
+        .update({
+          application_id: application.id,
+          amount_cents: unlockPriceCents,
+          currency: "cad",
+          status: "accrued",
+          billing_period: billingPeriod,
+          updated_at: nowIso,
+        })
+        .eq("id", unlockId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
+    } else {
+      const { data: created, error } = await admin
+        .from("candidate_unlocks")
+        .insert({
+          application_id: application.id,
+          office_id: application.office_id,
+          professional_id: application.professional_id,
+          amount_cents: unlockPriceCents,
+          currency: "cad",
+          status: "accrued",
+          billing_period: billingPeriod,
+        })
+        .select("id")
+        .single();
+      if (error || !created) return NextResponse.json({ error: error?.message || "Could not record candidate unlock." }, { status: 400 });
+      unlockId = created.id;
+    }
+
+    const { error: lineError } = await admin.from("billing_line_items").upsert({
+      office_id: application.office_id,
+      booking_id: null,
+      service_date: nowIso.slice(0, 10),
+      description: "DentalJobs Candidate Match",
+      amount_cents: unlockPriceCents,
+      status: "unbilled",
+      invoice_id: null,
+      source_type: "dentaljobs_unlock",
+      source_id: unlockId,
+      updated_at: nowIso,
+    }, { onConflict: "source_type,source_id" });
+    if (lineError) return NextResponse.json({ error: lineError.message }, { status: 400 });
   }
-
-  const { error: lineError } = await admin.from("billing_line_items").upsert({
-    office_id: application.office_id,
-    booking_id: null,
-    service_date: nowIso.slice(0, 10),
-    description: "DentalJobs Candidate Match",
-    amount_cents: unlockPriceCents,
-    status: "unbilled",
-    invoice_id: null,
-    source_type: "dentaljobs_unlock",
-    source_id: unlockId,
-    updated_at: nowIso,
-  }, { onConflict: "source_type,source_id" });
-  if (lineError) return NextResponse.json({ error: lineError.message }, { status: 400 });
 
   const { error: applicationUpdateError } = await admin
     .from("job_applications")
@@ -170,92 +279,34 @@ export async function POST(request: Request) {
   const profession = professional?.profession || "Dental Professional";
   const professionalLocation = [professionalProfile?.city, professionalProfile?.province].filter(Boolean).join(", ");
 
-  const { data: officeOwnerAuth } = await admin.auth.admin.getUserById(office.owner_id);
-  const officeEmail = office.communication_email?.trim() || officeOwnerAuth.user?.email?.trim() || "";
-  const officeGreeting = office.contact_name?.trim() || office.name?.trim() || "Dental Office";
-
-  let emailSent = false;
-  let attachmentIncluded = false;
-  const resendApiKey = process.env.RESEND_API_KEY;
-
-  if (officeEmail && professionalEmail && resendApiKey) {
-    try {
-      const { data: resumeBlob, error: resumeError } = await admin.storage
-        .from("professional-resumes")
-        .download(resumePath);
-
-      if (resumeError || !resumeBlob) {
-        console.error("[dentaljobs-match] resume download failed", resumeError);
-      }
-
-      const detailsHtml = `<div style="margin:20px 0;padding:18px;background:#F5F8FB;border:1px solid #DCE5EF;border-radius:12px;color:#334155;font-size:14px;line-height:1.7;">
-        <strong style="display:block;margin-bottom:8px;color:#002757;">Professional contact details</strong>
-        <div><strong>Name:</strong> ${escapeEmailHtml(professionalName)}</div>
-        <div><strong>Profession:</strong> ${escapeEmailHtml(profession)}</div>
-        ${professionalEmail ? `<div><strong>Email:</strong> ${escapeEmailHtml(professionalEmail)}</div>` : ""}
-        ${professionalProfile?.phone ? `<div><strong>Phone:</strong> ${escapeEmailHtml(professionalProfile.phone)}</div>` : ""}
-        ${professionalLocation ? `<div><strong>Location:</strong> ${escapeEmailHtml(professionalLocation)}</div>` : ""}
-      </div>`;
-
-      const html = renderDentalShiftEmail({
-        siteUrl,
-        preheader: `You matched with ${professionalName}`,
-        title: "You’ve made a DentalJobs match",
-        greeting: `Hello ${officeGreeting},`,
-        intro: `Your office selected LET’S MATCH with ${professionalName}.`,
-        bodyHtml: `${detailsHtml}
-          <p style="margin:0 0 14px;font-size:15px;line-height:1.7;color:#334155;">We recommend contacting ${escapeEmailHtml(professionalFirstName)} promptly to introduce your office, discuss the opportunity and arrange an interview.</p>
-          <p style="margin:0;font-size:14px;line-height:1.7;color:#64748B;">${escapeEmailHtml(professionalFirstName)} has been copied on this email so both parties can connect directly. The professional’s résumé/CV is attached for your review.</p>`,
-        actionLabel: "Open DentalJobs",
-        actionUrl: `${siteUrl}/dental-jobs`,
-        noteHtml: `<p style="margin:0;font-size:13px;line-height:1.6;color:#64748B;">DentalShift introduced this match. Interviewing, hiring decisions and employment terms remain between the dental office and the professional.</p>`,
+  if (!alreadyUnlocked) {
+    after(async () => {
+      await sendMatchEmail({
+        applicationId: application.id,
+        officeId: application.office_id,
+        officeOwnerId: office.owner_id,
+        officeName: office.name || null,
+        officeCommunicationEmail: office.communication_email || null,
+        officeContactName: office.contact_name || null,
+        professionalId: application.professional_id,
+        professionalName,
+        professionalFirstName,
+        professionalEmail,
+        professionalPhone: professionalProfile?.phone || null,
+        profession,
+        professionalLocation,
+        resumePath,
       });
-
-      const text = `You’ve made a DentalJobs match\n\nHello ${officeGreeting},\n\nYour office selected LET’S MATCH with ${professionalName}.\n\nProfessional contact details\nName: ${professionalName}\nProfession: ${profession}${professionalEmail ? `\nEmail: ${professionalEmail}` : ""}${professionalProfile?.phone ? `\nPhone: ${professionalProfile.phone}` : ""}${professionalLocation ? `\nLocation: ${professionalLocation}` : ""}\n\nWe recommend contacting ${professionalFirstName} promptly to introduce your office, discuss the opportunity and arrange an interview.\n\n${professionalFirstName} has been copied on this email so both parties can connect directly. The professional’s résumé/CV is attached for your review.\n\nThe DentalShift Team`;
-
-      const attachments: Array<{ filename: string; content: string }> = [];
-      if (resumeBlob) {
-        const bytes = Buffer.from(await resumeBlob.arrayBuffer());
-        attachments.push({
-          filename: safeFileName(resumePath, professionalName),
-          content: bytes.toString("base64"),
-        });
-        attachmentIncluded = true;
-      }
-
-      const response = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: "DentalShift <support@dentalshift.ca>",
-          to: [officeEmail],
-          cc: [professionalEmail],
-          subject: `DentalShift Match: ${professionalName} — ${profession}`,
-          text,
-          html,
-          attachments,
-        }),
-      });
-
-      emailSent = response.ok;
-      if (!response.ok) {
-        console.error("[dentaljobs-match] email failed", { status: response.status, body: await response.text() });
-      }
-    } catch (emailError) {
-      console.error("[dentaljobs-match] email error", emailError);
-    }
+    });
   }
 
   return NextResponse.json({
     unlocked: true,
     matched: true,
+    alreadyUnlocked,
     amountCents: unlockPriceCents,
     billingPeriod,
     billedMonthly: true,
-    emailSent,
-    attachmentIncluded,
+    emailQueued: !alreadyUnlocked,
   });
 }
