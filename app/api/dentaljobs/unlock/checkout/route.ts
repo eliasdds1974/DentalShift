@@ -4,11 +4,15 @@ import { escapeEmailHtml, renderDentalShiftEmail } from "@/lib/email";
 
 export const runtime = "nodejs";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://pvugjtlmtlyfzyvvhcik.supabase.co";
-const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "sb_publishable_cl7HUUywEucu1DsSbuaodA_oKo8qNFJ";
-const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+function cleanHeaderValue(value: string | undefined | null) {
+  return (value ?? "").replace(/[\u0000-\u001F\u007F]/g, "").trim();
+}
+
+const supabaseUrl = cleanHeaderValue(process.env.NEXT_PUBLIC_SUPABASE_URL) || "https://pvugjtlmtlyfzyvvhcik.supabase.co";
+const supabasePublishableKey = cleanHeaderValue(process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) || "sb_publishable_cl7HUUywEucu1DsSbuaodA_oKo8qNFJ";
+const serviceRoleKey = cleanHeaderValue(process.env.SUPABASE_SERVICE_ROLE_KEY);
 const unlockPriceCents = Number(process.env.DENTALJOBS_UNLOCK_PRICE_CENTS ?? "2900");
-const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.dentalshift.ca";
+const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.dentalshift.ca").trim();
 
 function safeFileName(path: string, professionalName: string) {
   const original = path.split("/").pop() || "resume.pdf";
@@ -44,7 +48,7 @@ async function sendMatchEmail(input: {
   });
 
   try {
-    const resendApiKey = process.env.RESEND_API_KEY;
+    const resendApiKey = cleanHeaderValue(process.env.RESEND_API_KEY);
     if (!resendApiKey) return;
 
     const { data: officeOwnerAuth } = await admin.auth.admin.getUserById(input.officeOwnerId);
@@ -112,157 +116,163 @@ async function sendMatchEmail(input: {
 }
 
 export async function POST(request: Request) {
-  const authorization = request.headers.get("authorization") ?? "";
+  const authorization = cleanHeaderValue(request.headers.get("authorization"));
   if (!authorization.startsWith("Bearer ")) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
   if (!serviceRoleKey) return NextResponse.json({ error: "Candidate match billing is not configured yet." }, { status: 503 });
 
-  const accessToken = authorization.slice("Bearer ".length);
-  const requestClient = createClient(supabaseUrl, supabasePublishableKey, {
-    auth: { persistSession: false, autoRefreshToken: false },
-    global: { headers: { Authorization: authorization } },
-  });
-  const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
+  try {
+    const accessToken = authorization.slice("Bearer ".length);
+    const requestClient = createClient(supabaseUrl, supabasePublishableKey, {
+      auth: { persistSession: false, autoRefreshToken: false },
+      global: { headers: { Authorization: authorization } },
+    });
+    const admin = createClient(supabaseUrl, serviceRoleKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
-  const { data: userData, error: userError } = await requestClient.auth.getUser(accessToken);
-  if (userError || !userData.user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
+    const { data: userData, error: userError } = await requestClient.auth.getUser(accessToken);
+    if (userError || !userData.user) return NextResponse.json({ error: "Please sign in again." }, { status: 401 });
 
-  const body = await request.json().catch(() => null) as { applicationId?: string } | null;
-  const applicationId = body?.applicationId?.trim();
-  if (!applicationId) return NextResponse.json({ error: "Application ID is required." }, { status: 400 });
+    const body = await request.json().catch(() => null) as { applicationId?: string } | null;
+    const applicationId = body?.applicationId?.trim();
+    if (!applicationId) return NextResponse.json({ error: "Application ID is required." }, { status: 400 });
 
-  const { data: application, error: applicationLookupError } = await admin
-    .from("job_applications")
-    .select("id,office_id,professional_id,resume_path_snapshot")
-    .eq("id", applicationId)
-    .maybeSingle();
+    const { data: application, error: applicationLookupError } = await admin
+      .from("job_applications")
+      .select("id,office_id,professional_id,resume_path_snapshot")
+      .eq("id", applicationId)
+      .maybeSingle();
 
-  if (applicationLookupError) {
-    return NextResponse.json({ error: applicationLookupError.message }, { status: 400 });
-  }
-
-  if (!application) {
-    return NextResponse.json({ error: `Application ${applicationId} was not found.` }, { status: 404 });
-  }
-
-  const [{ data: office }, { data: professional }, { data: professionalProfile }, { data: professionalAuth }] = await Promise.all([
-    admin.from("offices").select("id,owner_id,name,communication_email,contact_name").eq("id", application.office_id).maybeSingle(),
-    admin.from("professional_profiles").select("profession,resume_path").eq("user_id", application.professional_id).maybeSingle(),
-    admin.from("profiles").select("first_name,last_name,phone,city,province").eq("id", application.professional_id).maybeSingle(),
-    admin.auth.admin.getUserById(application.professional_id),
-  ]);
-
-  if (!office || office.owner_id !== userData.user.id) {
-    return NextResponse.json({ error: "Only this dental office can complete the match." }, { status: 403 });
-  }
-
-  const resumePath = application.resume_path_snapshot || professional?.resume_path || null;
-
-  const { data: billing } = await admin
-    .from("office_billing_profiles")
-    .select("billing_status,payment_method_on_file,provider_payment_method_id")
-    .eq("office_id", application.office_id)
-    .maybeSingle();
-  if (!billing || billing.billing_status !== "active" || !billing.payment_method_on_file || !billing.provider_payment_method_id) {
-    return NextResponse.json({ error: "A valid credit card must be on file before you can complete a DentalJobs match.", needsPaymentMethod: true }, { status: 402 });
-  }
-
-  const nowIso = new Date().toISOString();
-  const billingPeriod = nowIso.slice(0, 7);
-
-  const { data: existing } = await admin
-    .from("candidate_unlocks")
-    .select("id,status")
-    .eq("office_id", application.office_id)
-    .eq("professional_id", application.professional_id)
-    .maybeSingle();
-
-  let unlockId = existing?.id ?? null;
-  const alreadyUnlocked = Boolean(existing && ["accrued", "billed", "paid"].includes(existing.status));
-
-  if (!alreadyUnlocked) {
-    if (unlockId) {
-      const { error } = await admin.from("candidate_unlocks").update({
-        application_id: application.id,
-        amount_cents: unlockPriceCents,
-        currency: "cad",
-        status: "accrued",
-        billing_period: billingPeriod,
-        updated_at: nowIso,
-      }).eq("id", unlockId);
-      if (error) return NextResponse.json({ error: error.message }, { status: 400 });
-    } else {
-      const { data: created, error } = await admin.from("candidate_unlocks").insert({
-        application_id: application.id,
-        office_id: application.office_id,
-        professional_id: application.professional_id,
-        amount_cents: unlockPriceCents,
-        currency: "cad",
-        status: "accrued",
-        billing_period: billingPeriod,
-      }).select("id").single();
-      if (error || !created) return NextResponse.json({ error: error?.message || "Could not record candidate match." }, { status: 400 });
-      unlockId = created.id;
+    if (applicationLookupError) {
+      console.error("[dentaljobs-match] application lookup error", applicationLookupError);
+      return NextResponse.json({ error: "Could not verify this application." }, { status: 400 });
     }
 
-    const { error: lineError } = await admin.from("billing_line_items").upsert({
-      office_id: application.office_id,
-      booking_id: null,
-      service_date: nowIso.slice(0, 10),
-      description: "DentalJobs Candidate Match",
-      amount_cents: unlockPriceCents,
-      status: "unbilled",
-      invoice_id: null,
-      source_type: "dentaljobs_unlock",
-      source_id: unlockId,
+    if (!application) {
+      return NextResponse.json({ error: "This DentalJobs application no longer exists." }, { status: 404 });
+    }
+
+    const [{ data: office }, { data: professional }, { data: professionalProfile }, { data: professionalAuth }] = await Promise.all([
+      admin.from("offices").select("id,owner_id,name,communication_email,contact_name").eq("id", application.office_id).maybeSingle(),
+      admin.from("professional_profiles").select("profession,resume_path").eq("user_id", application.professional_id).maybeSingle(),
+      admin.from("profiles").select("first_name,last_name,phone,city,province").eq("id", application.professional_id).maybeSingle(),
+      admin.auth.admin.getUserById(application.professional_id),
+    ]);
+
+    if (!office || office.owner_id !== userData.user.id) {
+      return NextResponse.json({ error: "Only this dental office can complete the match." }, { status: 403 });
+    }
+
+    const resumePath = application.resume_path_snapshot || professional?.resume_path || null;
+
+    const { data: billing } = await admin
+      .from("office_billing_profiles")
+      .select("billing_status,payment_method_on_file,provider_payment_method_id")
+      .eq("office_id", application.office_id)
+      .maybeSingle();
+    if (!billing || billing.billing_status !== "active" || !billing.payment_method_on_file || !billing.provider_payment_method_id) {
+      return NextResponse.json({ error: "A valid credit card must be on file before you can complete a DentalJobs match.", needsPaymentMethod: true }, { status: 402 });
+    }
+
+    const nowIso = new Date().toISOString();
+    const billingPeriod = nowIso.slice(0, 7);
+
+    const { data: existing } = await admin
+      .from("candidate_unlocks")
+      .select("id,status")
+      .eq("office_id", application.office_id)
+      .eq("professional_id", application.professional_id)
+      .maybeSingle();
+
+    let unlockId = existing?.id ?? null;
+    const alreadyUnlocked = Boolean(existing && ["accrued", "billed", "paid"].includes(existing.status));
+
+    if (!alreadyUnlocked) {
+      if (unlockId) {
+        const { error } = await admin.from("candidate_unlocks").update({
+          application_id: application.id,
+          amount_cents: unlockPriceCents,
+          currency: "cad",
+          status: "accrued",
+          billing_period: billingPeriod,
+          updated_at: nowIso,
+        }).eq("id", unlockId);
+        if (error) return NextResponse.json({ error: "Could not record this match." }, { status: 400 });
+      } else {
+        const { data: created, error } = await admin.from("candidate_unlocks").insert({
+          application_id: application.id,
+          office_id: application.office_id,
+          professional_id: application.professional_id,
+          amount_cents: unlockPriceCents,
+          currency: "cad",
+          status: "accrued",
+          billing_period: billingPeriod,
+        }).select("id").single();
+        if (error || !created) return NextResponse.json({ error: "Could not record this match." }, { status: 400 });
+        unlockId = created.id;
+      }
+
+      const { error: lineError } = await admin.from("billing_line_items").upsert({
+        office_id: application.office_id,
+        booking_id: null,
+        service_date: nowIso.slice(0, 10),
+        description: "DentalJobs Candidate Match",
+        amount_cents: unlockPriceCents,
+        status: "unbilled",
+        invoice_id: null,
+        source_type: "dentaljobs_unlock",
+        source_id: unlockId,
+        updated_at: nowIso,
+      }, { onConflict: "source_type,source_id" });
+      if (lineError) return NextResponse.json({ error: "Could not add this match to billing." }, { status: 400 });
+    }
+
+    const { error: applicationUpdateError } = await admin.from("job_applications").update({
+      status: "interested",
+      responded_at: nowIso,
+      office_hidden_at: nowIso,
       updated_at: nowIso,
-    }, { onConflict: "source_type,source_id" });
-    if (lineError) return NextResponse.json({ error: lineError.message }, { status: 400 });
-  }
+    }).eq("id", application.id);
+    if (applicationUpdateError) return NextResponse.json({ error: "Could not complete this match." }, { status: 400 });
 
-  const { error: applicationUpdateError } = await admin.from("job_applications").update({
-    status: "interested",
-    responded_at: nowIso,
-    office_hidden_at: nowIso,
-    updated_at: nowIso,
-  }).eq("id", application.id);
-  if (applicationUpdateError) return NextResponse.json({ error: applicationUpdateError.message }, { status: 400 });
+    const professionalName = [professionalProfile?.first_name, professionalProfile?.last_name].filter(Boolean).join(" ").trim() || "Dental Professional";
+    const professionalFirstName = professionalProfile?.first_name?.trim() || professionalName;
+    const professionalEmail = professionalAuth.user?.email?.trim() || "";
+    const profession = professional?.profession || "Dental Professional";
+    const professionalLocation = [professionalProfile?.city, professionalProfile?.province].filter(Boolean).join(", ");
 
-  const professionalName = [professionalProfile?.first_name, professionalProfile?.last_name].filter(Boolean).join(" ").trim() || "Dental Professional";
-  const professionalFirstName = professionalProfile?.first_name?.trim() || professionalName;
-  const professionalEmail = professionalAuth.user?.email?.trim() || "";
-  const profession = professional?.profession || "Dental Professional";
-  const professionalLocation = [professionalProfile?.city, professionalProfile?.province].filter(Boolean).join(", ");
-
-  if (!alreadyUnlocked) {
-    after(async () => {
-      await sendMatchEmail({
-        applicationId: application.id,
-        officeId: application.office_id,
-        officeOwnerId: office.owner_id,
-        officeName: office.name || null,
-        officeCommunicationEmail: office.communication_email || null,
-        officeContactName: office.contact_name || null,
-        professionalId: application.professional_id,
-        professionalName,
-        professionalFirstName,
-        professionalEmail,
-        professionalPhone: professionalProfile?.phone || null,
-        profession,
-        professionalLocation,
-        resumePath,
+    if (!alreadyUnlocked) {
+      after(async () => {
+        await sendMatchEmail({
+          applicationId: application.id,
+          officeId: application.office_id,
+          officeOwnerId: office.owner_id,
+          officeName: office.name || null,
+          officeCommunicationEmail: office.communication_email || null,
+          officeContactName: office.contact_name || null,
+          professionalId: application.professional_id,
+          professionalName,
+          professionalFirstName,
+          professionalEmail,
+          professionalPhone: professionalProfile?.phone || null,
+          profession,
+          professionalLocation,
+          resumePath,
+        });
       });
-    });
-  }
+    }
 
-  return NextResponse.json({
-    unlocked: true,
-    matched: true,
-    alreadyUnlocked,
-    applicationId: application.id,
-    amountCents: unlockPriceCents,
-    billingPeriod,
-    billedMonthly: true,
-    emailQueued: !alreadyUnlocked,
-    resumeAttachedWhenAvailable: Boolean(resumePath),
-  });
+    return NextResponse.json({
+      unlocked: true,
+      matched: true,
+      alreadyUnlocked,
+      applicationId: application.id,
+      amountCents: unlockPriceCents,
+      billingPeriod,
+      billedMonthly: true,
+      emailQueued: !alreadyUnlocked,
+      resumeAttachedWhenAvailable: Boolean(resumePath),
+    });
+  } catch (error) {
+    console.error("[dentaljobs-match] unexpected error", error);
+    return NextResponse.json({ error: "DentalJobs could not complete the match. Please try again." }, { status: 500 });
+  }
 }
