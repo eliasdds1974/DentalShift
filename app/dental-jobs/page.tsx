@@ -19,22 +19,37 @@ export default function DentalJobsPage() {
   useEffect(() => {
     let cancelled = false;
 
-    const storedRole = window.localStorage.getItem("dentalshift_portal_role");
-    if (storedRole === "office" || storedRole === "professional") {
-      setRole(storedRole);
-      setReady(true);
-      return () => {
-        cancelled = true;
-      };
-    }
-
     void (async () => {
       try {
+        // DentalJobs contains paid/private actions, so do not trust the saved portal
+        // role by itself. Make sure Supabase still has a live authenticated session.
+        let {
+          data: { session },
+        } = await supabase.auth.getSession();
+
+        if (!session?.access_token) {
+          const {
+            data: { session: refreshedSession },
+          } = await supabase.auth.refreshSession();
+          session = refreshedSession;
+        }
+
         const {
           data: { user },
         } = await supabase.auth.getUser();
 
-        if (!user) throw new Error("Please sign in to open DentalJobs.");
+        if (!session?.access_token || !user) {
+          throw new Error("Your session has expired. Please sign in again to continue with DentalJobs.");
+        }
+
+        const storedRole = window.localStorage.getItem("dentalshift_portal_role");
+        if (storedRole === "office" || storedRole === "professional") {
+          if (!cancelled) {
+            setRole(storedRole);
+            setRoleError("");
+          }
+          return;
+        }
 
         const details = await loadAccountDetails(user.id);
         if (cancelled) return;
@@ -53,8 +68,10 @@ export default function DentalJobsPage() {
 
         window.localStorage.setItem("dentalshift_portal_role", resolvedRole);
         setRole(resolvedRole);
+        setRoleError("");
       } catch (caught) {
         if (!cancelled) {
+          setRole(null);
           setRoleError(
             caught instanceof Error
               ? caught.message
