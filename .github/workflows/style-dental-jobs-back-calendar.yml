@@ -1,0 +1,32 @@
+name: Style dental jobs back to calendar button
+on:
+  push:
+    paths:
+      - '.github/workflows/style-dental-jobs-back-calendar.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Style Back to calendar button
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('components/WorkflowWorkspaceV2.tsx')
+          s = p.read_text()
+          old = 'className="secondary-btn w-full justify-center lg:hidden">↑ Back to calendar</button>'
+          new = 'className="w-full justify-center rounded-xl bg-[#4285F4] px-4 py-2.5 text-sm font-black text-white transition hover:bg-[#3367D6] lg:hidden">↑ Back to calendar</button>'
+          if old not in s:
+              raise SystemExit('Expected Back to calendar button not found; no changes made.')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Commit source change
+        run: |
+          git config user.name 'DentalShift Automation'
+          git config user.email 'actions@users.noreply.github.com'
+          git add components/WorkflowWorkspaceV2.tsx
+          git commit -m 'Style Back to calendar button Google blue'
+          git push
